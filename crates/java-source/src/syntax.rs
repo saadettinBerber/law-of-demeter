@@ -1,17 +1,23 @@
 use tree_sitter::{Node, Parser, Tree};
 
 use crate::error::ParseError;
-use crate::model::{Import, SourceFile};
+use crate::model::{Class, ClassKind, Import, SourceFile};
 
 pub(crate) fn read_file(path: &str, source: &str) -> Result<SourceFile, ParseError> {
     let tree = parse_tree(path, source)?;
     let root = tree.root_node();
     let reader = Reader { source };
+    let package = reader.package(root);
+    let prefix = package
+        .as_ref()
+        .map_or_else(String::new, |name| format!("{name}."));
+    let mut classes = Vec::new();
+    reader.collect_classes(root, &prefix, None, &mut classes);
     Ok(SourceFile {
         path: path.to_owned(),
-        package: reader.package(root),
+        package,
         imports: reader.imports(root),
-        classes: Vec::new(),
+        classes,
     })
 }
 
@@ -93,5 +99,62 @@ impl Reader<'_> {
             is_static: has("static"),
             is_wildcard: has("asterisk"),
         })
+    }
+}
+
+fn class_kind(node_kind: &str) -> Option<ClassKind> {
+    match node_kind {
+        "class_declaration" => Some(ClassKind::Class),
+        "interface_declaration" => Some(ClassKind::Interface),
+        "enum_declaration" => Some(ClassKind::Enum),
+        "record_declaration" => Some(ClassKind::Record),
+        "annotation_type_declaration" => Some(ClassKind::Annotation),
+        _ => None,
+    }
+}
+
+impl Reader<'_> {
+    fn collect_classes(
+        &self,
+        container: Node,
+        prefix: &str,
+        outer: Option<&str>,
+        classes: &mut Vec<Class>,
+    ) {
+        let mut cursor = container.walk();
+        for child in container.named_children(&mut cursor) {
+            if child.kind() == "enum_body_declarations" {
+                self.collect_classes(child, prefix, outer, classes);
+            } else if let Some(kind) = class_kind(child.kind()) {
+                self.collect_class(child, kind, prefix, outer, classes);
+            }
+        }
+    }
+
+    fn collect_class(
+        &self,
+        declaration: Node,
+        kind: ClassKind,
+        prefix: &str,
+        outer: Option<&str>,
+        classes: &mut Vec<Class>,
+    ) {
+        let Some(name) = declaration.child_by_field_name("name") else {
+            return;
+        };
+        let binary_name = format!("{prefix}{}", self.text(name));
+        classes.push(Class {
+            name: binary_name.clone(),
+            kind,
+            outer: outer.map(str::to_owned),
+        });
+        if let Some(body) = declaration.child_by_field_name("body") {
+            self.collect_classes(
+                body,
+                &format!("{binary_name}$"),
+                Some(&binary_name),
+                classes,
+            );
+        }
     }
 }

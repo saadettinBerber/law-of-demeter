@@ -42,4 +42,15 @@ impl Import {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Class {
     pub name: String,
+    pub kind: ClassKind,
+    pub outer: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassKind {
+    Class,
+    Interface,
+    Enum,
+    Record,
+    Annotation,
 }
