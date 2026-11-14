@@ -29,3 +29,24 @@ fn java_files_are_found_recursively_in_a_stable_order() {
         ]
     );
 }
+
+#[test]
+fn a_directory_that_cannot_be_read_is_reported_and_the_others_are_still_walked() {
+    let root = TempDir::new().expect("temp dir");
+    touch(&root, "Order.java");
+    let missing = root.path().join("missing");
+
+    let found = java_files(&[missing.clone(), root.path().to_path_buf()]);
+
+    assert_eq!(
+        (
+            found.files,
+            found
+                .errors
+                .iter()
+                .map(|error| error.path().to_path_buf())
+                .collect::<Vec<_>>()
+        ),
+        (vec![root.path().join("Order.java")], vec![missing])
+    );
+}
