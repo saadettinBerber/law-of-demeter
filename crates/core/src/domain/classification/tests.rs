@@ -725,3 +725,93 @@ fn an_interface_supertype_adds_no_behavior() {
 
     assert_eq!(classification, Classification::DataStructure);
 }
+
+#[test]
+fn a_class_with_a_superclass_missing_from_the_catalog_is_unknown_not_a_data_structure() {
+    let address = class(
+        "Address",
+        "com.example.LibraryBase",
+        vec![getter("getCity", "city")],
+    );
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::Unknown);
+}
+
+#[test]
+fn a_missing_supertype_higher_up_the_chain_makes_the_class_unknown() {
+    let types = Types::new()
+        .with_shape(class("Base", "com.example.LibraryBase", vec![]))
+        .with_shape(class("Address", "Base", vec![getter("getCity", "city")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::Unknown);
+}
+
+#[test]
+fn a_missing_interface_makes_a_class_without_behavior_unknown() {
+    let address = root("Address", vec![getter("getCity", "city")])
+        .extending(TypeRef::class("com.example.LibraryMarker"));
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::Unknown);
+}
+
+#[test]
+fn known_behavior_wins_over_a_missing_supertype() {
+    let order = class("Order", "com.example.LibraryBase", vec![behavior("charge")]);
+    let account = class(
+        "Account",
+        "com.example.LibraryBase",
+        vec![behavior("withdraw"), setter("setBalance", "balance")],
+    );
+
+    let classifications = (classify(order), classify(account));
+
+    assert_eq!(
+        classifications,
+        (Classification::Object, Classification::Hybrid)
+    );
+}
+
+#[test]
+fn supertypes_the_rule_knows_do_not_make_a_class_unknown() {
+    let supertypes = [
+        "java.lang.Object",
+        "java.io.Serializable",
+        "java.lang.Cloneable",
+        "java.lang.Comparable",
+        "java.util.Map$Entry",
+    ];
+    let dtos: Vec<String> = (0..supertypes.len()).map(|n| format!("Dto{n}")).collect();
+    let types = supertypes
+        .iter()
+        .zip(&dtos)
+        .fold(Types::new(), |types, (supertype, dto)| {
+            types.with_shape(class(dto, supertype, vec![getter("getCity", "city")]))
+        });
+
+    let classifications: Vec<_> = dtos
+        .iter()
+        .map(|dto| types.classify(&TypeRef::class(dto)))
+        .collect();
+
+    assert_eq!(
+        classifications,
+        vec![Classification::DataStructure; dtos.len()]
+    );
+}
+
+#[test]
+fn a_record_stays_a_data_structure_with_a_missing_supertype() {
+    let server = TypeShape::new("Server", TypeKind::Record)
+        .extending(TypeRef::class("java.lang.Record"))
+        .extending(TypeRef::class("com.example.LibraryMarker"));
+
+    let classification = classify(server);
+
+    assert_eq!(classification, Classification::DataStructure);
+}

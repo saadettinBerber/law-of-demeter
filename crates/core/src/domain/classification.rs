@@ -113,21 +113,21 @@ impl Types {
             })
     }
 
-    fn class_methods<'a>(&'a self, shape: &'a TypeShape) -> Vec<&'a MethodShape> {
+    fn class_members<'a>(&'a self, shape: &'a TypeShape) -> Members<'a> {
         let mut chain = vec![shape];
+        let mut complete = true;
         let mut index = 0;
         while let Some(&current) = chain.get(index) {
             index += 1;
-            let superclasses: Vec<_> = current
-                .supertypes()
-                .iter()
-                .filter_map(class_name)
-                .filter_map(|name| self.shape(name))
-                .filter(|superclass| superclass.kind() != TypeKind::Interface)
-                .collect();
-            for superclass in superclasses {
-                if !chain.iter().any(|known| known.name() == superclass.name()) {
-                    chain.push(superclass);
+            for name in current.supertypes().iter().filter_map(class_name) {
+                match self.shape(name) {
+                    Some(superclass) if superclass.kind() == TypeKind::Interface => {}
+                    Some(superclass) => {
+                        if !chain.iter().any(|known| known.name() == superclass.name()) {
+                            chain.push(superclass);
+                        }
+                    }
+                    None => complete &= jdk::is_known_supertype(name),
                 }
             }
         }
@@ -146,19 +146,21 @@ impl Types {
             );
             hidden.extend(declared.iter().map(|method| signature(method)));
         }
-        methods
+        Members { methods, complete }
     }
 
     fn classify_class(&self, shape: &TypeShape) -> Classification {
-        let methods = self.class_methods(shape);
-        let has_setter = methods.iter().any(|method| is_setter(method));
-        let has_behavior = methods
+        let members = self.class_members(shape);
+        let has_setter = members.methods.iter().any(|method| is_setter(method));
+        let has_behavior = members
+            .methods
             .iter()
             .any(|method| !is_getter(method) && !is_setter(method));
-        match (has_behavior, has_setter) {
-            (true, true) => Classification::Hybrid,
-            (true, false) => Classification::Object,
-            (false, _) => Classification::DataStructure,
+        match (has_behavior, has_setter, members.complete) {
+            (true, true, _) => Classification::Hybrid,
+            (true, false, _) => Classification::Object,
+            (false, _, true) => Classification::DataStructure,
+            (false, _, false) => Classification::Unknown,
         }
     }
 
@@ -174,6 +176,11 @@ impl Types {
                 )
             })
     }
+}
+
+struct Members<'a> {
+    methods: Vec<&'a MethodShape>,
+    complete: bool,
 }
 
 pub fn element_type(type_ref: &TypeRef) -> Option<&TypeRef> {

@@ -71,6 +71,19 @@ const DATA_STRUCTURES: [&str; 3] = [
     "java.util.AbstractMap$SimpleImmutableEntry",
 ];
 
+const BEHAVIORLESS_SUPERTYPES: [&str; 6] = [
+    "java.lang.Object",
+    "java.lang.Record",
+    "java.lang.Enum",
+    "java.io.Serializable",
+    "java.lang.Cloneable",
+    "java.lang.Comparable",
+];
+
+pub(super) fn is_known_supertype(name: &str) -> bool {
+    BEHAVIORLESS_SUPERTYPES.contains(&name) || classify(name).is_some()
+}
+
 pub(super) fn classify(name: &str) -> Option<Classification> {
     if DATA_STRUCTURES.contains(&name) {
         Some(Classification::DataStructure)
