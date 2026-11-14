@@ -1,3 +1,3 @@
 mod method;
 
-pub use method::{Call, Expression, Method, Violation};
+pub use method::{Call, Expression, Method, Reason, Verdict};

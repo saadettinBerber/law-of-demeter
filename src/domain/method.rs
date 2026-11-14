@@ -34,27 +34,69 @@ impl Call {
         Self::new(Expression::ReturnOf(Box::new(self)), name)
     }
 
-    fn violations(&self) -> Vec<Violation> {
-        match &self.receiver {
-            Expression::ReturnOf(previous) => {
-                let mut violations = previous.violations();
-                violations.push(Violation::calling(&self.name));
-                violations
-            }
+    fn verdicts(&self) -> Vec<Verdict> {
+        let mut verdicts = match &self.receiver {
+            Expression::ReturnOf(previous) => previous.verdicts(),
             Expression::This | Expression::Field(_) | Expression::Parameter(_) => Vec::new(),
+        };
+        verdicts.push(self.verdict());
+        verdicts
+    }
+
+    fn verdict(&self) -> Verdict {
+        match &self.receiver {
+            Expression::This => Verdict::allowed(&self.name, Reason::This),
+            Expression::Field(field) => Verdict::allowed(&self.name, Reason::field(field)),
+            Expression::Parameter(parameter) => {
+                Verdict::allowed(&self.name, Reason::parameter(parameter))
+            }
+            Expression::ReturnOf(previous) => {
+                Verdict::violation(&self.name, Reason::return_of(&previous.name))
+            }
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Violation {
-    call: String,
+pub enum Reason {
+    This,
+    Field(String),
+    Parameter(String),
+    ReturnOf(String),
 }
 
-impl Violation {
-    pub fn calling(name: &str) -> Self {
-        Self {
-            call: name.to_owned(),
+impl Reason {
+    pub fn field(name: &str) -> Self {
+        Self::Field(name.to_owned())
+    }
+
+    pub fn parameter(name: &str) -> Self {
+        Self::Parameter(name.to_owned())
+    }
+
+    pub fn return_of(call: &str) -> Self {
+        Self::ReturnOf(call.to_owned())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Verdict {
+    Allowed { call: String, reason: Reason },
+    Violation { call: String, reason: Reason },
+}
+
+impl Verdict {
+    pub fn allowed(call: &str, reason: Reason) -> Self {
+        Self::Allowed {
+            call: call.to_owned(),
+            reason,
+        }
+    }
+
+    pub fn violation(call: &str, reason: Reason) -> Self {
+        Self::Violation {
+            call: call.to_owned(),
+            reason,
         }
     }
 }
@@ -74,8 +116,8 @@ impl Method {
         self
     }
 
-    pub fn violations(&self) -> Vec<Violation> {
-        self.calls.iter().flat_map(Call::violations).collect()
+    pub fn verdicts(&self) -> Vec<Verdict> {
+        self.calls.iter().flat_map(Call::verdicts).collect()
     }
 }
 
