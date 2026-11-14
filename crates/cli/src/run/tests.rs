@@ -7,7 +7,7 @@ use law_of_demeter_core::domain::method::{Call, Expression, Method};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 use tempfile::TempDir;
 
-use super::{CLEAN, Environment, FAILURE, run};
+use super::{CLEAN, Environment, FAILURE, VIOLATIONS, run};
 use crate::arguments::usage;
 use crate::source_files::{Declarations, Mapper};
 
@@ -112,6 +112,15 @@ fn clean_method() -> Method {
     Method::new("app.Shipping", "total", 3).call(Call::new(order(), "total", 4))
 }
 
+fn violating_method() -> Method {
+    Method::new("app.Shipping", "discount", 3)
+        .for_each(
+            "line",
+            Expression::return_of(Call::new(order(), "getLines", 4)),
+        )
+        .call(Call::new(Expression::local("line"), "applyDiscount", 5))
+}
+
 fn mapper_by_text(
     path: &Path,
     text: &str,
@@ -119,6 +128,10 @@ fn mapper_by_text(
 ) -> Result<Declarations, ReadError> {
     match text {
         "broken" => Err(ReadError::at_line(path, 1, "beklenmeyen simge")),
+        "violation" => Ok(Declarations {
+            classes: Vec::new(),
+            methods: vec![violating_method()],
+        }),
         _ => Ok(Declarations {
             classes: Vec::new(),
             methods: vec![clean_method()],
@@ -188,5 +201,21 @@ fn a_project_without_violations_reports_so_and_succeeds() {
             outcome.err
         ),
         (CLEAN, true, String::new())
+    );
+}
+
+#[test]
+fn a_violation_is_listed_and_fails_with_exit_code_one() {
+    let root = project(&[("Shipping.java", "violation")]);
+    let file = root.path().join("Shipping.java");
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert_eq!(
+        (outcome.code, outcome.out.contains(&format!(
+            "İhlaller (1):\n{}:5  app.Shipping.discount  applyDiscount()  İhlal: line döngü değişkeni: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil\n",
+            file.display()
+        ))),
+        (VIOLATIONS, true)
     );
 }
