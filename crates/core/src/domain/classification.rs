@@ -243,7 +243,7 @@ impl Types {
             let declared: Vec<_> = class
                 .methods()
                 .iter()
-                .filter(|method| is_exposed(method))
+                .filter(|method| is_exposed(method) && !is_to_builder(class, method))
                 .collect();
             methods.extend(
                 declared
@@ -405,6 +405,15 @@ fn is_exposed(method: &MethodShape) -> bool {
         ("equals", 1) | ("hashCode" | "toString", 0)
     );
     method.is_public() && !method.is_static() && !is_object_method && method.name() != "<init>"
+}
+
+fn is_to_builder(class: &TypeShape, method: &MethodShape) -> bool {
+    method.name() == "toBuilder"
+        && method.parameters().is_empty()
+        && method
+            .returns()
+            .and_then(class_name)
+            .is_some_and(|name| name.starts_with(&format!("{}$", class.name())))
 }
 
 fn signature(method: &MethodShape) -> (&str, usize) {

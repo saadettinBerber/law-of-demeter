@@ -1889,3 +1889,90 @@ fn a_record_with_behavior_stays_a_data_structure() {
 
     assert_eq!(classification, Classification::DataStructure);
 }
+
+fn to_builder(builder: &str) -> MethodShape {
+    MethodShape::new("toBuilder").returning(TypeRef::class(builder))
+}
+
+#[test]
+fn a_to_builder_returning_the_own_nested_builder_is_not_behavior() {
+    let order = TypeShape::new("Order", TypeKind::Class)
+        .with_method(getter("getId", "id"))
+        .with_method(to_builder("Order$OrderBuilder"));
+
+    let classification = classify(order);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_to_builder_does_not_turn_a_dto_with_setters_into_a_hybrid() {
+    let order = TypeShape::new("Order", TypeKind::Class)
+        .with_method(getter("getId", "id"))
+        .with_method(setter("setId", "id"))
+        .with_method(to_builder("Order$OrderBuilder"));
+
+    let classification = classify(order);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_to_builder_of_another_class_or_with_parameters_is_behavior() {
+    let foreign =
+        TypeShape::new("Order", TypeKind::Class).with_method(to_builder("Customer$Builder"));
+    let with_parameter = TypeShape::new("Order", TypeKind::Class)
+        .with_method(to_builder("Order$OrderBuilder").with_parameters(vec![int()]));
+    let prefix_only =
+        TypeShape::new("Order", TypeKind::Class).with_method(to_builder("OrderLine$Builder"));
+
+    let classifications = (
+        classify(foreign),
+        classify(with_parameter),
+        classify(prefix_only),
+    );
+
+    assert_eq!(
+        classifications,
+        (
+            Classification::Object,
+            Classification::Object,
+            Classification::Object
+        )
+    );
+}
+
+#[test]
+fn a_to_builder_inherited_from_the_class_that_declares_the_builder_is_not_behavior() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Base", TypeKind::Class)
+                .with_superclass(TypeRef::class("java.lang.Object"))
+                .with_method(to_builder("Base$BaseBuilder")),
+        )
+        .with_shape(class("Address", "Base", vec![getter("getCity", "city")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_hybrid_finding_leaves_out_a_to_builder() {
+    let account = TypeShape::new("Account", TypeKind::Class)
+        .with_method(setter("setBalance", "balance"))
+        .with_method(behavior("withdraw"))
+        .with_method(to_builder("Account$AccountBuilder"));
+    let types = Types::new().with_shape(account);
+
+    let hybrid = types.hybrid_class("Account");
+
+    assert_eq!(
+        hybrid,
+        Some(HybridClass::new(
+            "Account",
+            vec!["withdraw".to_owned()],
+            vec!["setBalance".to_owned()]
+        ))
+    );
+}
