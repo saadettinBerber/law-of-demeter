@@ -251,3 +251,35 @@ fn objects_from_factories_and_new_are_friends() {
         ]
     );
 }
+
+#[test]
+fn talking_to_the_object_a_repository_query_returned_is_allowed() {
+    let types = Types::new()
+        .with_shape(
+            class("OrderRepository").with_method(
+                MethodShape::new("findById")
+                    .with_parameters(vec![TypeRef::class("OrderId")])
+                    .returning(TypeRef::class("Order")),
+            ),
+        )
+        .with_shape(class("Order").with_method(MethodShape::new("ship")));
+    let dispatch = Method::new("Dispatcher", "dispatch", 1).call(
+        Call::new(
+            Expression::field("orders", TypeRef::class("OrderRepository")),
+            "findById",
+            2,
+        )
+        .with(Expression::parameter("id", TypeRef::class("OrderId")))
+        .then("ship", 2),
+    );
+
+    let verdicts = dispatch.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("findById", 2, Reason::field("orders")),
+            Verdict::allowed("ship", 2, Reason::query_result("findById")),
+        ]
+    );
+}

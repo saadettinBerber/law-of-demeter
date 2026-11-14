@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use super::classification::{Classification, Types, element_type, is_factory_method};
+use super::classification::{
+    Classification, Types, element_type, is_factory_method, is_repository_query,
+};
 use super::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -280,6 +282,8 @@ impl Call {
             Standing::Friend(Reason::static_result(&self.name))
         } else if is_factory_method(&self.name) && matches!(receiver, Standing::Friend(_)) {
             Standing::Friend(Reason::factory_result(&self.name))
+        } else if is_repository_query(&self.name) && receiver.is_held() {
+            Standing::Friend(Reason::query_result(&self.name))
         } else {
             Standing::Stranger(Reason::return_of(&self.name))
         }
@@ -312,6 +316,10 @@ enum Standing {
 }
 
 impl Standing {
+    fn is_held(&self) -> bool {
+        matches!(self, Self::Friend(reason) if reason.is_held())
+    }
+
     fn through(self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
         match self {
             Self::Friend(reason) => Self::Friend(wrap(reason)),
@@ -408,6 +416,7 @@ pub enum Reason {
     UnassignedLocal(String),
     StaticResult(String),
     FactoryResult(String),
+    QueryResult(String),
     Fluent(TypeRef),
     ContainerMutation {
         type_ref: TypeRef,
@@ -434,6 +443,14 @@ pub enum Reason {
 }
 
 impl Reason {
+    fn is_held(&self) -> bool {
+        match self {
+            Self::Field(_) | Self::Parameter(_) => true,
+            Self::Local { origin, .. } => origin.is_held(),
+            _ => false,
+        }
+    }
+
     pub fn field(name: &str) -> Self {
         Self::Field(name.to_owned())
     }
@@ -473,6 +490,10 @@ impl Reason {
 
     pub fn factory_result(call: &str) -> Self {
         Self::FactoryResult(call.to_owned())
+    }
+
+    pub fn query_result(call: &str) -> Self {
+        Self::QueryResult(call.to_owned())
     }
 
     pub fn container_mutation(type_ref: TypeRef, source: Reason) -> Self {
