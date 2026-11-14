@@ -134,6 +134,10 @@ pub enum Expression {
         name: String,
     },
     Type(TypeName),
+    StaticImport {
+        owner: TypeName,
+        name: String,
+    },
     Unresolved(String),
     FieldAccess {
         target: Box<Expression>,
@@ -158,9 +162,18 @@ pub enum Expression {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     pub receiver: Option<Box<Expression>>,
+    pub implicit_target: Option<ImplicitTarget>,
     pub name: String,
     pub arguments: Vec<Expression>,
     pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ImplicitTarget {
+    OwnMethod,
+    OuterMethod { owner: String },
+    StaticImport { owner: TypeName },
+    OnDemandStaticImport { candidates: Vec<TypeName> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -11,7 +11,7 @@ mod tree;
 
 pub use error::ParseError;
 pub use model::{
-    Call, Catch, Class, ClassKind, DeclaredType, Expression, Field, Import, Lambda,
+    Call, Catch, Class, ClassKind, DeclaredType, Expression, Field, ImplicitTarget, Import, Lambda,
     LambdaParameter, LocalVariable, Method, New, Parameter, SourceFile, Statement, Switch,
     SwitchBranch, TypeName,
 };

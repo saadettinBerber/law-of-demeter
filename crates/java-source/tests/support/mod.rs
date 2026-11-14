@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use law_of_demeter_java_source::{
-    Call, DeclaredType, Expression, Method, New, Statement, TypeName, parse_with,
+    Call, DeclaredType, Expression, ImplicitTarget, Method, New, Statement, TypeName, parse_with,
 };
 
 pub const KNOWN_TYPES: &[&str] = &[
@@ -81,6 +81,7 @@ pub fn call(
 ) -> Expression {
     Expression::Call(Call {
         receiver: Some(Box::new(receiver)),
+        implicit_target: None,
         name: name.to_owned(),
         arguments,
         line,
@@ -90,6 +91,7 @@ pub fn call(
 pub fn own_call(name: &str, arguments: Vec<Expression>, line: usize) -> Expression {
     Expression::Call(Call {
         receiver: None,
+        implicit_target: Some(ImplicitTarget::OwnMethod),
         name: name.to_owned(),
         arguments,
         line,

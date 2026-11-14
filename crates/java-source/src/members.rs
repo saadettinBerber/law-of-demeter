@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use tree_sitter::Node;
 
 use crate::model::{ClassKind, DeclaredType, Field, Method, Parameter, Statement};
@@ -37,6 +39,18 @@ impl Reader<'_> {
                 "compact_constructor_declaration" => self.compact_constructor(member, declaration),
                 _ => None,
             })
+            .collect()
+    }
+
+    pub(crate) fn method_names(&self, declaration: &Declaration) -> HashSet<String> {
+        let Some(body) = declaration.node.child_by_field_name("body") else {
+            return HashSet::new();
+        };
+        members(body)
+            .into_iter()
+            .filter(|member| member.kind() == "method_declaration")
+            .filter_map(|member| member.child_by_field_name("name"))
+            .map(|name| self.text.of(name).to_owned())
             .collect()
     }
 

@@ -33,6 +33,7 @@ pub(crate) fn read_file(
         text,
         resolver,
         field_names: HashMap::new(),
+        method_names: HashMap::new(),
     };
     let fields: Vec<Vec<Field>> = declarations
         .iter()
@@ -47,6 +48,10 @@ pub(crate) fn read_file(
                 fields.iter().map(|field| field.name.clone()).collect(),
             )
         })
+        .collect();
+    reader.method_names = declarations
+        .iter()
+        .map(|declaration| (declaration.name.clone(), reader.method_names(declaration)))
         .collect();
     let classes = declarations
         .iter()
@@ -193,6 +198,7 @@ pub(crate) struct Reader<'a> {
     pub(crate) text: Text<'a>,
     pub(crate) resolver: TypeResolver<'a>,
     pub(crate) field_names: HashMap<String, HashSet<String>>,
+    pub(crate) method_names: HashMap<String, HashSet<String>>,
 }
 
 impl Reader<'_> {

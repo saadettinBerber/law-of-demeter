@@ -6,6 +6,8 @@ pub(crate) struct TypeResolver<'a> {
     package: Option<String>,
     single_imports: Vec<String>,
     on_demand_prefixes: Vec<String>,
+    static_members: Vec<(String, String)>,
+    static_on_demand_owners: Vec<String>,
     declared: HashSet<String>,
     type_exists: &'a dyn Fn(&str) -> bool,
 }
@@ -18,6 +20,7 @@ impl<'a> TypeResolver<'a> {
         type_exists: &'a dyn Fn(&str) -> bool,
     ) -> Self {
         let plain_imports = imports.iter().filter(|import| !import.is_static);
+        let static_imports = imports.iter().filter(|import| import.is_static);
         Self {
             package: package.map(str::to_owned),
             single_imports: plain_imports
@@ -28,6 +31,18 @@ impl<'a> TypeResolver<'a> {
             on_demand_prefixes: plain_imports
                 .filter(|import| import.is_wildcard)
                 .map(|import| on_demand_prefix(&import.name))
+                .collect(),
+            static_members: static_imports
+                .clone()
+                .filter(|import| !import.is_wildcard)
+                .filter_map(|import| {
+                    let (owner, member) = import.name.rsplit_once('.')?;
+                    Some((member.to_owned(), qualified_binary_name(owner)?))
+                })
+                .collect(),
+            static_on_demand_owners: static_imports
+                .filter(|import| import.is_wildcard)
+                .filter_map(|import| qualified_binary_name(&import.name))
                 .collect(),
             declared,
             type_exists,
@@ -93,6 +108,17 @@ impl<'a> TypeResolver<'a> {
 
     pub(crate) fn known(&self, candidate: &str) -> Option<String> {
         (self.type_exists)(candidate).then(|| candidate.to_owned())
+    }
+
+    pub(crate) fn static_import_owner(&self, member: &str) -> Option<&str> {
+        self.static_members
+            .iter()
+            .find(|(imported, _)| imported == member)
+            .map(|(_, owner)| owner.as_str())
+    }
+
+    pub(crate) fn static_on_demand_owners(&self) -> &[String] {
+        &self.static_on_demand_owners
     }
 
     pub(crate) fn qualified_by_catalog(&self, name: &str) -> Option<String> {

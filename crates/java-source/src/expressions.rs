@@ -1,8 +1,10 @@
+use std::collections::{HashMap, HashSet};
+
 use tree_sitter::Node;
 
 use crate::model::{
-    Call, DeclaredType, Expression, Lambda, LambdaParameter, New, Statement, Switch, SwitchBranch,
-    TypeName,
+    Call, DeclaredType, Expression, ImplicitTarget, Lambda, LambdaParameter, New, Statement,
+    Switch, SwitchBranch, TypeName,
 };
 use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
@@ -54,6 +56,12 @@ impl Reader<'_> {
                 }
             };
         }
+        if let Some(owner) = self.resolver.static_import_owner(name) {
+            return Expression::StaticImport {
+                owner: TypeName::Resolved(owner.to_owned()),
+                name: name.to_owned(),
+            };
+        }
         match self.resolver.resolve_simple(name, &scope.class) {
             Some(binary_name) => Expression::Type(TypeName::Resolved(binary_name)),
             None => Expression::Unresolved(name.to_owned()),
@@ -61,16 +69,30 @@ impl Reader<'_> {
     }
 
     fn owner_of_field(&self, name: &str, class: &str) -> Option<String> {
-        let mut owner = class;
-        loop {
-            if self
-                .field_names
-                .get(owner)
-                .is_some_and(|names| names.contains(name))
-            {
-                return Some(owner.to_owned());
-            }
-            owner = owner.rsplit_once('$')?.0;
+        declaring_class(&self.field_names, name, class)
+    }
+
+    fn implicit_target(&self, name: &str, scope: &Scope) -> ImplicitTarget {
+        match declaring_class(&self.method_names, name, &scope.class) {
+            Some(owner) if owner == scope.class => return ImplicitTarget::OwnMethod,
+            Some(owner) => return ImplicitTarget::OuterMethod { owner },
+            None => {}
+        }
+        if let Some(owner) = self.resolver.static_import_owner(name) {
+            return ImplicitTarget::StaticImport {
+                owner: TypeName::Resolved(owner.to_owned()),
+            };
+        }
+        let candidates: Vec<TypeName> = self
+            .resolver
+            .static_on_demand_owners()
+            .iter()
+            .map(|owner| TypeName::Resolved(owner.clone()))
+            .collect();
+        if candidates.is_empty() {
+            ImplicitTarget::OwnMethod
+        } else {
+            ImplicitTarget::OnDemandStaticImport { candidates }
         }
     }
 
@@ -139,12 +161,16 @@ impl Reader<'_> {
         let receiver = node
             .child_by_field_name("object")
             .map(|object| Box::new(self.expression(object, scope)));
+        let implicit_target = receiver
+            .is_none()
+            .then(|| self.implicit_target(self.text.of(name), scope));
         let arguments = node
             .child_by_field_name("arguments")
             .map(|arguments| self.operands(arguments, scope))
             .unwrap_or_default();
         Expression::Call(Call {
             receiver,
+            implicit_target,
             name: self.text.of(name).to_owned(),
             arguments,
             line: line_of(name),
@@ -317,6 +343,23 @@ impl Reader<'_> {
             .collect();
         scope.close_frame();
         SwitchBranch { guard, body }
+    }
+}
+
+fn declaring_class(
+    declared: &HashMap<String, HashSet<String>>,
+    name: &str,
+    class: &str,
+) -> Option<String> {
+    let mut owner = class;
+    loop {
+        if declared
+            .get(owner)
+            .is_some_and(|names| names.contains(name))
+        {
+            return Some(owner.to_owned());
+        }
+        owner = owner.rsplit_once('$')?.0;
     }
 }
 
