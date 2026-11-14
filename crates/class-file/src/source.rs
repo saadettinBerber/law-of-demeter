@@ -8,14 +8,30 @@ use zip::ZipArchive;
 use crate::shape::{self, Scope};
 use crate::{Error, Reading};
 
-pub(crate) fn read_into(path: &Path, reading: &mut Reading) {
+pub(crate) enum Unit {
+    ClassFile(PathBuf),
+    Jar(PathBuf),
+    Failure(Error),
+}
+
+pub(crate) fn discover(path: &Path, units: &mut Vec<Unit>) {
     if path.is_dir() {
-        read_directory(path, reading);
+        discover_directory(path, units);
     } else if has_extension(path, "jar") {
-        read_jar(path, reading);
+        units.push(Unit::Jar(path.to_path_buf()));
     } else {
-        reading.record(read_class_file(path));
+        units.push(Unit::ClassFile(path.to_path_buf()));
     }
+}
+
+pub(crate) fn read_unit(unit: &Unit) -> Reading {
+    let mut reading = Reading::default();
+    match unit {
+        Unit::ClassFile(path) => reading.record(read_class_file(path)),
+        Unit::Jar(path) => read_jar(path, &mut reading),
+        Unit::Failure(error) => reading.errors.push(error.clone()),
+    }
+    reading
 }
 
 pub(crate) fn is_module_descriptor(name: &str) -> bool {
@@ -27,16 +43,16 @@ fn has_extension(path: &Path, extension: &str) -> bool {
     path.extension().is_some_and(|actual| actual == extension)
 }
 
-fn read_directory(directory: &Path, reading: &mut Reading) {
+fn discover_directory(directory: &Path, units: &mut Vec<Unit>) {
     let paths = match sorted_entries(directory) {
         Ok(paths) => paths,
-        Err(error) => return reading.errors.push(error),
+        Err(error) => return units.push(Unit::Failure(error)),
     };
     for path in paths {
         if path.is_dir() {
-            read_directory(&path, reading);
+            discover_directory(&path, units);
         } else if has_extension(&path, "class") && !is_module_descriptor(&path.to_string_lossy()) {
-            reading.record(read_class_file(&path));
+            units.push(Unit::ClassFile(path));
         }
     }
 }

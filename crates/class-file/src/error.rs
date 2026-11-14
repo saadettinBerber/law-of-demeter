@@ -1,7 +1,7 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error {
     path: PathBuf,
     message: String,

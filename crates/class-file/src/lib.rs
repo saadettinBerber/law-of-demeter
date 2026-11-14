@@ -1,6 +1,7 @@
 mod accessor;
 mod error;
 mod jdk;
+mod parallel;
 mod shape;
 mod signature;
 mod source;
@@ -28,9 +29,14 @@ impl Reading {
 }
 
 pub fn read_types_lenient<P: AsRef<Path>>(paths: &[P]) -> Reading {
-    let mut reading = Reading::default();
+    let mut units = Vec::new();
     for path in paths {
-        source::read_into(path.as_ref(), &mut reading);
+        source::discover(path.as_ref(), &mut units);
+    }
+    let mut reading = Reading::default();
+    for part in parallel::map(&units, source::read_unit) {
+        reading.shapes.extend(part.shapes);
+        reading.errors.extend(part.errors);
     }
     reading
         .shapes

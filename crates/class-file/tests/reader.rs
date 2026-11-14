@@ -845,3 +845,109 @@ fn the_superclass_stays_first_among_the_supertypes() {
         ]
     );
 }
+
+fn legacy_and_current_box() -> (Vec<u8>, Vec<u8>) {
+    let ct_sym = fs::File::open(fixtures().join("jdk/lib/ct.sym")).unwrap();
+    let mut archive = zip::ZipArchive::new(ct_sym).unwrap();
+    let mut read = |name: &str| {
+        let mut bytes = Vec::new();
+        std::io::Read::read_to_end(&mut archive.by_name(name).unwrap(), &mut bytes).unwrap();
+        bytes
+    };
+    (
+        read("8/sample.base/sample/util/Box.sig"),
+        read("9AB/sample.base/sample/util/Box.sig"),
+    )
+}
+
+#[test]
+fn errors_of_a_directory_tree_come_in_sorted_path_order() {
+    let root = scratch_directory("ordered-tree");
+    let mut broken = Vec::new();
+    for directory in ["c/y", "a/z", "b/x", "a/y", "b/w"] {
+        fs::create_dir_all(root.join(directory)).unwrap();
+        for index in 0..12 {
+            let path = root.join(directory).join(format!("Broken{index:02}.class"));
+            fs::write(&path, b"not a class").unwrap();
+            broken.push(path);
+            fs::write(
+                root.join(directory).join(format!("Good{index:02}.class")),
+                customer_class(),
+            )
+            .unwrap();
+        }
+    }
+    broken.sort();
+
+    let reading = read_types_lenient(&[&root]);
+
+    assert_eq!(reading.shapes.len(), 60);
+    assert_eq!(error_paths(&reading), broken);
+}
+
+#[test]
+fn errors_follow_the_order_of_the_inputs_and_of_the_entries_inside_a_jar() {
+    let directory = scratch_directory("ordered-inputs");
+    let entries: Vec<String> = (0..40)
+        .map(|index| format!("app/Bad{index:02}.class"))
+        .collect();
+    let jar_entries: Vec<(&str, &[u8])> = entries
+        .iter()
+        .map(|entry| (entry.as_str(), b"not a class".as_slice()))
+        .collect();
+    let first_jar = directory.join("first.jar");
+    let second_jar = directory.join("second.jar");
+    write_jar(&first_jar, &jar_entries);
+    write_jar(&second_jar, &jar_entries);
+    let missing = directory.join("missing");
+    let classes = directory.join("classes");
+    fs::create_dir_all(&classes).unwrap();
+    fs::write(classes.join("Broken.class"), b"not a class").unwrap();
+
+    let reading = read_types_lenient(&[&second_jar, &missing, &classes, &first_jar]);
+
+    let mut expected: Vec<(PathBuf, Option<&str>)> = Vec::new();
+    expected.extend(
+        entries
+            .iter()
+            .map(|entry| (second_jar.clone(), Some(entry.as_str()))),
+    );
+    expected.push((missing, None));
+    expected.push((classes.join("Broken.class"), None));
+    expected.extend(
+        entries
+            .iter()
+            .map(|entry| (first_jar.clone(), Some(entry.as_str()))),
+    );
+    assert_eq!(reading.errors.len(), expected.len());
+    for (error, (path, entry)) in reading.errors.iter().zip(&expected) {
+        assert_eq!(error.path(), path);
+        if let Some(entry) = entry {
+            assert!(error.to_string().contains(entry), "{error} lacks {entry}");
+        }
+    }
+}
+
+#[test]
+fn equal_type_names_keep_the_order_of_the_inputs() {
+    let directory = scratch_directory("same-name-inputs");
+    let (legacy, current) = legacy_and_current_box();
+    let jars: Vec<PathBuf> = (0..40)
+        .map(|index| {
+            let jar = directory.join(format!("box{index:02}.jar"));
+            let class = if index % 2 == 0 { &current } else { &legacy };
+            write_jar(&jar, &[("sample/util/Box.class", class)]);
+            jar
+        })
+        .collect();
+
+    let reading = read_types_lenient(&jars);
+
+    let method_counts: Vec<usize> = reading
+        .shapes
+        .iter()
+        .map(|shape| shape.methods().len())
+        .collect();
+    let expected: Vec<usize> = (0..40).map(|index| 2 - index % 2).collect();
+    assert_eq!(method_counts, expected);
+}
