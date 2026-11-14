@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::type_shape::{TypeKind, TypeRef, TypeShape};
+use super::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Classification {
@@ -42,9 +42,31 @@ impl Types {
 
 fn classify_shape(shape: &TypeShape) -> Classification {
     match shape.kind() {
-        TypeKind::Record | TypeKind::Class => Classification::DataStructure,
+        TypeKind::Record => Classification::DataStructure,
+        TypeKind::Class => classify_class(shape),
         TypeKind::Enum | TypeKind::Interface => Classification::Unknown,
     }
+}
+
+fn classify_class(shape: &TypeShape) -> Classification {
+    let has_setter = shape.methods().iter().any(is_setter);
+    let has_behavior = shape
+        .methods()
+        .iter()
+        .any(|method| !is_getter(method) && !is_setter(method));
+    match (has_behavior, has_setter) {
+        (true, true) => Classification::Hybrid,
+        (true, false) => Classification::Object,
+        (false, _) => Classification::DataStructure,
+    }
+}
+
+fn is_getter(method: &MethodShape) -> bool {
+    method.reads_field().is_some() && method.parameters().is_empty()
+}
+
+fn is_setter(method: &MethodShape) -> bool {
+    method.writes_field().is_some() && method.parameters().len() == 1
 }
 
 #[cfg(test)]
