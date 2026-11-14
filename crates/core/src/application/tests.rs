@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::path::Path;
 
 use super::{
-    CheckProject, Finding, HybridFinding, ReadError, SourceFile, SourceReader, TypeReading,
+    CheckProject, Counts, Finding, HybridFinding, ReadError, SourceFile, SourceReader, TypeReading,
     TypeSource,
 };
 use crate::domain::classification::Types;
@@ -178,5 +178,54 @@ fn read_errors_are_reported_and_the_other_files_are_still_judged() {
             [ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")].as_slice(),
             2
         )
+    );
+}
+
+#[test]
+fn the_counts_separate_real_violations_from_unresolved_types() {
+    let sources = FakeSources(vec![
+        Ok(SourceFile::new(
+            Path::new("src/OrderService.java"),
+            vec!["OrderService".to_owned()],
+            vec![pay_method()],
+        )),
+        Ok(SourceFile::new(
+            Path::new("src/Account.java"),
+            vec!["Account".to_owned()],
+            vec![
+                Method::new("Reports", "report", 5).call(
+                    Call::new(
+                        Expression::parameter("order", TypeRef::class("Order")),
+                        "getAddress",
+                        6,
+                    )
+                    .then("getCity", 6),
+                ),
+            ],
+        )),
+        Err(ReadError::at_line(Path::new("src/Broken.java"), 3, "hata")),
+    ]);
+    let mut shapes = shop_types().shapes;
+    shapes.push(account_shape());
+    let types = FakeTypes {
+        shapes,
+        errors: vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+    };
+
+    let counts = CheckProject::new(&sources, &types).execute().counts();
+
+    assert_eq!(
+        counts,
+        Counts {
+            files: 2,
+            methods: 2,
+            calls: 4,
+            allowed: 2,
+            violations: 1,
+            unresolved: 1,
+            hybrid_classes: 1,
+            source_errors: 1,
+            type_errors: 1,
+        }
     );
 }

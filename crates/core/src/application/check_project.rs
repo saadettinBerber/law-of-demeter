@@ -31,6 +31,8 @@ impl<'a> CheckProject<'a> {
 }
 
 fn judge(file: &SourceFile, catalog: &Types, report: &mut Report) {
+    report.files += 1;
+    report.methods += file.methods().len();
     for class in file.classes() {
         if let Some(hybrid) = catalog.hybrid_class(class) {
             report

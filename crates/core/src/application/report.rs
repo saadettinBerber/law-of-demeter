@@ -50,6 +50,14 @@ impl Finding {
         }
     }
 
+    pub fn is_violation(&self) -> bool {
+        matches!(self.verdict, Verdict::Violation { .. })
+    }
+
+    pub fn is_unresolved(&self) -> bool {
+        self.is_violation() && matches!(self.reason(), Reason::UnresolvedType { .. })
+    }
+
     pub fn reason(&self) -> &Reason {
         match &self.verdict {
             Verdict::Allowed { reason, .. } | Verdict::Violation { reason, .. } => reason,
@@ -104,6 +112,22 @@ pub struct Report {
 }
 
 impl Report {
+    pub fn counts(&self) -> Counts {
+        let unresolved = self.findings.iter().filter(|f| f.is_unresolved()).count();
+        let violations = self.findings.iter().filter(|f| f.is_violation()).count();
+        Counts {
+            files: self.files,
+            methods: self.methods,
+            calls: self.findings.len(),
+            allowed: self.findings.len() - violations,
+            violations: violations - unresolved,
+            unresolved,
+            hybrid_classes: self.hybrid_classes.len(),
+            source_errors: self.source_errors.len(),
+            type_errors: self.type_errors.len(),
+        }
+    }
+
     pub fn findings(&self) -> &[Finding] {
         &self.findings
     }
