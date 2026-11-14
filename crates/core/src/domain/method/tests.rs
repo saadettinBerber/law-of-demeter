@@ -54,3 +54,22 @@ fn passing_a_returned_object_as_an_argument_is_allowed() {
         ]
     );
 }
+
+#[test]
+fn calling_a_setter_on_a_returned_object_is_a_violation() {
+    let move_customer = Method::new().call(
+        Call::new(Expression::parameter("order"), "getCustomer")
+            .then("setAddress")
+            .with(Expression::parameter("address")),
+    );
+
+    let verdicts = move_customer.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", Reason::parameter("order")),
+            Verdict::violation("setAddress", Reason::return_of("getCustomer")),
+        ]
+    );
+}
