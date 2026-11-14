@@ -133,7 +133,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 | Katman | Sorumluluk |
 |---|---|
-| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit ya da değer olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Dosya okumaz, Java ayrıştırmaz. |
+| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit ya da değer olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz, Java ayrıştırmaz. |
 | **Application** | "Projeyi denetle" kullanım senaryosu. Domain kurallarını yürütür; dışarıdan istediklerini port'larla ister. |
 | **Adapter** | Port'ları gerçek teknolojiye bağlar: komut satırı, Java ayrıştırıcı, `.class` okuyucu ve rapor. |
 
@@ -142,7 +142,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 | Denetim isteği | Denetlenecek kaynaklar ve derlenmiş sınıflar | CLI |
 | Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin nereden geldiği: parametre, alan, `new` ya da başka bir çağrının dönüşü | Java ayrıştırıcı |
 | Tip kataloğu | Bir tipin alanları ve metotları; Lombok'un ürettikleri dahil | `.class` okuyucu |
-| Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural | Metin raporu |
+| Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural. Kullanıcı isterse uygun çağrılar da uydukları kuralla birlikte. | Metin raporu |
 
 Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
 

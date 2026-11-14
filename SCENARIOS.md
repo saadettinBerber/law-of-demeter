@@ -8,6 +8,8 @@
 
 - Her senaryo ileride kuralın bir test vakasına dönüşür.
 
+- "Raporlanmaz" senaryolar varsayılan raporda görünmez. Kullanıcı isterse, uydukları kuralla birlikte "Uygun" olarak gösterilir.
+
 ## Özet
 
 ---
