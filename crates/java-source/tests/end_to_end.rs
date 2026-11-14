@@ -5,6 +5,18 @@ use law_of_demeter_core::domain::method::{Reason, Verdict};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 use law_of_demeter_java_source::map_source;
 
+const JDK_TYPES: &[&str] = &[
+    "java.lang.String",
+    "java.lang.StringBuilder",
+    "java.lang.IllegalStateException",
+    "java.time.Duration",
+    "java.time.Instant",
+    "java.time.temporal.ChronoUnit",
+    "java.util.List",
+    "java.util.Map",
+    "java.util.concurrent.locks.ReentrantReadWriteLock",
+];
+
 fn record(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Record)
 }
@@ -21,7 +33,7 @@ fn getter(name: &str, field: &str, returns: &str) -> MethodShape {
 
 fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> Vec<Verdict> {
     let mapped = map_source(Path::new("OrderService.java"), source, &|name| {
-        name.starts_with("java.") || types.shape(name).is_some()
+        JDK_TYPES.contains(&name) || types.shape(name).is_some()
     })
     .unwrap();
     let found: Vec<_> = mapped
