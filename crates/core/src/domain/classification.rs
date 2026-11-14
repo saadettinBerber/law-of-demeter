@@ -119,6 +119,18 @@ impl Types {
     }
 }
 
+pub fn element_type(type_ref: &TypeRef) -> Option<&TypeRef> {
+    match type_ref {
+        TypeRef::Array(element) => Some(element),
+        TypeRef::Class { name, arguments }
+            if jdk::classify(name) == Some(Classification::Container) =>
+        {
+            arguments.last()
+        }
+        TypeRef::Class { .. } | TypeRef::Primitive(_) | TypeRef::Variable(_) => None,
+    }
+}
+
 fn classify_kind(shape: &TypeShape) -> Classification {
     match shape.kind() {
         TypeKind::Record => Classification::DataStructure,

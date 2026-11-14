@@ -1,4 +1,4 @@
-use super::{Classification, Types};
+use super::{Classification, Types, element_type};
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
@@ -530,4 +530,46 @@ fn a_method_that_cannot_be_found_is_not_fluent() {
     );
 
     assert_eq!(fluent, (false, false));
+}
+
+#[test]
+fn the_element_of_a_collection_stream_or_optional_is_its_type_argument() {
+    let order = TypeRef::class("Order");
+    let containers = [
+        TypeRef::generic("java.util.List", vec![order.clone()]),
+        TypeRef::generic("java.util.stream.Stream", vec![order.clone()]),
+        TypeRef::generic("java.util.Optional", vec![order.clone()]),
+        TypeRef::array(order.clone()),
+    ];
+
+    let elements: Vec<_> = containers.iter().map(element_type).collect();
+
+    assert_eq!(elements, vec![Some(&order); containers.len()]);
+}
+
+#[test]
+fn the_element_of_a_map_is_its_value_type() {
+    let map = TypeRef::generic("java.util.Map", vec![string(), TypeRef::class("Order")]);
+
+    let element = element_type(&map);
+
+    assert_eq!(element, Some(&TypeRef::class("Order")));
+}
+
+#[test]
+fn a_container_without_type_arguments_has_no_known_element() {
+    let raw = TypeRef::class("java.util.List");
+
+    let element = element_type(&raw);
+
+    assert_eq!(element, None);
+}
+
+#[test]
+fn a_generic_type_that_is_not_a_container_has_no_element() {
+    let page = TypeRef::generic("Page", vec![TypeRef::class("Order")]);
+
+    let element = element_type(&page);
+
+    assert_eq!(element, None);
 }
