@@ -150,16 +150,19 @@ impl Types {
         let mut index = 0;
         while let Some(&current) = chain.get(index) {
             index += 1;
-            for name in current.supertypes().iter().filter_map(class_name) {
-                match self.shape(name) {
-                    Some(superclass) if superclass.kind() == TypeKind::Interface => {}
-                    Some(superclass) => {
-                        if !chain.iter().any(|known| known.name() == superclass.name()) {
-                            chain.push(superclass);
-                        }
+            let Some(name) = current.superclass().and_then(class_name) else {
+                continue;
+            };
+            if jdk::is_behaviorless(name) {
+                continue;
+            }
+            match self.shape(name) {
+                Some(superclass) => {
+                    if !chain.iter().any(|known| known.name() == superclass.name()) {
+                        chain.push(superclass);
                     }
-                    None => complete &= jdk::is_known_supertype(name),
                 }
+                None => complete &= jdk::classify(name).is_some(),
             }
         }
         let mut methods: Vec<&MethodShape> = Vec::new();

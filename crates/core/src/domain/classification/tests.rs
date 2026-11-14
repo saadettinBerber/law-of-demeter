@@ -642,7 +642,7 @@ fn behavior(name: &str) -> MethodShape {
 
 fn class(name: &str, superclass: &str, methods: Vec<MethodShape>) -> TypeShape {
     methods.into_iter().fold(
-        TypeShape::new(name, TypeKind::Class).extending(TypeRef::class(superclass)),
+        TypeShape::new(name, TypeKind::Class).with_superclass(TypeRef::class(superclass)),
         TypeShape::with_method,
     )
 }
@@ -718,7 +718,7 @@ fn an_interface_supertype_adds_no_behavior() {
         )
         .with_shape(
             TypeShape::new("Address", TypeKind::Class)
-                .extending(TypeRef::class("java.lang.Object"))
+                .with_superclass(TypeRef::class("java.lang.Object"))
                 .extending(TypeRef::class("Describable"))
                 .with_method(getter("getCity", "city")),
         );
@@ -753,13 +753,37 @@ fn a_missing_supertype_higher_up_the_chain_makes_the_class_unknown() {
 }
 
 #[test]
-fn a_missing_interface_makes_a_class_without_behavior_unknown() {
+fn a_missing_interface_does_not_make_a_class_without_behavior_unknown() {
     let address = root("Address", vec![getter("getCity", "city")])
         .extending(TypeRef::class("com.example.LibraryMarker"));
 
     let classification = classify(address);
 
-    assert_eq!(classification, Classification::Unknown);
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_class_with_no_declared_superclass_is_not_unknown() {
+    let address = TypeShape::new("Address", TypeKind::Class).with_method(getter("getCity", "city"));
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn the_methods_of_object_in_the_catalog_are_not_inherited_behavior() {
+    let object = TypeShape::new("java.lang.Object", TypeKind::Class)
+        .with_method(behavior("getClass"))
+        .with_method(behavior("notify"))
+        .with_method(behavior("wait"));
+    let types = Types::new()
+        .with_shape(object)
+        .with_shape(root("Address", vec![getter("getCity", "city")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
 }
 
 #[test]
