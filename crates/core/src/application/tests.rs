@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::path::Path;
 
 use super::{
-    CheckProject, Counts, Finding, HybridFinding, ReadError, SourceFile, SourceReader, TypeReading,
-    TypeSource,
+    CheckProject, Counts, Finding, HybridFinding, ReadError, Report, SourceFile, SourceReader,
+    TypeReading, TypeSource,
 };
 use crate::domain::classification::Types;
 use crate::domain::method::{Call, Expression, Method, Reason, Verdict};
@@ -226,6 +226,46 @@ fn the_counts_separate_real_violations_from_unresolved_types() {
             hybrid_classes: 1,
             source_errors: 1,
             type_errors: 1,
+        }
+    );
+}
+
+#[test]
+fn a_report_built_from_its_parts_counts_them() {
+    let path = Path::new("src/OrderService.java");
+    let finding = |verdict| Finding::new(path, "OrderService", "pay", verdict);
+    let report = Report::new(
+        2,
+        3,
+        vec![
+            finding(Verdict::allowed(
+                "getCustomer",
+                3,
+                Reason::parameter("order"),
+            )),
+            finding(Verdict::violation(
+                "getWallet",
+                3,
+                Reason::return_of("getCustomer"),
+            )),
+        ],
+        Vec::new(),
+        vec![ReadError::new(path, "hata")],
+        Vec::new(),
+    );
+
+    let counts = report.counts();
+
+    assert_eq!(
+        counts,
+        Counts {
+            files: 2,
+            methods: 3,
+            calls: 2,
+            allowed: 1,
+            violations: 1,
+            source_errors: 1,
+            ..Counts::default()
         }
     );
 }

@@ -112,6 +112,24 @@ pub struct Report {
 }
 
 impl Report {
+    pub fn new(
+        files: usize,
+        methods: usize,
+        findings: Vec<Finding>,
+        hybrid_classes: Vec<HybridFinding>,
+        source_errors: Vec<ReadError>,
+        type_errors: Vec<ReadError>,
+    ) -> Self {
+        Self {
+            files,
+            methods,
+            findings,
+            hybrid_classes,
+            source_errors,
+            type_errors,
+        }
+    }
+
     pub fn counts(&self) -> Counts {
         let unresolved = self.findings.iter().filter(|f| f.is_unresolved()).count();
         let violations = self.findings.iter().filter(|f| f.is_violation()).count();
