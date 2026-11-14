@@ -44,6 +44,8 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
         [
             "shop.Account",
             "shop.Address",
+            "shop.Catalog",
+            "shop.Catalog$Node",
             "shop.Customer",
             "shop.Entity",
             "shop.Invoice",
@@ -428,5 +430,79 @@ fn reads_and_writes_fields_of_every_primitive_width() {
             Some("rating".to_owned()),
             Some("price".to_owned())
         ]
+    );
+}
+
+#[test]
+fn reads_type_variables_wildcards_arrays_and_nested_generic_types_in_fields() {
+    let catalog = shape("shop.Catalog");
+
+    let fields = catalog.fields();
+
+    assert_eq!(
+        fields,
+        [
+            FieldShape::new(
+                "index",
+                TypeRef::generic(
+                    "java.util.Map",
+                    vec![
+                        TypeRef::class("java.lang.String"),
+                        TypeRef::generic("java.util.List", vec![TypeRef::variable("T")])
+                    ]
+                )
+            ),
+            FieldShape::new(
+                "anything",
+                TypeRef::generic("java.util.List", vec![TypeRef::class("java.lang.Object")])
+            ),
+            FieldShape::new("items", TypeRef::array(TypeRef::variable("T"))),
+            FieldShape::new(
+                "node",
+                TypeRef::generic(
+                    "shop.Catalog$Node",
+                    vec![TypeRef::class("java.lang.Integer")]
+                )
+            ),
+        ]
+    );
+}
+
+#[test]
+fn reads_generic_supertypes_of_a_class_with_bounded_type_parameters() {
+    let catalog = shape("shop.Catalog");
+
+    let supertypes = catalog.supertypes();
+
+    assert_eq!(
+        supertypes,
+        [
+            TypeRef::class("shop.Entity"),
+            TypeRef::generic(
+                "shop.Repository",
+                vec![TypeRef::variable("T"), TypeRef::class("java.lang.Long")]
+            )
+        ]
+    );
+}
+
+#[test]
+fn reads_methods_with_their_own_type_parameters_and_leaves_out_bridges() {
+    let catalog = shape("shop.Catalog");
+
+    let convert = method(&catalog, "convert");
+
+    assert_eq!(
+        convert,
+        MethodShape::new("convert")
+            .with_parameters(vec![TypeRef::generic(
+                "java.util.function.Function",
+                vec![TypeRef::variable("T"), TypeRef::variable("R")]
+            )])
+            .returning(TypeRef::variable("R"))
+    );
+    assert_eq!(
+        method_names(&catalog),
+        ["find", "findAll", "convert", "rethrow"]
     );
 }
