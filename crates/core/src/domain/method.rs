@@ -230,7 +230,9 @@ impl Call {
         let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
         match classified {
             Some((
-                classification @ (Classification::DataStructure | Classification::Value),
+                classification @ (Classification::DataStructure
+                | Classification::Value
+                | Classification::Container),
                 type_ref,
             )) => Verdict::allowed(
                 &self.name,

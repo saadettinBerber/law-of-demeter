@@ -139,3 +139,49 @@ fn operating_on_a_value_is_allowed() {
         ]
     );
 }
+
+#[test]
+fn transforming_a_collection_with_a_stream_is_allowed() {
+    let order = TypeRef::class("Order");
+    let orders = TypeRef::generic("java.util.List", vec![order.clone()]);
+    let stream = TypeRef::generic("java.util.stream.Stream", vec![order]);
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("java.util.List", TypeKind::Interface)
+                .with_method(MethodShape::new("stream").returning(stream.clone())),
+        )
+        .with_shape(
+            TypeShape::new("java.util.stream.Stream", TypeKind::Interface)
+                .with_method(
+                    MethodShape::new("filter")
+                        .with_parameters(vec![TypeRef::class("java.util.function.Predicate")])
+                        .returning(stream.clone()),
+                )
+                .with_method(MethodShape::new("count").returning(TypeRef::primitive("long"))),
+        );
+    let paid_count = Method::new("Reports", "paidCount", 1).call(
+        Call::new(Expression::parameter("orders", orders), "stream", 2)
+            .then("filter", 2)
+            .with(Expression::literal())
+            .then("count", 2),
+    );
+
+    let verdicts = paid_count.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "filter",
+                2,
+                Reason::classified(Classification::Container, stream.clone())
+            ),
+            Verdict::allowed(
+                "count",
+                2,
+                Reason::classified(Classification::Container, stream)
+            ),
+        ]
+    );
+}
