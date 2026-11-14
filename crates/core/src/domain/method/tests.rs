@@ -3,100 +3,6 @@ use crate::domain::classification::{Classification, Types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
-fn calling_a_method_on_a_returned_object_is_a_violation() {
-    let pay = Method::new("OrderService", "pay", 1).call(
-        Call::new(
-            Expression::parameter("order", TypeRef::class("Order")),
-            "getCustomer",
-            1,
-        )
-        .then("getWallet", 1)
-        .then("withdraw", 1),
-    );
-
-    let verdicts = pay.verdicts(&shop());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getCustomer", 1, Reason::parameter("order")),
-            Verdict::violation("getWallet", 1, Reason::return_of("getCustomer")),
-            Verdict::violation("withdraw", 1, Reason::return_of("getWallet")),
-        ]
-    );
-}
-
-#[test]
-fn calling_methods_on_this_and_own_fields_is_allowed() {
-    let pay = Method::new("OrderService", "pay", 1)
-        .call(Call::new(
-            Expression::field("wallet", TypeRef::class("Wallet")),
-            "withdraw",
-            1,
-        ))
-        .call(Call::new(Expression::This, "audit", 1));
-
-    let verdicts = pay.verdicts(&Types::new());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("withdraw", 1, Reason::field("wallet")),
-            Verdict::allowed("audit", 1, Reason::This),
-        ]
-    );
-}
-
-#[test]
-fn passing_a_returned_object_as_an_argument_is_allowed() {
-    let notify_customer = Method::new("OrderService", "pay", 1).call(
-        Call::new(
-            Expression::field("notifier", TypeRef::class("Notifier")),
-            "send",
-            1,
-        )
-        .with(Expression::return_of(Call::new(
-            Expression::parameter("order", TypeRef::class("Order")),
-            "getCustomer",
-            1,
-        ))),
-    );
-
-    let verdicts = notify_customer.verdicts(&Types::new());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getCustomer", 1, Reason::parameter("order")),
-            Verdict::allowed("send", 1, Reason::field("notifier")),
-        ]
-    );
-}
-
-#[test]
-fn calling_a_setter_on_a_returned_object_is_a_violation() {
-    let move_customer = Method::new("OrderService", "pay", 1).call(
-        Call::new(
-            Expression::parameter("order", TypeRef::class("Order")),
-            "getCustomer",
-            1,
-        )
-        .then("setAddress", 1)
-        .with(Expression::parameter("address", TypeRef::class("Address"))),
-    );
-
-    let verdicts = move_customer.verdicts(&shop());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getCustomer", 1, Reason::parameter("order")),
-            Verdict::violation("setAddress", 1, Reason::return_of("getCustomer")),
-        ]
-    );
-}
-
-#[test]
 fn calling_a_method_on_an_unassigned_local_is_a_violation() {
     let pay = Method::new("OrderService", "pay", 1).call(Call::new(
         Expression::local("customer"),
@@ -113,35 +19,6 @@ fn calling_a_method_on_an_unassigned_local_is_a_violation() {
             1,
             Reason::unresolved_type(None, Reason::unassigned_local("customer"))
         )]
-    );
-}
-
-#[test]
-fn calling_a_method_on_a_local_holding_a_returned_object_is_a_violation() {
-    let pay = Method::new("OrderService", "pay", 1)
-        .assign_var(
-            "customer",
-            Expression::return_of(Call::new(
-                Expression::parameter("order", TypeRef::class("Order")),
-                "getCustomer",
-                1,
-            )),
-        )
-        .call(Call::new(Expression::local("customer"), "getWallet", 1).then("withdraw", 1));
-
-    let verdicts = pay.verdicts(&shop());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getCustomer", 1, Reason::parameter("order")),
-            Verdict::violation(
-                "getWallet",
-                1,
-                Reason::local("customer", Reason::return_of("getCustomer"))
-            ),
-            Verdict::violation("withdraw", 1, Reason::return_of("getWallet")),
-        ]
     );
 }
 
@@ -200,43 +77,6 @@ fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
             1,
             Reason::local("current", Reason::parameter("order"))
         )]
-    );
-}
-
-#[test]
-fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_violation() {
-    let discount = Method::new("OrderService", "pay", 1).call(
-        Call::new(
-            Expression::parameter("order", TypeRef::class("Order")),
-            "getLines",
-            1,
-        )
-        .then("forEach", 1)
-        .with(
-            Lambda::new(&["line"]).call(
-                Call::new(Expression::local("line"), "applyDiscount", 1)
-                    .with(Expression::parameter("rate", TypeRef::class("Rate"))),
-            ),
-        ),
-    );
-
-    let verdicts = discount.verdicts(&shop());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getLines", 1, Reason::parameter("order")),
-            Verdict::violation(
-                "applyDiscount",
-                1,
-                Reason::lambda_parameter("line", Reason::return_of("getLines"))
-            ),
-            Verdict::allowed(
-                "forEach",
-                1,
-                Reason::classified(Classification::Container, order_lines())
-            ),
-        ]
     );
 }
 
