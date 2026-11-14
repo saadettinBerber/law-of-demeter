@@ -56,26 +56,45 @@ impl Types {
         method: &str,
         parameter_count: usize,
     ) -> Vec<&MethodShape> {
-        let Some(shape) = self.shape(type_name) else {
-            return Vec::new();
-        };
-        let declared: Vec<_> = shape
-            .methods()
-            .iter()
-            .filter(|candidate| {
-                candidate.name() == method && candidate.parameters().len() == parameter_count
-            })
-            .collect();
-        if !declared.is_empty() {
-            return declared;
-        }
-        shape
-            .supertypes()
+        self.ancestors(&TypeRef::class(type_name))
             .iter()
             .filter_map(class_name)
-            .map(|supertype| self.overloads(supertype, method, parameter_count))
-            .find(|inherited| !inherited.is_empty())
+            .filter_map(|name| self.shape(name))
+            .map(|shape| {
+                shape
+                    .methods()
+                    .iter()
+                    .filter(|candidate| {
+                        candidate.name() == method
+                            && candidate.parameters().len() == parameter_count
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .find(|declared| !declared.is_empty())
             .unwrap_or_default()
+    }
+
+    fn ancestors(&self, receiver: &TypeRef) -> Vec<TypeRef> {
+        let mut found = vec![receiver.clone()];
+        let mut index = 0;
+        while let Some(current) = found.get(index) {
+            index += 1;
+            let Some(shape) = class_name(current).and_then(|name| self.shape(name)) else {
+                continue;
+            };
+            let unseen: Vec<_> = shape
+                .supertypes()
+                .iter()
+                .filter(|supertype| {
+                    !found
+                        .iter()
+                        .any(|known| class_name(known) == class_name(supertype))
+                })
+                .cloned()
+                .collect();
+            found.extend(unseen);
+        }
+        found
     }
 
     pub fn is_fluent(&self, type_name: &str, method: &str, parameter_count: usize) -> bool {
@@ -174,10 +193,11 @@ impl Types {
     }
 
     fn inherited_value_or_container(&self, shape: &TypeShape) -> Option<Classification> {
-        shape
-            .supertypes()
+        self.ancestors(&TypeRef::class(shape.name()))
             .iter()
-            .map(|supertype| self.classify(supertype))
+            .skip(1)
+            .filter_map(class_name)
+            .filter_map(jdk::classify)
             .find(|classification| {
                 matches!(
                     classification,

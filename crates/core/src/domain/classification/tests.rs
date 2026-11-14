@@ -959,3 +959,59 @@ fn types_that_are_not_hybrid_classes_have_no_hybrid_finding() {
 
     assert_eq!(findings, vec![None; 8]);
 }
+
+fn cyclic_classes() -> Types {
+    Types::new()
+        .with_shape(class("First", "Second", vec![getter("getCity", "city")]))
+        .with_shape(class("Second", "First", vec![getter("getId", "id")]))
+        .with_shape(class("Itself", "Itself", vec![getter("getCity", "city")]))
+}
+
+fn cyclic_interfaces() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("Left", TypeKind::Interface)
+                .extending(TypeRef::class("Right"))
+                .with_method(MethodShape::new("describe").returning(string())),
+        )
+        .with_shape(TypeShape::new("Right", TypeKind::Interface).extending(TypeRef::class("Left")))
+}
+
+#[test]
+fn classifying_a_class_in_a_cyclic_hierarchy_terminates() {
+    let types = cyclic_classes();
+
+    let classifications = classify_names(&types, &["First", "Second", "Itself"]);
+
+    assert_eq!(classifications, vec![Classification::DataStructure; 3]);
+}
+
+#[test]
+fn classifying_an_interface_in_a_cyclic_hierarchy_terminates() {
+    let types = cyclic_interfaces();
+
+    let classifications = classify_names(&types, &["Left", "Right"]);
+
+    assert_eq!(classifications, vec![Classification::Object; 2]);
+}
+
+#[test]
+fn a_return_type_is_found_through_a_cyclic_hierarchy() {
+    let types = cyclic_interfaces();
+
+    let returned = (
+        types.return_type("Right", "describe", 0),
+        types.return_type("Right", "missing", 0),
+    );
+
+    assert_eq!(returned, (Some(&string()), None));
+}
+
+#[test]
+fn fluency_in_a_cyclic_hierarchy_terminates() {
+    let types = cyclic_classes();
+
+    let fluent = types.is_fluent("First", "missing", 0);
+
+    assert!(!fluent);
+}
