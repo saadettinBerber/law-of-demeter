@@ -327,26 +327,6 @@ fn a_type_variable_is_unknown() {
 }
 
 #[test]
-fn a_supertype_that_is_neither_value_nor_container_does_not_decide_the_classification() {
-    let types = Types::new()
-        .with_shape(TypeShape::new("Base", TypeKind::Class).with_method(MethodShape::new("charge")))
-        .with_shape(
-            TypeShape::new("Address", TypeKind::Class)
-                .extending(TypeRef::class("Base"))
-                .extending(TypeRef::class("java.lang.Comparable"))
-                .with_method(
-                    MethodShape::new("getCity")
-                        .returning(string())
-                        .reading("city"),
-                ),
-        );
-
-    let classification = types.classify(&TypeRef::class("Address"));
-
-    assert_eq!(classification, Classification::DataStructure);
-}
-
-#[test]
 fn the_catalog_returns_the_shape_registered_under_a_name() {
     let types = Types::new().with_shape(TypeShape::new("Order", TypeKind::Class));
 
@@ -642,4 +622,106 @@ fn a_map_entry_is_a_data_structure_without_a_shape() {
         classifications,
         vec![Classification::DataStructure; names.len()]
     );
+}
+
+fn getter(name: &str, field: &str) -> MethodShape {
+    MethodShape::new(name).returning(string()).reading(field)
+}
+
+fn setter(name: &str, field: &str) -> MethodShape {
+    MethodShape::new(name)
+        .with_parameters(vec![string()])
+        .writing(field)
+}
+
+fn behavior(name: &str) -> MethodShape {
+    MethodShape::new(name)
+}
+
+fn class(name: &str, superclass: &str, methods: Vec<MethodShape>) -> TypeShape {
+    methods.into_iter().fold(
+        TypeShape::new(name, TypeKind::Class).extending(TypeRef::class(superclass)),
+        TypeShape::with_method,
+    )
+}
+
+fn root(name: &str, methods: Vec<MethodShape>) -> TypeShape {
+    class(name, "java.lang.Object", methods)
+}
+
+#[test]
+fn behavior_inherited_from_a_superclass_makes_a_class_an_object() {
+    let types = Types::new()
+        .with_shape(root("Base", vec![behavior("charge")]))
+        .with_shape(class("Address", "Base", vec![getter("getCity", "city")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn behavior_inherited_through_several_superclasses_counts() {
+    let types = Types::new()
+        .with_shape(root("Root", vec![behavior("charge")]))
+        .with_shape(class("Middle", "Root", vec![]))
+        .with_shape(class("Address", "Middle", vec![getter("getCity", "city")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn an_inherited_setter_together_with_own_behavior_makes_a_hybrid() {
+    let types = Types::new()
+        .with_shape(root("Base", vec![setter("setName", "name")]))
+        .with_shape(class("Account", "Base", vec![behavior("withdraw")]));
+
+    let classification = types.classify(&TypeRef::class("Account"));
+
+    assert_eq!(classification, Classification::Hybrid);
+}
+
+#[test]
+fn inherited_accessors_keep_a_class_a_data_structure() {
+    let types = Types::new()
+        .with_shape(root(
+            "BaseDto",
+            vec![getter("getId", "id"), setter("setId", "id")],
+        ))
+        .with_shape(class("Address", "BaseDto", vec![getter("getCity", "city")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn an_override_replaces_the_inherited_method() {
+    let types = Types::new()
+        .with_shape(root("Base", vec![behavior("getId")]))
+        .with_shape(class("Address", "Base", vec![getter("getId", "id")]));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn an_interface_supertype_adds_no_behavior() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Describable", TypeKind::Interface).with_method(behavior("describe")),
+        )
+        .with_shape(
+            TypeShape::new("Address", TypeKind::Class)
+                .extending(TypeRef::class("java.lang.Object"))
+                .extending(TypeRef::class("Describable"))
+                .with_method(getter("getCity", "city")),
+        );
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
 }

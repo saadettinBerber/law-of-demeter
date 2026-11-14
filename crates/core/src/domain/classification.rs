@@ -3,7 +3,7 @@ mod naming;
 
 pub use naming::{is_factory_method, is_repository_query};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -105,7 +105,61 @@ impl Types {
 
     fn classify_shape(&self, shape: &TypeShape) -> Classification {
         self.inherited_value_or_container(shape)
-            .unwrap_or_else(|| classify_kind(shape))
+            .unwrap_or_else(|| match shape.kind() {
+                TypeKind::Record => Classification::DataStructure,
+                TypeKind::Class => self.classify_class(shape),
+                TypeKind::Enum => Classification::Value,
+                TypeKind::Interface => Classification::Object,
+            })
+    }
+
+    fn class_methods<'a>(&'a self, shape: &'a TypeShape) -> Vec<&'a MethodShape> {
+        let mut chain = vec![shape];
+        let mut index = 0;
+        while let Some(&current) = chain.get(index) {
+            index += 1;
+            let superclasses: Vec<_> = current
+                .supertypes()
+                .iter()
+                .filter_map(class_name)
+                .filter_map(|name| self.shape(name))
+                .filter(|superclass| superclass.kind() != TypeKind::Interface)
+                .collect();
+            for superclass in superclasses {
+                if !chain.iter().any(|known| known.name() == superclass.name()) {
+                    chain.push(superclass);
+                }
+            }
+        }
+        let mut methods: Vec<&MethodShape> = Vec::new();
+        let mut hidden: HashSet<(&str, usize)> = HashSet::new();
+        for class in chain {
+            let declared: Vec<_> = class
+                .methods()
+                .iter()
+                .filter(|method| is_exposed(method))
+                .collect();
+            methods.extend(
+                declared
+                    .iter()
+                    .filter(|method| !hidden.contains(&signature(method))),
+            );
+            hidden.extend(declared.iter().map(|method| signature(method)));
+        }
+        methods
+    }
+
+    fn classify_class(&self, shape: &TypeShape) -> Classification {
+        let methods = self.class_methods(shape);
+        let has_setter = methods.iter().any(|method| is_setter(method));
+        let has_behavior = methods
+            .iter()
+            .any(|method| !is_getter(method) && !is_setter(method));
+        match (has_behavior, has_setter) {
+            (true, true) => Classification::Hybrid,
+            (true, false) => Classification::Object,
+            (false, _) => Classification::DataStructure,
+        }
     }
 
     fn inherited_value_or_container(&self, shape: &TypeShape) -> Option<Classification> {
@@ -134,26 +188,6 @@ pub fn element_type(type_ref: &TypeRef) -> Option<&TypeRef> {
     }
 }
 
-fn classify_kind(shape: &TypeShape) -> Classification {
-    match shape.kind() {
-        TypeKind::Record => Classification::DataStructure,
-        TypeKind::Class => classify_class(shape),
-        TypeKind::Enum => Classification::Value,
-        TypeKind::Interface => Classification::Object,
-    }
-}
-
-fn classify_class(shape: &TypeShape) -> Classification {
-    let exposed = || shape.methods().iter().filter(|method| is_exposed(method));
-    let has_setter = exposed().any(is_setter);
-    let has_behavior = exposed().any(|method| !is_getter(method) && !is_setter(method));
-    match (has_behavior, has_setter) {
-        (true, true) => Classification::Hybrid,
-        (true, false) => Classification::Object,
-        (false, _) => Classification::DataStructure,
-    }
-}
-
 fn class_name(type_ref: &TypeRef) -> Option<&str> {
     match type_ref {
         TypeRef::Class { name, .. } => Some(name),
@@ -167,6 +201,10 @@ fn is_exposed(method: &MethodShape) -> bool {
         ("equals", 1) | ("hashCode" | "toString", 0)
     );
     method.is_public() && !method.is_static() && !is_object_method && method.name() != "<init>"
+}
+
+fn signature(method: &MethodShape) -> (&str, usize) {
+    (method.name(), method.parameters().len())
 }
 
 fn is_getter(method: &MethodShape) -> bool {
