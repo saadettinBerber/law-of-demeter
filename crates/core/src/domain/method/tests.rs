@@ -715,3 +715,42 @@ fn the_result_of_a_static_call_is_a_friend() {
         ]
     );
 }
+
+#[test]
+fn the_result_of_a_factory_call_on_a_stranger_is_a_stranger() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class).with_method(
+                MethodShape::new("getFactory")
+                    .reading("factory")
+                    .returning(TypeRef::class("ReportFactory")),
+            ),
+        )
+        .with_shape(
+            TypeShape::new("ReportFactory", TypeKind::Class)
+                .with_method(MethodShape::new("create").returning(TypeRef::class("Report"))),
+        )
+        .with_shape(
+            TypeShape::new("Report", TypeKind::Class).with_method(MethodShape::new("render")),
+        );
+    let report = Method::new("Reports", "report", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getFactory",
+            2,
+        )
+        .then("create", 2)
+        .then("render", 2),
+    );
+
+    let verdicts = report.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getFactory", 2, Reason::parameter("order")),
+            Verdict::violation("create", 2, Reason::return_of("getFactory")),
+            Verdict::violation("render", 2, Reason::return_of("create")),
+        ]
+    );
+}
