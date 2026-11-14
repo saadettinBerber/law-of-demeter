@@ -159,3 +159,22 @@ fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_use
         ]
     );
 }
+
+#[test]
+fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
+    let pay = Method::new()
+        .assign("current", Expression::parameter("order"))
+        .call(
+            Call::new(Expression::local("current"), "charge").with(Expression::parameter("amount")),
+        );
+
+    let verdicts = pay.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "charge",
+            Reason::local("current", Reason::parameter("order"))
+        )]
+    );
+}
