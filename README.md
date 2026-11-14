@@ -14,6 +14,11 @@ f yalnızca şu nesnelerin metotlarını çağırabilir:
 
 f, bu nesnelerin döndürdüğü nesnelerin metotlarını çağırmaz. Kısaca: arkadaşlarınla konuş, yabancılarla konuşma.
 
+Örneklerde C `OrderService` sınıfı, f de `pay` metodu.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
 ```java
 class OrderService {
     void pay(Order order, Money amount) {
@@ -22,7 +27,18 @@ class OrderService {
 }
 ```
 
-Burada C `OrderService`, f `pay` metodu. `order`, f'ye argüman olarak verildiği için f onun metodunu çağırabilir; `order.getCustomer()` serbest. Bu çağrının döndürdüğü müşteri ise listede yok. `getWallet()` ve `withdraw()` yabancılarla konuşuyor. Cüzdanın yeri değişirse `pay` de değişmek zorunda kalır.
+Zincirdeki her çağrı ayrı değerlendirilir:
+
+1. `order.getCustomer()`: Serbest. `order`, f'ye argüman olarak verildi.
+2. `.getWallet()`: Kuralı çiğner. Bu metot, `getCustomer()`'ın döndürdüğü müşteride çağrılıyor ve müşteri listede yok.
+3. `.withdraw(amount)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor ve cüzdan da listede yok.
+
+Sonuç: `pay`, siparişin bir müşterisi, müşterinin de bir cüzdanı olduğunu bilmek zorunda. Cüzdanın yeri değişirse `pay` de değişir.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
 
 ```java
 class OrderService {
@@ -32,7 +48,11 @@ class OrderService {
 }
 ```
 
-f artık yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
+1. `order.charge(amount)`: Serbest. `order`, f'ye argüman olarak verildi.
+
+Sonuç: f yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
+
+</details>
 
 ## Veri yapıları
 
