@@ -1,6 +1,6 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::Types;
-use crate::domain::type_shape::TypeRef;
+use crate::domain::classification::{Classification, Types};
+use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 fn customer_of_order() -> Expression {
     Expression::return_of(Call::new(
@@ -109,6 +109,90 @@ fn the_result_of_an_operation_is_a_value_a_method_can_be_called_on() {
         [
             Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
             Verdict::allowed("length", 3, Reason::Literal),
+        ]
+    );
+}
+
+fn address_shape() -> TypeShape {
+    TypeShape::new("Address", TypeKind::Class).with_method(
+        MethodShape::new("getCity")
+            .reading("city")
+            .returning(TypeRef::class("java.lang.String")),
+    )
+}
+
+#[test]
+fn a_cast_keeps_the_standing_of_its_operand_and_takes_the_cast_type() {
+    let city = Method::new("Shipping", "cityOf", 1).call(Call::new(
+        Expression::cast(
+            TypeRef::class("Address"),
+            Expression::return_of(Call::new(
+                Expression::parameter("event", TypeRef::class("Event")),
+                "getPayload",
+                2,
+            )),
+        ),
+        "getCity",
+        2,
+    ));
+    let types = Types::new().with_shape(address_shape());
+
+    let verdicts = city.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getPayload", 2, Reason::parameter("event")),
+            Verdict::allowed(
+                "getCity",
+                2,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Address"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn casting_a_friend_keeps_it_a_friend() {
+    let status = Method::new("Shipping", "statusOf", 1).call(Call::new(
+        Expression::cast(
+            TypeRef::class("Order"),
+            Expression::parameter("object", TypeRef::class("java.lang.Object")),
+        ),
+        "getStatus",
+        2,
+    ));
+
+    let verdicts = status.verdicts(&Types::new());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "getStatus",
+            2,
+            Reason::parameter("object")
+        )]
+    );
+}
+
+#[test]
+fn casting_a_stranger_does_not_make_it_a_friend() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Customer", TypeKind::Class).with_method(MethodShape::new("rename")),
+    );
+    let rename = Method::new("Shipping", "rename", 1).call(Call::new(
+        Expression::cast(TypeRef::class("Customer"), customer_of_order()),
+        "rename",
+        3,
+    ));
+
+    let verdicts = rename.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
         ]
     );
 }

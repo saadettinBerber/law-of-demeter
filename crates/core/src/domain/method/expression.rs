@@ -7,14 +7,24 @@ use crate::domain::type_shape::TypeRef;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     This,
-    Field { name: String, type_ref: TypeRef },
-    Parameter { name: String, type_ref: TypeRef },
+    Field {
+        name: String,
+        type_ref: TypeRef,
+    },
+    Parameter {
+        name: String,
+        type_ref: TypeRef,
+    },
     ReturnOf(Box<Call>),
     Local(String),
     New(Creation),
     StaticType(TypeRef),
     Literal,
     Operation(Vec<Expression>),
+    Cast {
+        type_ref: TypeRef,
+        operand: Box<Expression>,
+    },
 }
 
 impl Expression {
@@ -56,6 +66,13 @@ impl Expression {
         Self::Operation(operands)
     }
 
+    pub fn cast(type_ref: TypeRef, operand: Expression) -> Self {
+        Self::Cast {
+            type_ref,
+            operand: Box::new(operand),
+        }
+    }
+
     pub(super) fn judge(&self, context: &Context) -> Judged {
         match self {
             Self::This => Judged::quiet(Subject::friend(Reason::This, context.this_type.clone())),
@@ -86,6 +103,13 @@ impl Expression {
                     type_ref: None,
                 },
             },
+            Self::Cast { type_ref, operand } => {
+                let judged = operand.judge(context);
+                Judged {
+                    verdicts: judged.verdicts,
+                    subject: judged.subject.declared_as(Some(type_ref)),
+                }
+            }
         }
     }
 }
