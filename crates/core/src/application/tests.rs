@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::path::Path;
 
 use super::{
@@ -16,19 +17,42 @@ impl SourceReader for FakeSources {
     }
 }
 
-struct FakeTypes(Vec<TypeShape>);
+struct FakeTypes {
+    shapes: Vec<TypeShape>,
+    errors: Vec<ReadError>,
+}
 
-impl TypeSource for FakeTypes {
-    fn read(&self) -> TypeReading {
-        TypeReading {
-            shapes: self.0.clone(),
+impl FakeTypes {
+    fn new(shapes: Vec<TypeShape>) -> Self {
+        Self {
+            shapes,
             errors: Vec::new(),
         }
     }
 }
 
+impl TypeSource for FakeTypes {
+    fn read(&self) -> TypeReading {
+        TypeReading {
+            shapes: self.shapes.clone(),
+            errors: self.errors.clone(),
+        }
+    }
+}
+
+struct AskingSources(RefCell<Vec<bool>>);
+
+impl SourceReader for AskingSources {
+    fn read(&self, type_exists: &dyn Fn(&str) -> bool) -> Vec<Result<SourceFile, ReadError>> {
+        self.0
+            .borrow_mut()
+            .extend([type_exists("Order"), type_exists("Missing")]);
+        Vec::new()
+    }
+}
+
 fn shop_types() -> FakeTypes {
-    FakeTypes(vec![
+    FakeTypes::new(vec![
         TypeShape::new("Order", TypeKind::Class).with_method(
             MethodShape::new("getCustomer")
                 .reading("customer")
@@ -114,7 +138,45 @@ fn a_declared_class_that_is_a_hybrid_becomes_a_hybrid_finding() {
         .hybrid_class("Account")
         .expect("Account is a hybrid");
 
-    let report = CheckProject::new(&sources, &FakeTypes(vec![account_shape()])).execute();
+    let report = CheckProject::new(&sources, &FakeTypes::new(vec![account_shape()])).execute();
 
     assert_eq!(report.hybrid_classes(), [HybridFinding::new(path, hybrid)]);
+}
+
+#[test]
+fn the_source_reader_is_told_which_types_the_catalog_knows() {
+    let sources = AskingSources(RefCell::new(Vec::new()));
+
+    CheckProject::new(&sources, &shop_types()).execute();
+
+    assert_eq!(*sources.0.borrow(), [true, false]);
+}
+
+#[test]
+fn read_errors_are_reported_and_the_other_files_are_still_judged() {
+    let good = Path::new("src/OrderService.java");
+    let bad = Path::new("src/Broken.java");
+    let sources = FakeSources(vec![
+        Err(ReadError::at_line(bad, 3, "beklenmeyen simge")),
+        Ok(SourceFile::new(good, Vec::new(), vec![pay_method()])),
+    ]);
+    let types = FakeTypes {
+        errors: vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+        ..shop_types()
+    };
+
+    let report = CheckProject::new(&sources, &types).execute();
+
+    assert_eq!(
+        (
+            report.source_errors(),
+            report.type_errors(),
+            report.findings().len()
+        ),
+        (
+            [ReadError::at_line(bad, 3, "beklenmeyen simge")].as_slice(),
+            [ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")].as_slice(),
+            2
+        )
+    );
 }
