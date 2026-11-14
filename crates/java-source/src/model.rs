@@ -44,6 +44,69 @@ pub struct Class {
     pub name: String,
     pub kind: ClassKind,
     pub outer: Option<String>,
+    pub fields: Vec<Field>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Field {
+    pub name: String,
+    pub declared_type: DeclaredType,
+    pub is_static: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TypeName {
+    Resolved(String),
+    Unresolved(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeclaredType {
+    Var,
+    Primitive(String),
+    Class {
+        name: TypeName,
+        arguments: Vec<DeclaredType>,
+    },
+    Array(Box<DeclaredType>),
+    Variable(String),
+    Wildcard(Option<Box<DeclaredType>>),
+}
+
+impl DeclaredType {
+    pub fn primitive(name: &str) -> Self {
+        Self::Primitive(name.to_owned())
+    }
+
+    pub fn class(binary_name: &str) -> Self {
+        Self::generic(binary_name, Vec::new())
+    }
+
+    pub fn generic(binary_name: &str, arguments: Vec<DeclaredType>) -> Self {
+        Self::Class {
+            name: TypeName::Resolved(binary_name.to_owned()),
+            arguments,
+        }
+    }
+
+    pub fn unresolved(name: &str) -> Self {
+        Self::Class {
+            name: TypeName::Unresolved(name.to_owned()),
+            arguments: Vec::new(),
+        }
+    }
+
+    pub fn array(element: DeclaredType) -> Self {
+        Self::Array(Box::new(element))
+    }
+
+    pub fn variable(name: &str) -> Self {
+        Self::Variable(name.to_owned())
+    }
+
+    pub fn wildcard(upper_bound: Option<DeclaredType>) -> Self {
+        Self::Wildcard(upper_bound.map(Box::new))
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
