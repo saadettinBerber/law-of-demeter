@@ -42,8 +42,8 @@ impl Types {
 
 fn classify_shape(shape: &TypeShape) -> Classification {
     match shape.kind() {
-        TypeKind::Record => Classification::DataStructure,
-        TypeKind::Class | TypeKind::Enum | TypeKind::Interface => Classification::Unknown,
+        TypeKind::Record | TypeKind::Class => Classification::DataStructure,
+        TypeKind::Enum | TypeKind::Interface => Classification::Unknown,
     }
 }
 
