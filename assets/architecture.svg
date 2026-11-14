@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="840" viewBox="0 0 1320 840" role="img" aria-labelledby="title description">
+  <title id="title">law-of-demeter: altıgen mimari</title>
+  <desc id="description">İç içe iki altıgen. Ortadaki Domain kuralları taşır: arkadaş listesi, tip sınıflandırması, yabancıya uzanma ve hibrit sınıf. Dıştaki Application, Projeyi denetle kullanım senaryosunu ve port'ları taşır. Soldaki CLI, Denetim isteği port'unu çağırır. Sağdaki Java ayrıştırıcı Kaynak okuyucu port'unu, .class okuyucu Tip kataloğu port'unu, Metin raporu Rapor çıkışı port'unu uygular. Oklar kod bağımlılığını gösterir ve hepsi içe yönelir.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 12 12" refX="10" refY="6" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto">
+      <path d="M2 1L10 6L2 11" fill="none" stroke="#ff9975" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1320" height="840" rx="24" fill="#202c30"/>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="64" y="58" fill="#b3c2bf" font-size="16" font-weight="700" letter-spacing="3">MİMARİ</text>
+    <text x="64" y="108" fill="#f4f6ed" font-size="40" font-weight="700">law-of-demeter</text>
+    <text x="64" y="142" fill="#d4dfdc" font-size="20">Kurallar ortada, teknoloji dışarıda.</text>
+
+    <polygon points="910,450 785,666.5 535,666.5 410,450 535,233.5 785,233.5" fill="#f4b342" stroke="#ffe49a" stroke-width="2"/>
+    <polygon points="800,450 730,571.2 590,571.2 520,450 590,328.8 730,328.8" fill="#ffe45c"/>
+
+    <g text-anchor="middle">
+      <text x="660" y="282" fill="#332b1b" font-size="26" font-weight="700">Application</text>
+      <text x="660" y="308" fill="#514325" font-size="16">Projeyi denetle</text>
+      <text x="660" y="628" fill="#514325" font-size="16">Port'lar burada tanımlanır</text>
+
+      <text x="660" y="398" fill="#332b1b" font-size="30" font-weight="700">Domain</text>
+      <text x="660" y="432" fill="#514325" font-size="17">Arkadaş listesi</text>
+      <text x="660" y="458" fill="#514325" font-size="17">Tip sınıflandırması</text>
+      <text x="660" y="484" fill="#514325" font-size="17">Yabancıya uzanma</text>
+      <text x="660" y="510" fill="#514325" font-size="17">Hibrit sınıf</text>
+    </g>
+
+    <g fill="none" stroke="#ff9975" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)">
+      <path d="M270 450H334"/>
+      <path d="M1030 342H924"/>
+      <path d="M1030 450H986"/>
+      <path d="M1030 558H924"/>
+    </g>
+
+    <g fill="#202c30" stroke="#ff9975" stroke-width="2.5">
+      <rect x="338" y="432" width="144" height="36" rx="18"/>
+      <rect x="775.5" y="323.75" width="144" height="36" rx="18"/>
+      <rect x="838" y="432" width="144" height="36" rx="18"/>
+      <rect x="775.5" y="540.25" width="144" height="36" rx="18"/>
+    </g>
+    <g text-anchor="middle" fill="#ffe49a" font-size="14" font-weight="700">
+      <text x="410" y="455">Denetim isteği</text>
+      <text x="847.5" y="346.75">Kaynak okuyucu</text>
+      <text x="910" y="455">Tip kataloğu</text>
+      <text x="847.5" y="563.25">Rapor çıkışı</text>
+    </g>
+
+    <text x="70" y="392" fill="#b7d19a" font-size="13" font-weight="700" letter-spacing="2">UYGULAMAYI ÇAĞIRAN</text>
+    <text x="1030" y="284" fill="#b7d19a" font-size="13" font-weight="700" letter-spacing="2">UYGULAMANIN ÇAĞIRDIĞI</text>
+
+    <g fill="#263633" stroke="#4e6b50" stroke-width="1.5">
+      <rect x="70" y="410" width="200" height="80" rx="14"/>
+      <rect x="1030" y="302" width="240" height="80" rx="14"/>
+      <rect x="1030" y="410" width="240" height="80" rx="14"/>
+      <rect x="1030" y="518" width="240" height="80" rx="14"/>
+    </g>
+    <g fill="#e1eed4" font-size="20" font-weight="700">
+      <text x="92" y="444">CLI</text>
+      <text x="1052" y="336">Java ayrıştırıcı</text>
+      <text x="1052" y="444">.class okuyucu</text>
+      <text x="1052" y="552">Metin raporu</text>
+    </g>
+    <g fill="#a5b8af" font-size="15">
+      <text x="92" y="470">Terminal, CI</text>
+      <text x="1052" y="362">.java kaynakları</text>
+      <text x="1052" y="470">target/classes, jar</text>
+      <text x="1052" y="578">Terminal, dosya</text>
+    </g>
+
+    <path d="M64 740H110" fill="none" stroke="#ff9975" stroke-width="3" stroke-linecap="round" marker-end="url(#arrow)"/>
+    <text x="126" y="747" fill="#e1e8e3" font-size="18">Oklar kod bağımlılığını gösterir; hepsi içe yönelir.</text>
+    <rect x="720" y="726" width="60" height="28" rx="14" fill="#202c30" stroke="#ff9975" stroke-width="2.5"/>
+    <text x="796" y="747" fill="#e1e8e3" font-size="18">Port: çekirdeğin dışarıdan istediği sözleşme</text>
+    <text x="64" y="800" fill="#a5b8af" font-size="15">Altıgen mimari (ports &amp; adapters) · Alistair Cockburn</text>
+  </g>
+</svg>

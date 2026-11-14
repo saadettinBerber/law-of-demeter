@@ -124,3 +124,44 @@ Sonuç: `Config` ve `Server` davranış taşımadığı için yapılarını açm
 </details>
 
 Kaynak: Robert C. Martin, *Clean Code*, 6. bölüm.
+
+## Mimari
+
+Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de durur. Java'yı, dosyaları ve ayrıştırıcıyı yalnızca adapter'lar bilir.
+
+![law-of-demeter mimarisi: ortada Domain, çevresinde port'larıyla Application; solda CLI, sağda Java ayrıştırıcı, .class okuyucu ve metin raporu. Oklar içe yönelir.](assets/architecture.svg)
+
+| Katman | Sorumluluk |
+|---|---|
+| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit ya da değer olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Dosya okumaz, Java ayrıştırmaz. |
+| **Application** | "Projeyi denetle" kullanım senaryosu. Domain kurallarını yürütür; dışarıdan istediklerini port'larla ister. |
+| **Adapter** | Port'ları gerçek teknolojiye bağlar: komut satırı, Java ayrıştırıcı, `.class` okuyucu ve rapor. |
+
+| Port | Ne sağlar | Adapter |
+|---|---|---|
+| Denetim isteği | Denetlenecek kaynaklar ve derlenmiş sınıflar | CLI |
+| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin nereden geldiği: parametre, alan, `new` ya da başka bir çağrının dönüşü | Java ayrıştırıcı |
+| Tip kataloğu | Bir tipin alanları ve metotları; Lombok'un ürettikleri dahil | `.class` okuyucu |
+| Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural | Metin raporu |
+
+Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
+
+<details>
+<summary><strong>Örnek: bir çağrının yolu</strong></summary>
+
+```java
+class OrderService {
+    void pay(Order order, Money amount) {
+        order.getCustomer().getWallet().withdraw(amount);
+    }
+}
+```
+
+1. **Kaynak okuyucu:** `withdraw`, `getWallet()`'ın dönüşünde çağrılıyor. `getWallet()`, `getCustomer()`'ın dönüşünde; `getCustomer()` da `order` parametresinde çağrılıyor.
+2. **Tip kataloğu:** `Wallet`'ın `withdraw` davranışı var.
+3. **Domain:** `Wallet` bir nesne ve f'nin arkadaşı değil. Kural çiğneniyor.
+4. **Rapor çıkışı:** Bulgu `OrderService.java` dosyasının 3. satırı için yazılır.
+
+</details>
+
+Kaynak: Alistair Cockburn, [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture).
