@@ -96,3 +96,43 @@ fn changing_a_returned_collection_names_the_collection_type() {
         ]
     );
 }
+
+#[test]
+fn unresolved_types_are_listed_apart_from_the_real_violations() {
+    let report = report_of(vec![
+        finding(Verdict::violation(
+            "getWallet",
+            3,
+            Reason::return_of("getCustomer"),
+        )),
+        finding(Verdict::violation(
+            "getCity",
+            4,
+            Reason::unresolved_type(
+                Some(TypeRef::class("Address")),
+                Reason::return_of("getAddress"),
+            ),
+        )),
+        finding(Verdict::violation(
+            "trim",
+            5,
+            Reason::unresolved_type(None, Reason::return_of("getName")),
+        )),
+    ]);
+
+    let text = render(&report, false);
+
+    assert_eq!(
+        (
+            section(&text, "İhlaller").len(),
+            section(&text, "Çözülemeyen tipler")
+        ),
+        (
+            1,
+            vec![
+                "src/OrderService.java:4  OrderService.pay  getCity()  Belirsiz: tip çözülemedi (Address): getAddress() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
+                "src/OrderService.java:5  OrderService.pay  trim()  Belirsiz: tip çözülemedi: getName() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
+            ]
+        )
+    );
+}

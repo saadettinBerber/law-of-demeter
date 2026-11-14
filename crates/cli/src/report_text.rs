@@ -4,20 +4,40 @@ use crate::reason_text::describe;
 
 pub fn render(report: &Report, show_allowed: bool) -> String {
     let _ = show_allowed;
-    let violations: Vec<&Finding> = report
-        .findings()
-        .iter()
-        .filter(|finding| finding.is_violation() && !finding.is_unresolved())
-        .collect();
+    let findings = report.findings();
     let mut text = String::new();
-    if !violations.is_empty() {
-        text.push_str(&format!("İhlaller ({}):\n", violations.len()));
-        for finding in violations {
-            text.push_str(&line(finding, "İhlal"));
-        }
-        text.push('\n');
-    }
+    section(
+        &mut text,
+        "İhlaller",
+        "İhlal",
+        findings
+            .iter()
+            .filter(|finding| finding.is_violation() && !finding.is_unresolved()),
+    );
+    section(
+        &mut text,
+        "Çözülemeyen tipler",
+        "Belirsiz",
+        findings.iter().filter(|finding| finding.is_unresolved()),
+    );
     text
+}
+
+fn section<'a>(
+    text: &mut String,
+    title: &str,
+    verdict: &str,
+    findings: impl Iterator<Item = &'a Finding>,
+) {
+    let findings: Vec<&Finding> = findings.collect();
+    if findings.is_empty() {
+        return;
+    }
+    text.push_str(&format!("{title} ({}):\n", findings.len()));
+    for finding in findings {
+        text.push_str(&line(finding, verdict));
+    }
+    text.push('\n');
 }
 
 fn line(finding: &Finding, verdict: &str) -> String {

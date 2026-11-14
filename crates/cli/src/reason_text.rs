@@ -20,6 +20,14 @@ pub fn describe(reason: &Reason) -> String {
             type_name(type_ref),
             describe(source)
         ),
+        Reason::UnresolvedType { type_ref, source } => match type_ref {
+            Some(type_ref) => format!(
+                "tip çözülemedi ({}): {}",
+                type_name(type_ref),
+                describe(source)
+            ),
+            None => format!("tip çözülemedi: {}", describe(source)),
+        },
         _ => String::new(),
     }
 }
