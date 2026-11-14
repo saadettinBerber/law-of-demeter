@@ -1,5 +1,6 @@
 mod accessor;
 mod error;
+mod jdk;
 mod shape;
 mod signature;
 mod source;
@@ -9,7 +10,9 @@ use std::path::Path;
 use law_of_demeter_core::domain::type_shape::TypeShape;
 
 pub use error::Error;
+pub use jdk::Jdk;
 
+#[derive(Debug, Default)]
 pub struct Reading {
     pub shapes: Vec<TypeShape>,
     pub errors: Vec<Error>,
@@ -25,10 +28,7 @@ impl Reading {
 }
 
 pub fn read_types_lenient<P: AsRef<Path>>(paths: &[P]) -> Reading {
-    let mut reading = Reading {
-        shapes: Vec::new(),
-        errors: Vec::new(),
-    };
+    let mut reading = Reading::default();
     for path in paths {
         source::read_into(path.as_ref(), &mut reading);
     }

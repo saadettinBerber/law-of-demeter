@@ -33,6 +33,7 @@ put 89AB sample.base current sample/util/Pair
 put B sample.base current sample/util/Fresh
 put 8 sample.desktop current sample/awt/Canvas
 printf 'garbage' > "$stage/B/sample.base/sample/util/Corrupt.sig"
+printf 'garbage' > "$stage/B/sample.base/module-info.sig"
 mkdir -p "$stage/C"
 printf 'sample.base\nsample.desktop\n' > "$stage/C/system-modules"
 

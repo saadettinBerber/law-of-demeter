@@ -2,7 +2,7 @@ use cafebabe::attributes::{AttributeData, AttributeInfo};
 use cafebabe::descriptors::FieldType;
 use cafebabe::{
     ClassAccessFlags, ClassFile, FieldAccessFlags, FieldInfo, MethodAccessFlags, MethodInfo,
-    parse_class,
+    ParseOptions, parse_class_with_options,
 };
 use law_of_demeter_core::domain::type_shape::{
     FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
@@ -11,12 +11,23 @@ use law_of_demeter_core::domain::type_shape::{
 use crate::accessor::{self, Access};
 use crate::signature;
 
-pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Option<TypeShape>, String> {
-    let class = parse_class(bytes).map_err(|error| error.to_string())?;
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Scope {
+    All,
+    PublicApi,
+}
+
+pub(crate) fn from_bytes(bytes: &[u8], scope: Scope) -> Result<Option<TypeShape>, String> {
+    let mut options = ParseOptions::default();
+    options.parse_bytecode(scope == Scope::All);
+    let class = parse_class_with_options(bytes, &options).map_err(|error| error.to_string())?;
     if class
         .access_flags
         .intersects(ClassAccessFlags::SYNTHETIC | ClassAccessFlags::MODULE)
     {
+        return Ok(None);
+    }
+    if scope == Scope::PublicApi && !class.access_flags.contains(ClassAccessFlags::PUBLIC) {
         return Ok(None);
     }
     let mut shape = TypeShape::new(&binary_name(&class.this_class), kind_of(&class));

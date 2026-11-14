@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use law_of_demeter_core::domain::type_shape::TypeShape;
 use zip::ZipArchive;
 
-use crate::{Error, Reading, shape};
+use crate::shape::{self, Scope};
+use crate::{Error, Reading};
 
 pub(crate) fn read_into(path: &Path, reading: &mut Reading) {
     if path.is_dir() {
@@ -17,9 +18,9 @@ pub(crate) fn read_into(path: &Path, reading: &mut Reading) {
     }
 }
 
-fn is_module_descriptor(name: &str) -> bool {
+pub(crate) fn is_module_descriptor(name: &str) -> bool {
     let file = name.rsplit('/').next().unwrap_or(name);
-    file == "module-info.class"
+    file == "module-info.class" || file == "module-info.sig"
 }
 
 fn has_extension(path: &Path, extension: &str) -> bool {
@@ -51,7 +52,7 @@ fn sorted_entries(directory: &Path) -> Result<Vec<PathBuf>, Error> {
 
 fn read_class_file(path: &Path) -> Result<Option<TypeShape>, Error> {
     let bytes = fs::read(path).map_err(|error| Error::new(path, error))?;
-    shape::from_bytes(&bytes).map_err(|message| Error::new(path, message))
+    shape::from_bytes(&bytes, Scope::All).map_err(|message| Error::new(path, message))
 }
 
 fn read_jar(path: &Path, reading: &mut Reading) {
@@ -88,5 +89,6 @@ fn read_jar_entry(
     entry
         .read_to_end(&mut bytes)
         .map_err(|error| Error::new(path, format!("{name}: {error}")))?;
-    shape::from_bytes(&bytes).map_err(|message| Error::new(path, format!("{name}: {message}")))
+    shape::from_bytes(&bytes, Scope::All)
+        .map_err(|message| Error::new(path, format!("{name}: {message}")))
 }
