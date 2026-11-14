@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::classification::{Classification, Types};
+use super::classification::{Classification, Types, element_type};
 use super::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -166,8 +166,7 @@ impl Lambda {
         for parameter in &self.parameters {
             inner.bind(
                 parameter,
-                feed.clone()
-                    .through(|feed| Reason::lambda_parameter(parameter, feed)),
+                feed.element(|feed| Reason::lambda_parameter(parameter, feed)),
             );
         }
         self.body.judge(&mut inner)
@@ -297,6 +296,13 @@ impl Subject {
         Self {
             standing: self.standing.through(wrap),
             type_ref: None,
+        }
+    }
+
+    fn element(&self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
+        Self {
+            standing: self.standing.clone().through(wrap),
+            type_ref: self.type_ref.as_ref().and_then(element_type).cloned(),
         }
     }
 }

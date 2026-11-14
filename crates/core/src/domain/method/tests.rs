@@ -1,6 +1,6 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::Types;
-use crate::domain::type_shape::TypeRef;
+use crate::domain::classification::{Classification, Types};
+use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
 fn calling_a_method_on_a_returned_object_is_a_violation() {
@@ -474,5 +474,58 @@ fn calling_a_method_on_a_literal_is_allowed() {
     assert_eq!(
         verdicts,
         [Verdict::allowed("toUpperCase", 2, Reason::Literal)]
+    );
+}
+
+#[test]
+fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
+    let line = TypeRef::class("OrderLine");
+    let lines = TypeRef::generic("java.util.List", vec![line.clone()]);
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class).with_method(
+                MethodShape::new("getLines")
+                    .reading("lines")
+                    .returning(lines.clone()),
+            ),
+        )
+        .with_shape(
+            TypeShape::new("OrderLine", TypeKind::Class).with_method(
+                MethodShape::new("getSku")
+                    .reading("sku")
+                    .returning(TypeRef::class("java.lang.String")),
+            ),
+        );
+    let list_skus = Method::new("OrderService", "listSkus", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getLines",
+            2,
+        )
+        .then("forEach", 2)
+        .with(Lambda::new(&["line"]).call(Call::new(
+            Expression::local("line"),
+            "getSku",
+            2,
+        ))),
+    );
+
+    let verdicts = list_skus.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", 2, Reason::parameter("order")),
+            Verdict::allowed(
+                "getSku",
+                2,
+                Reason::classified(Classification::DataStructure, line)
+            ),
+            Verdict::allowed(
+                "forEach",
+                2,
+                Reason::classified(Classification::Container, lines)
+            ),
+        ]
     );
 }
