@@ -43,6 +43,7 @@ pub fn describe(reason: &Reason) -> String {
         }
         Reason::Literal => "sabit değer".to_owned(),
         Reason::UnassignedLocal(name) => format!("{name} değişkenine değer atanmamış"),
+        Reason::UnresolvedName(name) => format!("{name} adı çözülemedi"),
         Reason::Classified {
             classification,
             type_ref,
@@ -74,6 +75,7 @@ pub fn category(reason: &Reason) -> &'static str {
         Reason::ContainerMutation { .. } => "Döndürülen koleksiyon değiştiriliyor",
         Reason::UnresolvedType { .. } => "Tip çözülemedi",
         Reason::UnassignedLocal(_) => "Değişkene değer atanmamış",
+        Reason::UnresolvedName(_) => "Ad çözülemedi",
         Reason::This => "Kendi nesnesi",
         Reason::Field(_) => "Sınıfın alanı",
         Reason::FieldOf(_) => "Başka nesnenin alanı",

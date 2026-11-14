@@ -32,6 +32,7 @@ pub enum Expression {
         target: Box<Expression>,
         name: String,
     },
+    Unresolved(String),
 }
 
 impl Expression {
@@ -71,6 +72,10 @@ impl Expression {
 
     pub fn operation(operands: Vec<Expression>) -> Self {
         Self::Operation(operands)
+    }
+
+    pub fn unresolved(name: &str) -> Self {
+        Self::Unresolved(name.to_owned())
     }
 
     pub fn field_of(target: Expression, name: &str) -> Self {
@@ -117,6 +122,10 @@ impl Expression {
                     type_ref: None,
                 },
             },
+            Self::Unresolved(name) => Judged::quiet(Subject {
+                standing: Standing::Stranger(Reason::unresolved_name(name)),
+                type_ref: None,
+            }),
             Self::FieldOf { target, name } => {
                 let judged = target.judge(context);
                 let standing = if matches!(**target, Self::StaticType(_)) {

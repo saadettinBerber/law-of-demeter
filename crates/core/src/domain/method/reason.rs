@@ -10,6 +10,7 @@ pub enum Reason {
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
+    UnresolvedName(String),
     StaticResult(String),
     FactoryResult(String),
     QueryResult(String),
@@ -131,6 +132,10 @@ impl Reason {
 
     pub fn static_type(type_ref: TypeRef) -> Self {
         Self::StaticType(type_ref)
+    }
+
+    pub fn unresolved_name(name: &str) -> Self {
+        Self::UnresolvedName(name.to_owned())
     }
 
     pub fn unassigned_local(name: &str) -> Self {

@@ -357,3 +357,30 @@ fn the_calls_inside_the_object_a_field_is_read_from_are_judged() {
         ]
     );
 }
+
+#[test]
+fn calling_a_method_on_a_name_nothing_resolves_is_an_unresolved_violation() {
+    let log = Method::new("OrderService", "pay", 1)
+        .call(Call::new(Expression::unresolved("log"), "info", 2).with(Expression::literal()));
+
+    let verdicts = log.verdicts(&Types::new());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "info",
+            2,
+            Reason::unresolved_type(None, Reason::unresolved_name("log"))
+        )]
+    );
+}
+
+#[test]
+fn passing_an_unresolved_name_on_is_not_a_violation() {
+    let send = Method::new("OrderService", "pay", 1)
+        .call(Call::new(Expression::This, "send", 2).with(Expression::unresolved("log")));
+
+    let verdicts = send.verdicts(&Types::new());
+
+    assert_eq!(verdicts, [Verdict::allowed("send", 2, Reason::This)]);
+}
