@@ -18,6 +18,15 @@ impl Expression {
         }
     }
 
+    fn standing(&self) -> Standing {
+        match self {
+            Self::This => Standing::Friend(Reason::This),
+            Self::Field(field) => Standing::Friend(Reason::field(field)),
+            Self::Parameter(parameter) => Standing::Friend(Reason::parameter(parameter)),
+            Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
+        }
+    }
+
     pub fn field(name: &str) -> Self {
         Self::Field(name.to_owned())
     }
@@ -60,15 +69,21 @@ impl Call {
     }
 
     fn verdict(&self) -> Verdict {
-        match &self.receiver {
-            Expression::This => Verdict::allowed(&self.name, Reason::This),
-            Expression::Field(field) => Verdict::allowed(&self.name, Reason::field(field)),
-            Expression::Parameter(parameter) => {
-                Verdict::allowed(&self.name, Reason::parameter(parameter))
-            }
-            Expression::ReturnOf(previous) => {
-                Verdict::violation(&self.name, Reason::return_of(&previous.name))
-            }
+        self.receiver.standing().verdict(&self.name)
+    }
+}
+
+#[derive(Debug, Clone)]
+enum Standing {
+    Friend(Reason),
+    Stranger(Reason),
+}
+
+impl Standing {
+    fn verdict(self, call: &str) -> Verdict {
+        match self {
+            Self::Friend(reason) => Verdict::allowed(call, reason),
+            Self::Stranger(reason) => Verdict::violation(call, reason),
         }
     }
 }
