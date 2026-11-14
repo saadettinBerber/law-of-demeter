@@ -255,7 +255,12 @@ impl Call {
             Some((_, type_ref)) if self.is_fluent_on(types, type_ref) => {
                 Verdict::allowed(&self.name, self.line, Reason::fluent(type_ref.clone()))
             }
-            _ => Verdict::violation(&self.name, self.line, source.clone()),
+            Some((Classification::Unknown, _)) | None => Verdict::violation(
+                &self.name,
+                self.line,
+                Reason::unresolved_type(type_ref.cloned(), source.clone()),
+            ),
+            Some(_) => Verdict::violation(&self.name, self.line, source.clone()),
         }
     }
 
@@ -447,6 +452,10 @@ pub enum Reason {
         classification: Classification,
         type_ref: TypeRef,
     },
+    UnresolvedType {
+        type_ref: Option<TypeRef>,
+        source: Box<Reason>,
+    },
 }
 
 impl Reason {
@@ -512,6 +521,13 @@ impl Reason {
 
     pub fn fluent(type_ref: TypeRef) -> Self {
         Self::Fluent(type_ref)
+    }
+
+    pub fn unresolved_type(type_ref: Option<TypeRef>, source: Reason) -> Self {
+        Self::UnresolvedType {
+            type_ref,
+            source: Box::new(source),
+        }
     }
 
     pub fn classified(classification: Classification, type_ref: TypeRef) -> Self {

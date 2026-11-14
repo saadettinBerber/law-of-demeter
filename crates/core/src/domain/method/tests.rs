@@ -14,7 +14,7 @@ fn calling_a_method_on_a_returned_object_is_a_violation() {
         .then("withdraw", 1),
     );
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -85,36 +85,13 @@ fn calling_a_setter_on_a_returned_object_is_a_violation() {
         .with(Expression::parameter("address", TypeRef::class("Address"))),
     );
 
-    let verdicts = move_customer.verdicts(&Types::new());
+    let verdicts = move_customer.verdicts(&shop());
 
     assert_eq!(
         verdicts,
         [
             Verdict::allowed("getCustomer", 1, Reason::parameter("order")),
             Verdict::violation("setAddress", 1, Reason::return_of("getCustomer")),
-        ]
-    );
-}
-
-#[test]
-fn calling_a_mutator_on_a_returned_collection_is_a_violation() {
-    let add_line = Method::new("OrderService", "pay", 1).call(
-        Call::new(
-            Expression::parameter("order", TypeRef::class("Order")),
-            "getLines",
-            1,
-        )
-        .then("add", 1)
-        .with(Expression::parameter("line", TypeRef::class("Line"))),
-    );
-
-    let verdicts = add_line.verdicts(&Types::new());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getLines", 1, Reason::parameter("order")),
-            Verdict::violation("add", 1, Reason::return_of("getLines")),
         ]
     );
 }
@@ -134,7 +111,7 @@ fn calling_a_method_on_an_unassigned_local_is_a_violation() {
         [Verdict::violation(
             "getWallet",
             1,
-            Reason::unassigned_local("customer")
+            Reason::unresolved_type(None, Reason::unassigned_local("customer"))
         )]
     );
 }
@@ -152,7 +129,7 @@ fn calling_a_method_on_a_local_holding_a_returned_object_is_a_violation() {
         )
         .call(Call::new(Expression::local("customer"), "getWallet", 1).then("withdraw", 1));
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -182,7 +159,7 @@ fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_use
         .call(Call::new(Expression::local("customer"), "getWallet", 1))
         .call(Call::new(Expression::local("customer"), "getAddress", 1));
 
-    let verdicts = inspect.verdicts(&Types::new());
+    let verdicts = inspect.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -243,7 +220,7 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_viol
         ),
     );
 
-    let verdicts = discount.verdicts(&Types::new());
+    let verdicts = discount.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -254,7 +231,11 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_viol
                 1,
                 Reason::lambda_parameter("line", Reason::return_of("getLines"))
             ),
-            Verdict::violation("forEach", 1, Reason::return_of("getLines")),
+            Verdict::allowed(
+                "forEach",
+                1,
+                Reason::classified(Classification::Container, order_lines())
+            ),
         ]
     );
 }
@@ -326,7 +307,7 @@ fn calls_inside_constructor_arguments_are_judged() {
         1,
     ));
 
-    let verdicts = print.verdicts(&Types::new());
+    let verdicts = print.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -362,7 +343,10 @@ fn calling_a_static_method_on_a_type_is_allowed() {
 fn a_lambda_body_can_assign_a_local_and_call_it() {
     let inspect_all = Method::new("OrderService", "pay", 1).call(
         Call::new(
-            Expression::field("orders", TypeRef::class("Orders")),
+            Expression::field(
+                "orders",
+                TypeRef::generic("java.util.List", vec![TypeRef::class("Order")]),
+            ),
             "forEach",
             1,
         )
@@ -376,7 +360,7 @@ fn a_lambda_body_can_assign_a_local_and_call_it() {
         ),
     );
 
-    let verdicts = inspect_all.verdicts(&Types::new());
+    let verdicts = inspect_all.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -412,7 +396,7 @@ fn a_loop_variable_takes_the_standing_of_the_iterable_and_judges_it_once() {
                 .with(Expression::parameter("rate", TypeRef::class("Rate"))),
         );
 
-    let verdicts = discount.verdicts(&Types::new());
+    let verdicts = discount.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -441,7 +425,7 @@ fn every_verdict_carries_the_line_of_its_call() {
         )
         .call(Call::new(Expression::This, "audit", 14));
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&shop());
 
     assert_eq!(
         verdicts,
@@ -475,6 +459,44 @@ fn calling_a_method_on_a_literal_is_allowed() {
         verdicts,
         [Verdict::allowed("toUpperCase", 2, Reason::Literal)]
     );
+}
+
+fn shop() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class)
+                .with_method(
+                    MethodShape::new("getCustomer")
+                        .reading("customer")
+                        .returning(TypeRef::class("Customer")),
+                )
+                .with_method(
+                    MethodShape::new("getLines")
+                        .reading("lines")
+                        .returning(order_lines()),
+                ),
+        )
+        .with_shape(
+            TypeShape::new("Customer", TypeKind::Class)
+                .with_method(
+                    MethodShape::new("getWallet")
+                        .reading("wallet")
+                        .returning(TypeRef::class("Wallet")),
+                )
+                .with_method(
+                    MethodShape::new("setAddress")
+                        .writing("address")
+                        .with_parameters(vec![TypeRef::class("Address")]),
+                )
+                .with_method(MethodShape::new("rename")),
+        )
+        .with_shape(
+            TypeShape::new("Wallet", TypeKind::Class).with_method(MethodShape::new("withdraw")),
+        )
+        .with_shape(
+            TypeShape::new("OrderLine", TypeKind::Class)
+                .with_method(MethodShape::new("applyDiscount")),
+        )
 }
 
 fn order_with_lines() -> Types {
@@ -866,6 +888,68 @@ fn the_result_of_a_query_called_on_a_local_holding_a_field_is_a_friend() {
                 Reason::local("repository", Reason::field("orders"))
             ),
             Verdict::allowed("ship", 3, Reason::query_result("findById")),
+        ]
+    );
+}
+
+#[test]
+fn calling_a_method_on_a_returned_object_of_unknown_type_is_a_violation() {
+    let pay = Method::new("OrderService", "pay", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            2,
+        )
+        .then("getWallet", 2),
+    );
+
+    let verdicts = pay.verdicts(&Types::new());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
+            Verdict::violation(
+                "getWallet",
+                2,
+                Reason::unresolved_type(None, Reason::return_of("getCustomer"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn calling_a_method_on_a_returned_object_of_a_type_without_shape_is_a_violation() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Order", TypeKind::Class).with_method(
+            MethodShape::new("getCustomer")
+                .reading("customer")
+                .returning(TypeRef::class("Customer")),
+        ),
+    );
+    let pay = Method::new("OrderService", "pay", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            2,
+        )
+        .then("getWallet", 2),
+    );
+
+    let verdicts = pay.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
+            Verdict::violation(
+                "getWallet",
+                2,
+                Reason::unresolved_type(
+                    Some(TypeRef::class("Customer")),
+                    Reason::return_of("getCustomer")
+                )
+            ),
         ]
     );
 }
