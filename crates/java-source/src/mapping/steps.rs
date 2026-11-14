@@ -1,4 +1,5 @@
 use law_of_demeter_core::domain::method::{Call, Expression, Method};
+use law_of_demeter_core::domain::type_shape::TypeRef;
 
 #[derive(Default)]
 pub(super) struct Steps {
@@ -7,10 +8,34 @@ pub(super) struct Steps {
 
 enum Operation {
     Call(Call),
+    Assign {
+        local: String,
+        declared: Option<TypeRef>,
+        value: Expression,
+    },
+    ForEach {
+        variable: String,
+        iterable: Expression,
+    },
     Evaluate(Expression),
 }
 
 impl Steps {
+    pub(super) fn assign(&mut self, local: &str, declared: Option<TypeRef>, value: Expression) {
+        self.operations.push(Operation::Assign {
+            local: local.to_owned(),
+            declared,
+            value,
+        });
+    }
+
+    pub(super) fn for_each(&mut self, variable: &str, iterable: Expression) {
+        self.operations.push(Operation::ForEach {
+            variable: variable.to_owned(),
+            iterable,
+        });
+    }
+
     pub(super) fn evaluate(&mut self, value: Expression) {
         match value {
             Expression::ReturnOf(call) => self.operations.push(Operation::Call(*call)),
@@ -30,6 +55,17 @@ impl Steps {
             .into_iter()
             .fold(method, |method, operation| match operation {
                 Operation::Call(call) => method.call(call),
+                Operation::Assign {
+                    local,
+                    declared: Some(type_ref),
+                    value,
+                } => method.assign(&local, type_ref, value),
+                Operation::Assign {
+                    local,
+                    declared: None,
+                    value,
+                } => method.assign_var(&local, value),
+                Operation::ForEach { variable, iterable } => method.for_each(&variable, iterable),
                 Operation::Evaluate(value) => method.evaluate(value),
             })
     }

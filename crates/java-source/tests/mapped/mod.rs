@@ -19,6 +19,8 @@ pub const KNOWN_TYPES: &[&str] = &[
     "java.lang.Object",
     "java.lang.StringBuilder",
     "java.lang.IllegalStateException",
+    "java.lang.Throwable",
+    "java.io.IOException",
     "java.util.List",
     "x.Y",
 ];
