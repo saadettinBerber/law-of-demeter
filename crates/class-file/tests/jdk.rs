@@ -4,7 +4,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use law_of_demeter_class_file::{Error, Jdk, Reading};
-use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use law_of_demeter_core::domain::type_shape::{
+    FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
+};
 
 fn fixture_jdk() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/jdk")
@@ -247,6 +249,21 @@ fn jdk_types_list_their_type_parameters_and_their_generic_superclass() {
 }
 
 #[test]
+fn jdk_fields_know_whether_they_are_final() {
+    let reading = reading_of(11);
+
+    let pair = shape(&reading, "sample.util.Pair");
+
+    assert_eq!(
+        pair.fields(),
+        [
+            FieldShape::new("left", TypeRef::variable("A")).as_final(),
+            FieldShape::new("right", TypeRef::variable("B")),
+        ]
+    );
+}
+
+#[test]
 fn an_unreadable_sig_file_is_reported_and_the_other_types_still_read() {
     let reading = reading_of(11);
 
@@ -386,4 +403,39 @@ fn the_real_jdk_ct_sym_types_carry_type_parameters_and_superclass() {
     let reading = jdk.types(release).unwrap();
 
     assert_hash_map_is_generic(&reading);
+}
+
+fn field_of<'a>(reading: &'a Reading, type_name: &str, field_name: &str) -> &'a FieldShape {
+    shape(reading, type_name)
+        .fields()
+        .iter()
+        .find(|field| field.name() == field_name)
+        .unwrap_or_else(|| panic!("no field {type_name}.{field_name}"))
+}
+
+fn assert_final_flags_of_the_real_jdk(reading: &Reading) {
+    let max_value = field_of(reading, "java.lang.Integer", "MAX_VALUE");
+    let point_x = field_of(reading, "java.awt.Point", "x");
+    assert!(max_value.is_static() && max_value.is_final());
+    assert!(!point_x.is_final());
+}
+
+#[test]
+fn the_real_jdk_runtime_image_fields_know_whether_they_are_final() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap();
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_final_flags_of_the_real_jdk(&reading);
+}
+
+#[test]
+fn the_real_jdk_ct_sym_fields_know_whether_they_are_final() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap() - 1;
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_final_flags_of_the_real_jdk(&reading);
 }

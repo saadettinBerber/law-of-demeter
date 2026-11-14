@@ -67,6 +67,7 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
             "shop.Customer",
             "shop.Entity",
             "shop.Invoice",
+            "shop.Money",
             "shop.Order",
             "shop.Order$Receipt",
             "shop.Order$Tag",
@@ -150,11 +151,12 @@ fn reads_field_types_with_generics_arrays_and_the_static_flag() {
         fields,
         [
             FieldShape::new("created", TypeRef::primitive("int")).as_static(),
-            FieldShape::new("customer", TypeRef::class("shop.Customer")),
+            FieldShape::new("customer", TypeRef::class("shop.Customer")).as_final(),
             FieldShape::new(
                 "lines",
                 TypeRef::generic("java.util.List", vec![TypeRef::class("shop.OrderLine")])
-            ),
+            )
+            .as_final(),
             FieldShape::new("history", TypeRef::array(TypeRef::primitive("int"))),
         ]
     );
@@ -950,4 +952,86 @@ fn equal_type_names_keep_the_order_of_the_inputs() {
         .collect();
     let expected: Vec<usize> = (0..40).map(|index| 2 - index % 2).collect();
     assert_eq!(method_counts, expected);
+}
+
+#[test]
+fn an_immutable_value_has_only_final_fields() {
+    let money = shape("shop.Money");
+
+    let fields = money.fields();
+
+    assert_eq!(
+        fields,
+        [
+            FieldShape::new("ZERO", TypeRef::class("shop.Money"))
+                .as_static()
+                .as_final(),
+            FieldShape::new("amount", TypeRef::primitive("long")).as_final(),
+            FieldShape::new("currency", TypeRef::class("java.lang.String")).as_final(),
+        ]
+    );
+}
+
+#[test]
+fn an_immutable_value_exposes_getters_and_value_methods() {
+    let money = shape("shop.Money");
+
+    let get_amount = method(&money, "getAmount");
+    let get_currency = method(&money, "getCurrency");
+
+    assert_eq!(
+        method_names(&money),
+        [
+            "getAmount",
+            "getCurrency",
+            "equals",
+            "hashCode",
+            "compareTo"
+        ]
+    );
+    assert_eq!(get_amount.reads_field(), Some("amount"));
+    assert_eq!(get_currency.reads_field(), Some("currency"));
+    assert_eq!(
+        method(&money, "compareTo").parameters(),
+        [TypeRef::class("shop.Money")]
+    );
+}
+
+#[test]
+fn fields_that_can_be_reassigned_are_not_final() {
+    let customer = shape("shop.Customer");
+    let order = shape("shop.Order");
+
+    let customer_final: Vec<bool> = customer.fields().iter().map(FieldShape::is_final).collect();
+    let history = order
+        .fields()
+        .iter()
+        .find(|field| field.name() == "history");
+
+    assert_eq!(customer_final, [false, false]);
+    assert_eq!(history.map(FieldShape::is_final), Some(false));
+}
+
+#[test]
+fn enum_constants_are_final_static_fields() {
+    let status = shape("shop.Status");
+
+    let fields = status.fields();
+
+    assert!(
+        fields
+            .iter()
+            .all(|field| field.is_static() && field.is_final())
+    );
+    assert_eq!(fields.len(), 2);
+}
+
+#[test]
+fn record_components_are_final_fields() {
+    let address = shape("shop.Address");
+
+    let fields = address.fields();
+
+    assert_eq!(fields.len(), 2);
+    assert!(fields.iter().all(FieldShape::is_final));
 }

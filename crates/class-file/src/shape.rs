@@ -119,14 +119,14 @@ fn field_of(field: &FieldInfo) -> Result<Option<FieldShape>, String> {
     let text = signature_of(&field.attributes).unwrap_or(&descriptor);
     let type_ref =
         signature::field_type(text).map_err(|error| format!("field {}: {error}", field.name))?;
-    let shape = FieldShape::new(&field.name, type_ref);
-    Ok(Some(
-        if field.access_flags.contains(FieldAccessFlags::STATIC) {
-            shape.as_static()
-        } else {
-            shape
-        },
-    ))
+    let mut shape = FieldShape::new(&field.name, type_ref);
+    if field.access_flags.contains(FieldAccessFlags::STATIC) {
+        shape = shape.as_static();
+    }
+    if field.access_flags.contains(FieldAccessFlags::FINAL) {
+        shape = shape.as_final();
+    }
+    Ok(Some(shape))
 }
 
 fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShape>, String> {
