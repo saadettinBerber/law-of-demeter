@@ -8,6 +8,7 @@ use law_of_demeter_core::domain::type_shape::{
     FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
 };
 
+use crate::accessor::{self, Access};
 use crate::signature;
 
 pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Option<TypeShape>, String> {
@@ -28,7 +29,7 @@ pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Option<TypeShape>, String> {
         }
     }
     for method in &class.methods {
-        if let Some(method) = method_of(method)? {
+        if let Some(method) = method_of(&class, method)? {
             shape = shape.with_method(method);
         }
     }
@@ -86,7 +87,7 @@ fn field_of(field: &FieldInfo) -> Result<Option<FieldShape>, String> {
     ))
 }
 
-fn method_of(method: &MethodInfo) -> Result<Option<MethodShape>, String> {
+fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShape>, String> {
     let skipped = MethodAccessFlags::SYNTHETIC | MethodAccessFlags::BRIDGE;
     if method.access_flags.intersects(skipped) || ["<init>", "<clinit>"].contains(&&*method.name) {
         return Ok(None);
@@ -108,6 +109,11 @@ fn method_of(method: &MethodInfo) -> Result<Option<MethodShape>, String> {
     if is_lombok_generated(&method.attributes) {
         shape = shape.generated();
     }
+    shape = match accessor::of(class, method) {
+        Some(Access::Read(field)) => shape.reading(&field),
+        Some(Access::Write(field)) => shape.writing(&field),
+        None => shape,
+    };
     Ok(Some(shape))
 }
 

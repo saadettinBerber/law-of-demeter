@@ -45,11 +45,13 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
             "shop.Account",
             "shop.Address",
             "shop.Customer",
+            "shop.Entity",
             "shop.Invoice",
             "shop.Order",
             "shop.Order$Receipt",
             "shop.Order$Tag",
             "shop.OrderLine",
+            "shop.Product",
             "shop.Repository",
             "shop.Status",
         ]
@@ -248,4 +250,183 @@ fn does_not_mark_hand_written_methods_as_generated() {
     let generated = generated_method_names(&customer);
 
     assert!(generated.is_empty());
+}
+
+#[test]
+fn a_method_that_only_returns_one_of_its_fields_reads_that_field() {
+    let order = shape("shop.Order");
+    let customer = shape("shop.Customer");
+
+    let get_lines = method(&order, "getLines");
+    let is_active = method(&customer, "isActive");
+
+    assert_eq!(
+        get_lines,
+        MethodShape::new("getLines")
+            .returning(TypeRef::generic(
+                "java.util.List",
+                vec![TypeRef::class("shop.OrderLine")]
+            ))
+            .reading("lines")
+    );
+    assert_eq!(
+        is_active,
+        MethodShape::new("isActive")
+            .returning(TypeRef::primitive("boolean"))
+            .reading("active")
+    );
+}
+
+#[test]
+fn a_method_that_only_assigns_its_parameter_to_a_field_writes_that_field() {
+    let customer = shape("shop.Customer");
+
+    let set_name = method(&customer, "setName");
+    let set_active = method(&customer, "setActive");
+
+    assert_eq!(
+        set_name,
+        MethodShape::new("setName")
+            .with_parameters(vec![TypeRef::class("java.lang.String")])
+            .writing("name")
+    );
+    assert_eq!(
+        set_active,
+        MethodShape::new("setActive")
+            .with_parameters(vec![TypeRef::primitive("boolean")])
+            .writing("active")
+    );
+}
+
+#[test]
+fn lombok_accessors_read_and_write_their_fields() {
+    let account = shape("shop.Account");
+
+    let get_balance = method(&account, "getBalance");
+    let set_owner = method(&account, "setOwner");
+
+    assert_eq!(get_balance.reads_field(), Some("balance"));
+    assert_eq!(set_owner.writes_field(), Some("owner"));
+}
+
+#[test]
+fn a_getter_that_computes_its_result_reads_no_field() {
+    let invoice = shape("shop.Invoice");
+
+    let get_total = method(&invoice, "getTotal");
+
+    assert_eq!(get_total.reads_field(), None);
+}
+
+#[test]
+fn a_method_that_updates_state_beyond_one_assignment_writes_no_field() {
+    let account = shape("shop.Account");
+
+    let withdraw = method(&account, "withdraw");
+
+    assert_eq!(withdraw.writes_field(), None);
+    assert_eq!(withdraw.reads_field(), None);
+}
+
+#[test]
+fn returning_a_field_of_another_object_reads_no_field() {
+    let order = shape("shop.Order");
+
+    let customer_of = method(&order, "customerOf");
+
+    assert_eq!(customer_of.reads_field(), None);
+}
+
+#[test]
+fn returning_the_outer_instance_reads_no_field() {
+    let receipt = shape("shop.Order$Receipt");
+
+    let issuer = method(&receipt, "issuer");
+
+    assert_eq!(issuer.reads_field(), None);
+}
+
+#[test]
+fn returning_an_inherited_field_reads_no_field() {
+    let product = shape("shop.Product");
+
+    let identity = method(&product, "identity");
+    let title = method(&product, "title");
+
+    assert_eq!(identity.reads_field(), None);
+    assert_eq!(title.reads_field(), Some("title"));
+}
+
+#[test]
+fn reads_the_superclass_of_a_class() {
+    let product = shape("shop.Product");
+
+    let supertypes = product.supertypes();
+
+    assert_eq!(supertypes, [TypeRef::class("shop.Entity")]);
+}
+
+#[test]
+fn a_method_with_more_than_one_parameter_writes_no_field() {
+    let product = shape("shop.Product");
+
+    let retitle = method(&product, "retitle");
+
+    assert_eq!(retitle.writes_field(), None);
+}
+
+#[test]
+fn a_static_method_reading_a_field_of_its_argument_reads_no_field() {
+    let product = shape("shop.Product");
+
+    let title_of = method(&product, "titleOf");
+
+    assert_eq!(title_of.reads_field(), None);
+}
+
+#[test]
+fn a_method_with_a_parameter_that_returns_a_field_reads_no_field() {
+    let product = shape("shop.Product");
+
+    let title_at = method(&product, "titleAt");
+
+    assert_eq!(title_at.reads_field(), None);
+}
+
+#[test]
+fn a_method_assigning_something_other_than_its_parameter_writes_no_field() {
+    let product = shape("shop.Product");
+
+    let clear_title = method(&product, "clearTitle");
+
+    assert_eq!(clear_title.writes_field(), None);
+}
+
+#[test]
+fn reads_and_writes_fields_of_every_primitive_width() {
+    let product = shape("shop.Product");
+
+    let reads: Vec<Option<String>> = ["getStock", "getRating", "getPrice"]
+        .map(|name| method(&product, name).reads_field().map(str::to_owned))
+        .to_vec();
+    let writes: Vec<Option<String>> = ["setStock", "setRating", "setPrice"]
+        .map(|name| method(&product, name).writes_field().map(str::to_owned))
+        .to_vec();
+
+    assert_eq!(
+        reads,
+        [
+            Some("stock".to_owned()),
+            Some("rating".to_owned()),
+            Some("price".to_owned())
+        ]
+    );
+    assert_eq!(
+        writes,
+        [
+            Some("stock".to_owned()),
+            Some("rating".to_owned()),
+            Some("price".to_owned())
+        ]
+    );
 }
