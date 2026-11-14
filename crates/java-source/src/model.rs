@@ -310,4 +310,5 @@ pub enum ClassKind {
 pub struct PatternBinding {
     pub name: String,
     pub declared_type: DeclaredType,
+    pub is_component: bool,
 }

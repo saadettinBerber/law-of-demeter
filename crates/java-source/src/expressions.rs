@@ -350,6 +350,7 @@ impl Reader<'_> {
                     .map(|name| PatternBinding {
                         name: self.text.of(name).to_owned(),
                         declared_type: tested.clone(),
+                        is_component: false,
                     })
                     .into_iter()
                     .collect();
@@ -375,6 +376,7 @@ impl Reader<'_> {
             return vec![PatternBinding {
                 name: self.text.of(*name).to_owned(),
                 declared_type: self.declared_type(*declared, scope),
+                is_component: node.kind() == "record_pattern_component",
             }];
         }
         children

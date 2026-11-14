@@ -7,6 +7,14 @@ fn binding(name: &str, declared_type: DeclaredType) -> PatternBinding {
     PatternBinding {
         name: name.to_owned(),
         declared_type,
+        is_component: false,
+    }
+}
+
+fn component(name: &str, declared_type: DeclaredType) -> PatternBinding {
+    PatternBinding {
+        is_component: true,
+        ..binding(name, declared_type)
     }
 }
 
@@ -81,9 +89,9 @@ fn a_record_pattern_binds_its_components_with_their_declared_types() {
     assert_eq!(
         bindings,
         [
-            binding("a", DeclaredType::Var),
-            binding("b", DeclaredType::class("shop.Customer")),
-            binding("c", DeclaredType::Var),
+            component("a", DeclaredType::Var),
+            component("b", DeclaredType::class("shop.Customer")),
+            component("c", DeclaredType::Var),
         ]
     );
 }
@@ -124,8 +132,8 @@ fn a_switch_record_pattern_binds_its_components() {
     assert_eq!(
         switch.branches[0].bindings,
         [
-            binding("a", DeclaredType::Var),
-            binding("b", DeclaredType::class("shop.Customer")),
+            component("a", DeclaredType::Var),
+            component("b", DeclaredType::class("shop.Customer")),
         ]
     );
     assert_eq!(
