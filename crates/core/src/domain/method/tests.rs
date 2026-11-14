@@ -953,3 +953,38 @@ fn calling_a_method_on_a_returned_object_of_a_type_without_shape_is_a_violation(
         ]
     );
 }
+
+#[test]
+fn calling_a_method_on_a_returned_value_is_allowed() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class).with_method(
+                MethodShape::new("getStatus")
+                    .reading("status")
+                    .returning(TypeRef::class("Status")),
+            ),
+        )
+        .with_shape(TypeShape::new("Status", TypeKind::Enum));
+    let describe = Method::new("Reports", "describe", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getStatus",
+            2,
+        )
+        .then("name", 2),
+    );
+
+    let verdicts = describe.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getStatus", 2, Reason::parameter("order")),
+            Verdict::allowed(
+                "name",
+                2,
+                Reason::classified(Classification::Value, TypeRef::class("Status"))
+            ),
+        ]
+    );
+}
