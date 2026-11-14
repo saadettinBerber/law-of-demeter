@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Receiver {
+pub enum Expression {
     This,
     Field(String),
     Parameter(String),
     ReturnOf(Box<Call>),
 }
 
-impl Receiver {
+impl Expression {
     pub fn field(name: &str) -> Self {
         Self::Field(name.to_owned())
     }
@@ -18,12 +18,12 @@ impl Receiver {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
-    receiver: Receiver,
+    receiver: Expression,
     name: String,
 }
 
 impl Call {
-    pub fn new(receiver: Receiver, name: &str) -> Self {
+    pub fn new(receiver: Expression, name: &str) -> Self {
         Self {
             receiver,
             name: name.to_owned(),
@@ -31,17 +31,17 @@ impl Call {
     }
 
     pub fn then(self, name: &str) -> Self {
-        Self::new(Receiver::ReturnOf(Box::new(self)), name)
+        Self::new(Expression::ReturnOf(Box::new(self)), name)
     }
 
     fn violations(&self) -> Vec<Violation> {
         match &self.receiver {
-            Receiver::ReturnOf(previous) => {
+            Expression::ReturnOf(previous) => {
                 let mut violations = previous.violations();
                 violations.push(Violation::calling(&self.name));
                 violations
             }
-            Receiver::This | Receiver::Field(_) | Receiver::Parameter(_) => Vec::new(),
+            Expression::This | Expression::Field(_) | Expression::Parameter(_) => Vec::new(),
         }
     }
 }
@@ -59,14 +59,19 @@ impl Violation {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Method {
     calls: Vec<Call>,
 }
 
 impl Method {
-    pub fn new(calls: Vec<Call>) -> Self {
-        Self { calls }
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn call(mut self, call: Call) -> Self {
+        self.calls.push(call);
+        self
     }
 
     pub fn violations(&self) -> Vec<Violation> {
