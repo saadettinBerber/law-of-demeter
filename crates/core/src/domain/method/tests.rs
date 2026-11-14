@@ -1,4 +1,4 @@
-use super::{Call, Expression, Lambda, Method, Reason, Verdict};
+use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
 
 #[test]
 fn calling_a_method_on_a_returned_object_is_a_violation() {
@@ -225,5 +225,20 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_an_own_field_is_allowed() {
             ),
             Verdict::allowed("forEach", Reason::field("orders")),
         ]
+    );
+}
+
+#[test]
+fn calling_a_method_on_an_object_created_in_the_method_is_allowed() {
+    let greeting = Method::new().call(Call::new(
+        Expression::created(Creation::new("StringBuilder")),
+        "append",
+    ));
+
+    let verdicts = greeting.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("append", Reason::created("StringBuilder"))]
     );
 }

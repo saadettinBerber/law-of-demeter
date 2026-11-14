@@ -7,9 +7,14 @@ pub enum Expression {
     Parameter(String),
     ReturnOf(Box<Call>),
     Local(String),
+    New(Creation),
 }
 
 impl Expression {
+    pub fn created(creation: Creation) -> Self {
+        Self::New(creation)
+    }
+
     pub fn local(name: &str) -> Self {
         Self::Local(name.to_owned())
     }
@@ -21,7 +26,9 @@ impl Expression {
     fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
         match self {
             Self::ReturnOf(call) => call.verdicts(scope),
-            Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) => Vec::new(),
+            Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) | Self::New(_) => {
+                Vec::new()
+            }
         }
     }
 
@@ -31,6 +38,7 @@ impl Expression {
             Self::Field(field) => Standing::Friend(Reason::field(field)),
             Self::Parameter(parameter) => Standing::Friend(Reason::parameter(parameter)),
             Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
+            Self::New(creation) => Standing::Friend(Reason::created(&creation.type_name)),
             Self::Local(name) => scope
                 .get(name)
                 .cloned()
@@ -44,6 +52,19 @@ impl Expression {
 
     pub fn parameter(name: &str) -> Self {
         Self::Parameter(name.to_owned())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Creation {
+    type_name: String,
+}
+
+impl Creation {
+    pub fn new(type_name: &str) -> Self {
+        Self {
+            type_name: type_name.to_owned(),
+        }
     }
 }
 
@@ -174,6 +195,7 @@ pub enum Reason {
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
+    Created(String),
     Local { name: String, origin: Box<Reason> },
     LambdaParameter { name: String, feed: Box<Reason> },
 }
@@ -203,6 +225,10 @@ impl Reason {
             name: name.to_owned(),
             feed: Box::new(feed),
         }
+    }
+
+    pub fn created(type_name: &str) -> Self {
+        Self::Created(type_name.to_owned())
     }
 
     pub fn unassigned_local(name: &str) -> Self {
