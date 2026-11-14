@@ -2,7 +2,7 @@ use super::Classification;
 
 const VALUE_PACKAGES: [&str; 1] = ["java.time."];
 
-const VALUES: [&str; 17] = [
+const VALUES: [&str; 18] = [
     "java.lang.String",
     "java.lang.StringBuilder",
     "java.lang.StringBuffer",
@@ -16,6 +16,7 @@ const VALUES: [&str; 17] = [
     "java.lang.Float",
     "java.lang.Double",
     "java.lang.Number",
+    "java.lang.Class",
     "java.math.BigDecimal",
     "java.math.BigInteger",
     "java.util.UUID",

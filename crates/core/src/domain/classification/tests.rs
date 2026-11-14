@@ -1501,3 +1501,21 @@ fn only_types_declared_in_the_analysed_sources_are_project_types() {
 
     assert_eq!(answers, (true, false));
 }
+
+#[test]
+fn java_lang_class_is_a_value_with_or_without_a_shape() {
+    let class_shape = TypeShape::new("java.lang.Class", TypeKind::Class)
+        .with_type_parameter("T")
+        .with_method(behavior("getName"));
+    let name = TypeRef::generic("java.lang.Class", vec![TypeRef::class("Order")]);
+
+    let classifications = (
+        Types::new().classify(&name),
+        Types::new().with_shape(class_shape).classify(&name),
+    );
+
+    assert_eq!(
+        classifications,
+        (Classification::Value, Classification::Value)
+    );
+}
