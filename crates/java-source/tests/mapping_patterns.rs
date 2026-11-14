@@ -175,3 +175,18 @@ fn a_switch_expression_with_patterns_yields_a_literal_not_its_selector() {
             .assign("c", class("Customer"), Expression::literal())
     );
 }
+
+#[test]
+fn an_old_style_switch_with_colon_groups_runs_its_branches_in_source_order() {
+    let source = "class OrderService {\n void f(Order order) {\n  switch (order.kind()) {\n   case 1:\n    order.paid();\n    break;\n   case 2:\n   case 3:\n    order.shipped();\n    break;\n   default:\n    order.other();\n  }\n }\n}";
+
+    let mapped = method_f(source);
+
+    assert_eq!(
+        mapped,
+        f(2).call(call(order(), "kind", 3))
+            .call(call(order(), "paid", 5))
+            .call(call(order(), "shipped", 9))
+            .call(call(order(), "other", 12))
+    );
+}
