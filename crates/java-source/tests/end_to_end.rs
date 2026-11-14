@@ -608,6 +608,33 @@ fn allowed_10_counter_case_an_element_of_a_returned_container_stays_a_stranger()
 }
 
 #[test]
+fn allowed_11_a_call_on_a_library_object() {
+    let lock = "java.util.concurrent.locks.ReentrantReadWriteLock";
+    let write_lock = "java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock";
+    let types = Types::new()
+        .with_shape(class(lock).with_method(returning("writeLock", 0, TypeRef::class(write_lock))))
+        .with_shape(class(write_lock).with_method(MethodShape::new("lock")))
+        .with_project_types(["C".to_owned()]);
+    let snippet = "void update() {\n    lock.writeLock().lock();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.concurrent.locks.ReentrantReadWriteLock;",
+        "ReentrantReadWriteLock lock;",
+        snippet,
+        "update",
+        &types,
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("writeLock", 3, Reason::field("lock")),
+            Verdict::allowed("lock", 3, Reason::library(TypeRef::class(write_lock))),
+        ]
+    );
+}
+
+#[test]
 fn out_of_scope_1_computing_outside_an_object_on_friend_values() {
     let snippet =
         "int totalOf(Order order) {\n    return order.getPrice() * order.getQuantity();\n}";
