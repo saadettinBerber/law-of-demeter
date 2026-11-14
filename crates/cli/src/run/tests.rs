@@ -124,10 +124,32 @@ fn violating_method() -> Method {
 fn mapper_by_text(
     path: &Path,
     text: &str,
-    _: &dyn Fn(&str) -> bool,
+    type_exists: &dyn Fn(&str) -> bool,
 ) -> Result<Declarations, ReadError> {
     match text {
+        "probe" => Err(ReadError::new(
+            path,
+            &format!(
+                "jdk={} classpath={} unknown={}",
+                type_exists("sample.util.Box"),
+                type_exists("shop.Order"),
+                type_exists("app.Missing")
+            ),
+        )),
         "broken" => Err(ReadError::at_line(path, 1, "beklenmeyen simge")),
+        "unresolved" => Ok(Declarations {
+            classes: Vec::new(),
+            methods: vec![
+                Method::new("app.Shipping", "size", 3).call(
+                    Call::new(
+                        Expression::parameter("missing", TypeRef::class("app.Missing")),
+                        "get",
+                        4,
+                    )
+                    .then("size", 4),
+                ),
+            ],
+        }),
         "hybrid" => Ok(Declarations {
             classes: vec!["shop.Account".to_owned()],
             methods: Vec::new(),
@@ -233,5 +255,85 @@ fn a_hybrid_class_is_listed_and_fails_with_exit_code_one() {
     assert_eq!(
         (outcome.code, outcome.out.contains("Hibrit sınıflar (1):\n")),
         (VIOLATIONS, true)
+    );
+}
+
+#[test]
+fn unresolved_types_alone_do_not_fail_the_run() {
+    let root = project(&[("Size.java", "unresolved")]);
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert_eq!(
+        (
+            outcome.code,
+            outcome.out.contains("Çözülemeyen tipler (1):\n")
+        ),
+        (CLEAN, true)
+    );
+}
+
+#[test]
+fn show_allowed_adds_the_allowed_calls_to_the_report() {
+    let root = project(&[("Order.java", "clean")]);
+
+    let hidden = check(root.path(), &[], Some(&mapper_by_text));
+    let shown = check(root.path(), &["--show-allowed"], Some(&mapper_by_text));
+
+    assert_eq!(
+        (
+            hidden.out.contains("Uygun çağrılar"),
+            shown.out.contains("Uygun çağrılar (1):\n")
+        ),
+        (false, true)
+    );
+}
+
+#[test]
+fn a_file_that_does_not_parse_is_reported_and_the_others_are_still_checked() {
+    let root = project(&[("Broken.java", "broken"), ("Order.java", "clean")]);
+    let broken = root.path().join("Broken.java");
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert_eq!(
+        (
+            outcome.code,
+            outcome.out.contains(&format!(
+                "Kaynak hataları (1):\n{}:1  Hata: beklenmeyen simge\n",
+                broken.display()
+            )),
+            outcome.out.contains("  Dosya: 1\n")
+        ),
+        (CLEAN, true, true)
+    );
+}
+
+#[test]
+fn every_source_root_is_walked() {
+    let first = project(&[("Order.java", "clean")]);
+    let second = project(&[("Shipping.java", "violation")]);
+    let mut arguments = arguments_for(first.path());
+    arguments.extend(["--source".to_owned(), second.path().display().to_string()]);
+    let arguments: Vec<&str> = arguments.iter().map(String::as_str).collect();
+
+    let outcome = execute_with(&arguments, Some(&mapper_by_text));
+
+    assert_eq!(
+        (outcome.code, outcome.out.contains("  Dosya: 2\n")),
+        (VIOLATIONS, true)
+    );
+}
+
+#[test]
+fn the_source_mapper_is_told_which_types_the_classpath_and_the_jdk_provide() {
+    let root = project(&[("Probe.java", "probe")]);
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert!(
+        outcome
+            .out
+            .contains("Hata: jdk=true classpath=true unknown=false\n")
     );
 }
