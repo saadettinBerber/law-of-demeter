@@ -133,7 +133,8 @@ fn qualified_binary_name(name: &str) -> Option<String> {
         .position(|segment| starts_with_uppercase(segment))
         .unwrap_or(segments.len().saturating_sub(1));
     let (package, classes) = segments.split_at(class_index);
-    let class = with_nested(classes.first()?.to_string(), &classes[1..]);
+    let (first, nested) = classes.split_first()?;
+    let class = with_nested((*first).to_owned(), nested);
     Some(if package.is_empty() {
         class
     } else {
