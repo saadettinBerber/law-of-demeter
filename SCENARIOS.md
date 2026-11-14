@@ -18,29 +18,31 @@
 
 - ✅ Kural bu senaryoda beklendiği gibi davranıyor.
 
-- ❌ Henüz davranmıyor. Kural henüz yazılmadığı için şimdilik bütün senaryolar ❌.
+- ❌ Henüz davranmıyor.
+
+- Her senaryo, Java kaynağından karara uçtan uca bir testle sınanır.
 
 | Bölüm | Senaryo | Beklenen | Durum |
 |---|---|---|---|
-| Uygun değil | 1. Getter'ın döndürdüğü nesnenin metodunu çağırmak | Raporlanır | ❌ |
-| Uygun değil | 2. Zinciri yerel değişkene bölmek | Raporlanır | ❌ |
-| Uygun değil | 3. Getter'ın döndürdüğü nesneyi setter ile değiştirmek | Raporlanır | ❌ |
-| Uygun değil | 4. Getter'ın döndürdüğü koleksiyonu değiştirmek | Raporlanır | ❌ |
-| Uygun değil | 5. Hibrit sınıf | Raporlanır | ❌ |
-| Uygun değil | 6. İç koleksiyonun elemanlarını dışarıdan değiştirmek | Raporlanır | ❌ |
-| Uygun değil | 7. Veri yapısının taşıdığı nesneye uzanmak | Raporlanır | ❌ |
-| Uygun değil | 8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak | Raporlanır | ❌ |
-| Uygun | 1. Parametreden değer okumak | Raporlanmaz | ❌ |
-| Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ❌ |
-| Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ❌ |
-| Uygun | 4. Builder ve fluent zincirler | Raporlanmaz | ❌ |
-| Uygun | 5. Java koleksiyonları ve stream'ler | Raporlanmaz | ❌ |
-| Uygun | 6. Factory'ler ve yeni nesneler | Raporlanmaz | ❌ |
-| Uygun | 7. Yabancıyı yalnızca başka bir metoda iletmek | Raporlanmaz | ❌ |
-| Uygun | 8. Kendi nesnesi ve alanları | Raporlanmaz | ❌ |
-| Uygun | 9. Depo sorgusunun döndürdüğü nesneyle konuşmak | Raporlanmaz | ❌ |
-| Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ❌ |
-| Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ❌ |
+| Uygun değil | 1. Getter'ın döndürdüğü nesnenin metodunu çağırmak | Raporlanır | ✅ |
+| Uygun değil | 2. Zinciri yerel değişkene bölmek | Raporlanır | ✅ |
+| Uygun değil | 3. Getter'ın döndürdüğü nesneyi setter ile değiştirmek | Raporlanır | ✅ |
+| Uygun değil | 4. Getter'ın döndürdüğü koleksiyonu değiştirmek | Raporlanır | ✅ |
+| Uygun değil | 5. Hibrit sınıf | Raporlanır | ✅ |
+| Uygun değil | 6. İç koleksiyonun elemanlarını dışarıdan değiştirmek | Raporlanır | ✅ |
+| Uygun değil | 7. Veri yapısının taşıdığı nesneye uzanmak | Raporlanır | ✅ |
+| Uygun değil | 8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak | Raporlanır | ✅ |
+| Uygun | 1. Parametreden değer okumak | Raporlanmaz | ✅ |
+| Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ✅ |
+| Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ✅ |
+| Uygun | 4. Builder ve fluent zincirler | Raporlanmaz | ✅ |
+| Uygun | 5. Java koleksiyonları ve stream'ler | Raporlanmaz | ✅ |
+| Uygun | 6. Factory'ler ve yeni nesneler | Raporlanmaz | ✅ |
+| Uygun | 7. Yabancıyı yalnızca başka bir metoda iletmek | Raporlanmaz | ✅ |
+| Uygun | 8. Kendi nesnesi ve alanları | Raporlanmaz | ✅ |
+| Uygun | 9. Depo sorgusunun döndürdüğü nesneyle konuşmak | Raporlanmaz | ✅ |
+| Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ✅ |
+| Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ✅ |
 
 ## Uygun değil
 
