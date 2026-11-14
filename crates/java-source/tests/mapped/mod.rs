@@ -40,6 +40,13 @@ pub fn method_f(source: &str) -> Method {
         .unwrap()
 }
 
+pub fn method_in(source: &str, class_name: &str, name: &str) -> Method {
+    mapped_methods(source)
+        .into_iter()
+        .find(|method| method.class_name() == class_name && method.name() == name)
+        .unwrap()
+}
+
 pub fn class(name: &str) -> TypeRef {
     TypeRef::class(name)
 }
