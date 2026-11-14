@@ -1,55 +1,70 @@
-use law_of_demeter_core::application::{Finding, Report};
+use law_of_demeter_core::application::{Finding, HybridFinding, ReadError, Report};
 
 use crate::reason_text::describe;
 
 pub fn render(report: &Report, show_allowed: bool) -> String {
     let findings = report.findings();
+    let finding_lines = |keep: fn(&Finding) -> bool, verdict: &str| -> Vec<String> {
+        findings
+            .iter()
+            .filter(|finding| keep(finding))
+            .map(|finding| finding_line(finding, verdict))
+            .collect()
+    };
     let mut text = String::new();
     section(
         &mut text,
         "İhlaller",
-        "İhlal",
-        findings
-            .iter()
-            .filter(|finding| finding.is_violation() && !finding.is_unresolved()),
+        finding_lines(
+            |finding| finding.is_violation() && !finding.is_unresolved(),
+            "İhlal",
+        ),
     );
     section(
         &mut text,
         "Çözülemeyen tipler",
-        "Belirsiz",
-        findings.iter().filter(|finding| finding.is_unresolved()),
+        finding_lines(Finding::is_unresolved, "Belirsiz"),
     );
     if show_allowed {
         section(
             &mut text,
             "Uygun çağrılar",
-            "Uygun",
-            findings.iter().filter(|finding| !finding.is_violation()),
+            finding_lines(|finding| !finding.is_violation(), "Uygun"),
         );
     }
+    section(
+        &mut text,
+        "Hibrit sınıflar",
+        report.hybrid_classes().iter().map(hybrid_line).collect(),
+    );
+    section(
+        &mut text,
+        "Kaynak hataları",
+        report.source_errors().iter().map(error_line).collect(),
+    );
+    section(
+        &mut text,
+        "Tip okuma hataları",
+        report.type_errors().iter().map(error_line).collect(),
+    );
     text
 }
 
-fn section<'a>(
-    text: &mut String,
-    title: &str,
-    verdict: &str,
-    findings: impl Iterator<Item = &'a Finding>,
-) {
-    let findings: Vec<&Finding> = findings.collect();
-    if findings.is_empty() {
+fn section(text: &mut String, title: &str, lines: Vec<String>) {
+    if lines.is_empty() {
         return;
     }
-    text.push_str(&format!("{title} ({}):\n", findings.len()));
-    for finding in findings {
-        text.push_str(&line(finding, verdict));
+    text.push_str(&format!("{title} ({}):\n", lines.len()));
+    for line in lines {
+        text.push_str(&line);
+        text.push('\n');
     }
     text.push('\n');
 }
 
-fn line(finding: &Finding, verdict: &str) -> String {
+fn finding_line(finding: &Finding, verdict: &str) -> String {
     format!(
-        "{}:{}  {}.{}  {}()  {}: {}\n",
+        "{}:{}  {}.{}  {}()  {}: {}",
         finding.path().display(),
         finding.line(),
         finding.class_name(),
@@ -58,6 +73,25 @@ fn line(finding: &Finding, verdict: &str) -> String {
         verdict,
         describe(finding.reason())
     )
+}
+
+fn hybrid_line(finding: &HybridFinding) -> String {
+    let hybrid = finding.hybrid();
+    format!(
+        "{}  {}  Hibrit sınıf: davranış: {}; setter: {}",
+        finding.path().display(),
+        hybrid.class(),
+        hybrid.behavior_methods().join(", "),
+        hybrid.setters().join(", ")
+    )
+}
+
+fn error_line(error: &ReadError) -> String {
+    let location = match error.line() {
+        Some(line) => format!("{}:{line}", error.path().display()),
+        None => error.path().display().to_string(),
+    };
+    format!("{location}  Hata: {}", error.message())
 }
 
 #[cfg(test)]

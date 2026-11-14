@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use law_of_demeter_core::application::{Finding, Report};
-use law_of_demeter_core::domain::classification::Classification;
+use law_of_demeter_core::application::{Finding, HybridFinding, ReadError, Report};
+use law_of_demeter_core::domain::classification::{Classification, Types};
 use law_of_demeter_core::domain::method::{Reason, Verdict};
-use law_of_demeter_core::domain::type_shape::TypeRef;
+use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 use super::render;
 
@@ -229,5 +229,78 @@ fn the_reasons_that_make_a_stranger_allowed_read_in_turkish() {
             "Server bir konteyner",
             "Server üzerinde akıcı (fluent) çağrı",
         ]
+    );
+}
+
+fn account_hybrid() -> HybridFinding {
+    let account = TypeShape::new("Account", TypeKind::Class)
+        .with_method(
+            MethodShape::new("getBalance")
+                .reading("balance")
+                .returning(TypeRef::primitive("int")),
+        )
+        .with_method(
+            MethodShape::new("setBalance")
+                .writing("balance")
+                .with_parameters(vec![TypeRef::primitive("int")]),
+        )
+        .with_method(MethodShape::new("withdraw"))
+        .with_method(MethodShape::new("deposit"));
+    let hybrid = Types::new()
+        .with_shape(account)
+        .hybrid_class("Account")
+        .expect("Account is a hybrid");
+    HybridFinding::new(Path::new("src/Account.java"), hybrid)
+}
+
+#[test]
+fn a_hybrid_class_is_listed_with_its_behavior_and_its_setters() {
+    let report = Report::new(
+        1,
+        0,
+        Vec::new(),
+        vec![account_hybrid()],
+        Vec::new(),
+        Vec::new(),
+    );
+
+    let text = render(&report, false);
+
+    assert_eq!(
+        section(&text, "Hibrit sınıflar"),
+        [
+            "src/Account.java  Account  Hibrit sınıf: davranış: withdraw, deposit; setter: setBalance"
+        ]
+    );
+}
+
+#[test]
+fn read_errors_are_listed_with_their_line_when_they_have_one() {
+    let report = Report::new(
+        1,
+        0,
+        Vec::new(),
+        Vec::new(),
+        vec![
+            ReadError::at_line(Path::new("src/Broken.java"), 3, "beklenmeyen simge"),
+            ReadError::new(Path::new("src/Locked.java"), "izin reddedildi"),
+        ],
+        vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+    );
+
+    let text = render(&report, false);
+
+    assert_eq!(
+        (
+            section(&text, "Kaynak hataları"),
+            section(&text, "Tip okuma hataları")
+        ),
+        (
+            vec![
+                "src/Broken.java:3  Hata: beklenmeyen simge",
+                "src/Locked.java  Hata: izin reddedildi",
+            ],
+            vec!["lib/broken.jar  Hata: bozuk arşiv"]
+        )
     );
 }
