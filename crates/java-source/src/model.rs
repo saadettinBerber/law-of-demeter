@@ -60,9 +60,16 @@ pub struct Method {
     pub body: Option<Vec<Statement>>,
 }
 
+pub const STATIC_INITIALIZER: &str = "<static-init>";
+pub const INSTANCE_INITIALIZER: &str = "<instance-init>";
+
 impl Method {
     pub fn is_constructor(&self) -> bool {
         self.returns.is_none()
+    }
+
+    pub fn is_initializer(&self) -> bool {
+        self.name == STATIC_INITIALIZER || self.name == INSTANCE_INITIALIZER
     }
 }
 
