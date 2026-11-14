@@ -53,3 +53,48 @@ fn jdk_types_of_the_asked_release_are_added() {
         ]
     );
 }
+
+#[test]
+fn an_unreadable_classpath_entry_is_reported_without_stopping_the_others() {
+    let missing = fixtures().join("missing.jar");
+    let types = ClassFileTypes::new(vec![missing.clone(), fixtures().join("classes")], None);
+
+    let reading = types.read();
+
+    assert_eq!(
+        (
+            reading
+                .shapes
+                .iter()
+                .any(|shape| shape.name() == "shop.Order"),
+            reading
+                .errors
+                .iter()
+                .map(|error| (
+                    error.path().to_path_buf(),
+                    error.message().contains("missing.jar")
+                ))
+                .collect::<Vec<_>>()
+        ),
+        (true, vec![(missing, false)])
+    );
+}
+
+#[test]
+fn a_jdk_that_cannot_give_the_release_is_reported_and_the_classpath_is_still_read() {
+    let jdk = Jdk::at(fixtures().join("jdk"));
+    let types = ClassFileTypes::new(vec![fixtures().join("classes")], Some((jdk, 99)));
+
+    let reading = types.read();
+
+    assert_eq!(
+        (
+            reading
+                .shapes
+                .iter()
+                .any(|shape| shape.name() == "shop.Order"),
+            reading.errors.len()
+        ),
+        (true, 1)
+    );
+}
