@@ -206,3 +206,24 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_viol
         ]
     );
 }
+
+#[test]
+fn calling_a_method_on_a_lambda_parameter_fed_by_an_own_field_is_allowed() {
+    let ship_all = Method::new().call(
+        Call::new(Expression::field("orders"), "forEach")
+            .with(Lambda::new(&["order"]).call(Call::new(Expression::local("order"), "ship"))),
+    );
+
+    let verdicts = ship_all.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "ship",
+                Reason::lambda_parameter("order", Reason::field("orders"))
+            ),
+            Verdict::allowed("forEach", Reason::field("orders")),
+        ]
+    );
+}
