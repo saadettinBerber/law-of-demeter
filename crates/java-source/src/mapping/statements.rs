@@ -51,6 +51,8 @@ impl MethodMapper<'_> {
                 body,
             } => {
                 let iterable = self.expression(iterable);
+                self.locals
+                    .insert(variable.name.clone(), type_ref(&variable.declared_type));
                 self.steps.for_each(&variable.name, iterable);
                 self.statements(body);
             }
@@ -84,12 +86,13 @@ impl MethodMapper<'_> {
     }
 
     fn local(&mut self, local: &LocalVariable) {
+        let declared = type_ref(&local.declared_type);
+        self.locals.insert(local.name.clone(), declared.clone());
         let Some(initializer) = &local.initializer else {
             return;
         };
         let value = self.expression(initializer);
-        self.steps
-            .assign(&local.name, type_ref(&local.declared_type), value);
+        self.steps.assign(&local.name, declared, value);
     }
 
     fn catch(&mut self, caught: &Catch) {
@@ -98,6 +101,8 @@ impl MethodMapper<'_> {
             _ => TypeRef::class("java.lang.Throwable"),
         };
         let value = Value::parameter(&caught.name, declared.clone());
+        self.locals
+            .insert(caught.name.clone(), Some(declared.clone()));
         self.steps.assign(&caught.name, Some(declared), value);
         self.statements(&caught.body);
     }

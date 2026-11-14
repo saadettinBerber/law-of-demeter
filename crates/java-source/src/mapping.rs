@@ -54,6 +54,7 @@ struct MethodMapper<'a> {
     class: &'a Class,
     method: &'a ParsedMethod,
     parameters: HashMap<&'a str, TypeRef>,
+    locals: HashMap<String, Option<TypeRef>>,
     steps: Steps,
 }
 
@@ -73,6 +74,7 @@ impl<'a> MethodMapper<'a> {
                     )
                 })
                 .collect(),
+            locals: HashMap::new(),
             steps: Steps::default(),
         }
     }

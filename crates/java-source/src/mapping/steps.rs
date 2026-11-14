@@ -1,4 +1,4 @@
-use law_of_demeter_core::domain::method::{Call, Expression, Method};
+use law_of_demeter_core::domain::method::{Call, Expression, Lambda, Method};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
 #[derive(Default)]
@@ -39,13 +39,7 @@ impl Steps {
     pub(super) fn evaluate(&mut self, value: Expression) {
         match value {
             Expression::ReturnOf(call) => self.operations.push(Operation::Call(*call)),
-            Expression::Literal
-            | Expression::This
-            | Expression::Local(_)
-            | Expression::Parameter { .. }
-            | Expression::Field { .. }
-            | Expression::StaticType(_)
-            | Expression::Unresolved(_) => {}
+            other if is_quiet(&other) => {}
             other => self.operations.push(Operation::Evaluate(other)),
         }
     }
@@ -68,5 +62,40 @@ impl Steps {
                 Operation::ForEach { variable, iterable } => method.for_each(&variable, iterable),
                 Operation::Evaluate(value) => method.evaluate(value),
             })
+    }
+
+    pub(super) fn into_lambda(self, lambda: Lambda) -> Lambda {
+        self.operations
+            .into_iter()
+            .fold(lambda, |lambda, operation| match operation {
+                Operation::Call(call) => lambda.call(call),
+                Operation::Assign {
+                    local,
+                    declared: Some(type_ref),
+                    value,
+                } => lambda.assign(&local, type_ref, value),
+                Operation::Assign {
+                    local,
+                    declared: None,
+                    value,
+                } => lambda.assign_var(&local, value),
+                Operation::ForEach { variable, iterable } => lambda.for_each(&variable, iterable),
+                Operation::Evaluate(value) => lambda.evaluate(value),
+            })
+    }
+}
+
+pub(super) fn is_quiet(value: &Expression) -> bool {
+    match value {
+        Expression::Literal
+        | Expression::This
+        | Expression::Local(_)
+        | Expression::Parameter { .. }
+        | Expression::Field { .. }
+        | Expression::StaticType(_)
+        | Expression::Unresolved(_) => true,
+        Expression::Operation(operands) => operands.iter().all(is_quiet),
+        Expression::FieldOf { target, .. } => is_quiet(target),
+        _ => false,
     }
 }
