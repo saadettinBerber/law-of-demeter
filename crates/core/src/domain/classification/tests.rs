@@ -1039,3 +1039,100 @@ fn fluency_in_a_cyclic_hierarchy_terminates() {
 
     assert!(!fluent);
 }
+
+fn with_jdk_shapes(names: &[&str], kind: TypeKind) -> Types {
+    names.iter().fold(Types::new(), |types, name| {
+        types.with_shape(
+            TypeShape::new(name, kind)
+                .with_method(behavior("compute"))
+                .with_method(setter("setValue", "value")),
+        )
+    })
+}
+
+#[test]
+fn jdk_value_names_stay_values_when_their_shapes_are_in_the_catalog() {
+    let names = [
+        "java.lang.String",
+        "java.lang.Integer",
+        "java.math.BigDecimal",
+        "java.time.Instant",
+        "java.util.UUID",
+        "java.util.Date",
+    ];
+    let types = with_jdk_shapes(&names, TypeKind::Class);
+
+    let classifications = classify_names(&types, &names);
+
+    assert_eq!(classifications, vec![Classification::Value; names.len()]);
+}
+
+#[test]
+fn jdk_container_names_stay_containers_when_their_shapes_are_in_the_catalog() {
+    let classes = [
+        "java.util.ArrayList",
+        "java.util.Optional",
+        "java.util.HashMap",
+    ];
+    let interfaces = [
+        "java.util.List",
+        "java.util.stream.Stream",
+        "java.lang.Iterable",
+    ];
+    let types = with_jdk_shapes(&classes, TypeKind::Class);
+    let types = interfaces.iter().fold(types, |types, name| {
+        types.with_shape(TypeShape::new(name, TypeKind::Interface).with_method(behavior("size")))
+    });
+
+    let classifications = (
+        classify_names(&types, &classes),
+        classify_names(&types, &interfaces),
+    );
+
+    assert_eq!(
+        classifications,
+        (
+            vec![Classification::Container; classes.len()],
+            vec![Classification::Container; interfaces.len()]
+        )
+    );
+}
+
+#[test]
+fn a_map_entry_stays_a_data_structure_when_its_shape_is_in_the_catalog() {
+    let entry = TypeShape::new("java.util.Map$Entry", TypeKind::Interface)
+        .with_method(behavior("comparingByKey"))
+        .with_method(getter("getKey", "key"));
+    let types = Types::new().with_shape(entry);
+
+    let classification = types.classify(&TypeRef::class("java.util.Map$Entry"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_jdk_type_with_behavior_and_setters_is_never_reported_as_a_hybrid_class() {
+    let names = [
+        "java.util.Date",
+        "java.util.ArrayList",
+        "java.util.Map$Entry",
+    ];
+    let types = with_jdk_shapes(&names, TypeKind::Class);
+
+    let findings: Vec<_> = names.iter().map(|name| types.hybrid_class(name)).collect();
+
+    assert_eq!(findings, vec![None; names.len()]);
+}
+
+#[test]
+fn a_user_class_extending_a_jdk_value_with_a_shape_is_a_value() {
+    let types = with_jdk_shapes(&["java.util.Date"], TypeKind::Class).with_shape(class(
+        "Deadline",
+        "java.util.Date",
+        vec![behavior("isOverdue")],
+    ));
+
+    let classification = types.classify(&TypeRef::class("Deadline"));
+
+    assert_eq!(classification, Classification::Value);
+}
