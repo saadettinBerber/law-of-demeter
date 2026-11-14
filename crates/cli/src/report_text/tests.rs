@@ -442,3 +442,51 @@ lib/broken.jar  Hata: bozuk arşiv
 "
     );
 }
+
+#[test]
+fn every_kind_of_allowed_call_has_a_reason_group_in_the_summary() {
+    let server = TypeRef::class("Server");
+    let report = report_of(vec![
+        allowed(1, Reason::This),
+        allowed(2, Reason::field("wallet")),
+        allowed(3, Reason::parameter("order")),
+        allowed(4, Reason::created(server.clone())),
+        allowed(5, Reason::static_type(server.clone())),
+        allowed(6, Reason::Literal),
+        allowed(7, Reason::local("c", Reason::field("wallet"))),
+        allowed(
+            8,
+            Reason::classified(Classification::DataStructure, server.clone()),
+        ),
+        allowed(9, Reason::classified(Classification::Value, server.clone())),
+        allowed(
+            10,
+            Reason::classified(Classification::Container, server.clone()),
+        ),
+        allowed(11, Reason::fluent(server)),
+        allowed(12, Reason::static_result("builder")),
+        allowed(13, Reason::factory_result("create")),
+        allowed(14, Reason::query_result("findById")),
+    ]);
+
+    let text = render(&report, true);
+
+    assert_eq!(
+        section(&text, "Uygun nedenleri"),
+        [
+            "  2  Sınıfın alanı",
+            "  1  Akıcı çağrı",
+            "  1  Argüman",
+            "  1  Depo sorgusunun sonucu",
+            "  1  Değer",
+            "  1  Factory'nin sonucu",
+            "  1  Kendi nesnesi",
+            "  1  Konteyner",
+            "  1  Metotta oluşturulan nesne",
+            "  1  Sabit değer",
+            "  1  Statik çağrı",
+            "  1  Statik çağrının sonucu",
+            "  1  Veri yapısı",
+        ]
+    );
+}
