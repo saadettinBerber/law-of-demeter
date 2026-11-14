@@ -22,7 +22,7 @@ pub struct UsageError(pub String);
 
 pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, UsageError> {
     let mut parsed = Arguments::default();
-    let mut arguments = arguments.into_iter();
+    let mut arguments = arguments.into_iter().flat_map(split_at_equals);
     while let Some(argument) = arguments.next() {
         let option = argument.to_string_lossy();
         match option.as_ref() {
@@ -44,6 +44,17 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
         return Err(UsageError("en az bir --source gerekli".to_owned()));
     }
     Ok(Command::Check(parsed))
+}
+
+fn split_at_equals(argument: OsString) -> Vec<OsString> {
+    let split = argument
+        .to_str()
+        .filter(|text| text.starts_with("--"))
+        .and_then(|text| text.split_once('='));
+    match split {
+        Some((option, value)) => vec![option.into(), value.into()],
+        None => vec![argument],
+    }
 }
 
 fn value(

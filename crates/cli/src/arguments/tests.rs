@@ -128,3 +128,18 @@ fn a_stray_positional_argument_is_rejected() {
         UsageError("beklenmeyen argüman: Order.java".to_owned())
     );
 }
+
+#[test]
+fn an_option_can_carry_its_value_after_an_equals_sign() {
+    let command = parsed(&["--source=src", "--release=21", "--jdk-home=/opt/jdk"]);
+
+    assert_eq!(
+        command,
+        Command::Check(Arguments {
+            sources: vec![PathBuf::from("src")],
+            jdk_home: Some(PathBuf::from("/opt/jdk")),
+            release: Some(21),
+            ..Arguments::default()
+        })
+    );
+}
