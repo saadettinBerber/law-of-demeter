@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::classification::{Classification, Types, element_type};
+use super::classification::{Classification, Types, element_type, is_factory_method};
 use super::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -270,14 +270,16 @@ impl Call {
             .and_then(|name| types.return_type(name, &self.name, self.arguments.len()))
             .cloned();
         Subject {
-            standing: self.result_standing(),
+            standing: self.result_standing(&receiver.standing),
             type_ref,
         }
     }
 
-    fn result_standing(&self) -> Standing {
+    fn result_standing(&self, receiver: &Standing) -> Standing {
         if matches!(self.receiver, Expression::StaticType(_)) {
             Standing::Friend(Reason::static_result(&self.name))
+        } else if is_factory_method(&self.name) && matches!(receiver, Standing::Friend(_)) {
+            Standing::Friend(Reason::factory_result(&self.name))
         } else {
             Standing::Stranger(Reason::return_of(&self.name))
         }
@@ -405,6 +407,7 @@ pub enum Reason {
     ReturnOf(String),
     UnassignedLocal(String),
     StaticResult(String),
+    FactoryResult(String),
     Fluent(TypeRef),
     ContainerMutation {
         type_ref: TypeRef,
@@ -466,6 +469,10 @@ impl Reason {
 
     pub fn static_result(call: &str) -> Self {
         Self::StaticResult(call.to_owned())
+    }
+
+    pub fn factory_result(call: &str) -> Self {
+        Self::FactoryResult(call.to_owned())
     }
 
     pub fn container_mutation(type_ref: TypeRef, source: Reason) -> Self {

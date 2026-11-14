@@ -220,3 +220,34 @@ fn changing_a_collection_returned_by_a_getter_is_a_violation() {
         ]
     );
 }
+
+#[test]
+fn objects_from_factories_and_new_are_friends() {
+    let types =
+        Types::new()
+            .with_shape(
+                class("ReportFactory")
+                    .with_method(MethodShape::new("create").returning(TypeRef::class("Report"))),
+            )
+            .with_shape(class("Report").with_method(
+                MethodShape::new("render").returning(TypeRef::class("java.lang.String")),
+            ));
+    let report = Method::new("Reports", "report", 1).call(
+        Call::new(
+            Expression::parameter("factory", TypeRef::class("ReportFactory")),
+            "create",
+            2,
+        )
+        .then("render", 2),
+    );
+
+    let verdicts = report.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("create", 2, Reason::parameter("factory")),
+            Verdict::allowed("render", 2, Reason::factory_result("create")),
+        ]
+    );
+}
