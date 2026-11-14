@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 law-of-demeter-core.workspace = true
 law-of-demeter-class-file = { path = "../class-file" }
+law-of-demeter-java-source = { path = "../java-source" }
 
 [dev-dependencies]
 tempfile = "3"

@@ -195,6 +195,7 @@ version = "0.1.0"
 dependencies = [
  "law-of-demeter-class-file",
  "law-of-demeter-core",
+ "law-of-demeter-java-source",
  "tempfile",
 ]
 
