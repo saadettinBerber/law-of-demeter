@@ -371,3 +371,13 @@ fn violations_are_counted_per_reason_and_unresolved_types_are_left_out() {
         ]
     );
 }
+
+#[test]
+fn allowed_calls_are_counted_per_reason_when_they_are_shown() {
+    let text = render(&mixed_report(), true);
+
+    assert_eq!(
+        section(&text, "Uygun nedenleri"),
+        ["  2  Argüman", "  1  Veri yapısı"]
+    );
+}

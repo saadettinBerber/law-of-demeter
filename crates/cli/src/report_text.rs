@@ -49,11 +49,11 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
         "Tip okuma hataları",
         report.type_errors().iter().map(error_line).collect(),
     );
-    text.push_str(&summary(report));
+    text.push_str(&summary(report, show_allowed));
     text
 }
 
-fn summary(report: &Report) -> String {
+fn summary(report: &Report, show_allowed: bool) -> String {
     let counts = report.counts();
     let mut text = String::from("Özet:\n");
     for line in [
@@ -75,6 +75,13 @@ fn summary(report: &Report) -> String {
     if !reasons.is_empty() {
         text.push_str("\nİhlal nedenleri:\n");
         for (reason, count) in reasons {
+            text.push_str(&format!("  {count}  {reason}\n"));
+        }
+    }
+    let allowed = reason_counts(report.findings(), |finding| !finding.is_violation());
+    if show_allowed && !allowed.is_empty() {
+        text.push_str("\nUygun nedenleri:\n");
+        for (reason, count) in allowed {
             text.push_str(&format!("  {count}  {reason}\n"));
         }
     }
