@@ -1,27 +1,36 @@
 use std::collections::HashMap;
 
+use super::classification::Types;
+use super::type_shape::TypeRef;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     This,
-    Field(String),
-    Parameter(String),
+    Field { name: String, type_ref: TypeRef },
+    Parameter { name: String, type_ref: TypeRef },
     ReturnOf(Box<Call>),
     Local(String),
     New(Creation),
-    StaticType(String),
+    StaticType(TypeRef),
 }
 
 impl Expression {
-    pub fn field(name: &str) -> Self {
-        Self::Field(name.to_owned())
+    pub fn field(name: &str, type_ref: TypeRef) -> Self {
+        Self::Field {
+            name: name.to_owned(),
+            type_ref,
+        }
     }
 
-    pub fn parameter(name: &str) -> Self {
-        Self::Parameter(name.to_owned())
+    pub fn parameter(name: &str, type_ref: TypeRef) -> Self {
+        Self::Parameter {
+            name: name.to_owned(),
+            type_ref,
+        }
     }
 
-    pub fn static_type(name: &str) -> Self {
-        Self::StaticType(name.to_owned())
+    pub fn static_type(type_ref: TypeRef) -> Self {
+        Self::StaticType(type_ref)
     }
 
     pub fn created(creation: Creation) -> Self {
@@ -41,8 +50,8 @@ impl Expression {
             Self::ReturnOf(call) => call.verdicts(scope),
             Self::New(creation) => creation.verdicts(scope),
             Self::This
-            | Self::Field(_)
-            | Self::Parameter(_)
+            | Self::Field { .. }
+            | Self::Parameter { .. }
             | Self::Local(_)
             | Self::StaticType(_) => Vec::new(),
         }
@@ -51,11 +60,11 @@ impl Expression {
     fn standing(&self, scope: &Scope) -> Standing {
         match self {
             Self::This => Standing::Friend(Reason::This),
-            Self::Field(field) => Standing::Friend(Reason::field(field)),
-            Self::Parameter(parameter) => Standing::Friend(Reason::parameter(parameter)),
+            Self::Field { name, .. } => Standing::Friend(Reason::field(name)),
+            Self::Parameter { name, .. } => Standing::Friend(Reason::parameter(name)),
             Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
-            Self::New(creation) => Standing::Friend(Reason::created(&creation.type_name)),
-            Self::StaticType(name) => Standing::Friend(Reason::static_type(name)),
+            Self::New(creation) => Standing::Friend(Reason::created(creation.type_ref.clone())),
+            Self::StaticType(type_ref) => Standing::Friend(Reason::static_type(type_ref.clone())),
             Self::Local(name) => scope
                 .get(name)
                 .cloned()
@@ -66,14 +75,14 @@ impl Expression {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Creation {
-    type_name: String,
+    type_ref: TypeRef,
     arguments: Vec<Argument>,
 }
 
 impl Creation {
-    pub fn new(type_name: &str) -> Self {
+    pub fn new(type_ref: TypeRef) -> Self {
         Self {
-            type_name: type_name.to_owned(),
+            type_ref,
             arguments: Vec::new(),
         }
     }
@@ -84,7 +93,7 @@ impl Creation {
     }
 
     fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
-        let feed = Standing::Friend(Reason::created(&self.type_name));
+        let feed = Standing::Friend(Reason::created(self.type_ref.clone()));
         self.arguments
             .iter()
             .flat_map(|argument| argument.verdicts(scope, &feed))
@@ -226,8 +235,8 @@ pub enum Reason {
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
-    Created(String),
-    StaticType(String),
+    Created(TypeRef),
+    StaticType(TypeRef),
     Local { name: String, origin: Box<Reason> },
     LambdaParameter { name: String, feed: Box<Reason> },
     LoopVariable { name: String, feed: Box<Reason> },
@@ -267,12 +276,12 @@ impl Reason {
         }
     }
 
-    pub fn created(type_name: &str) -> Self {
-        Self::Created(type_name.to_owned())
+    pub fn created(type_ref: TypeRef) -> Self {
+        Self::Created(type_ref)
     }
 
-    pub fn static_type(name: &str) -> Self {
-        Self::StaticType(name.to_owned())
+    pub fn static_type(type_ref: TypeRef) -> Self {
+        Self::StaticType(type_ref)
     }
 
     pub fn unassigned_local(name: &str) -> Self {
@@ -429,7 +438,7 @@ impl Method {
         self
     }
 
-    pub fn verdicts(&self) -> Vec<Verdict> {
+    pub fn verdicts(&self, _types: &Types) -> Vec<Verdict> {
         self.body.verdicts(&mut Scope::new())
     }
 }

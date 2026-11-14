@@ -1,14 +1,20 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
+use crate::domain::classification::Types;
+use crate::domain::type_shape::TypeRef;
 
 #[test]
 fn calling_a_method_on_a_returned_object_is_a_violation() {
     let pay = Method::new("OrderService", "pay", 1).call(
-        Call::new(Expression::parameter("order"), "getCustomer", 1)
-            .then("getWallet", 1)
-            .then("withdraw", 1),
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            1,
+        )
+        .then("getWallet", 1)
+        .then("withdraw", 1),
     );
 
-    let verdicts = pay.verdicts();
+    let verdicts = pay.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -23,10 +29,14 @@ fn calling_a_method_on_a_returned_object_is_a_violation() {
 #[test]
 fn calling_methods_on_this_and_own_fields_is_allowed() {
     let pay = Method::new("OrderService", "pay", 1)
-        .call(Call::new(Expression::field("wallet"), "withdraw", 1))
+        .call(Call::new(
+            Expression::field("wallet", TypeRef::class("Wallet")),
+            "withdraw",
+            1,
+        ))
         .call(Call::new(Expression::This, "audit", 1));
 
-    let verdicts = pay.verdicts();
+    let verdicts = pay.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -39,14 +49,20 @@ fn calling_methods_on_this_and_own_fields_is_allowed() {
 
 #[test]
 fn passing_a_returned_object_as_an_argument_is_allowed() {
-    let notify_customer =
-        Method::new("OrderService", "pay", 1).call(
-            Call::new(Expression::field("notifier"), "send", 1).with(Expression::return_of(
-                Call::new(Expression::parameter("order"), "getCustomer", 1),
-            )),
-        );
+    let notify_customer = Method::new("OrderService", "pay", 1).call(
+        Call::new(
+            Expression::field("notifier", TypeRef::class("Notifier")),
+            "send",
+            1,
+        )
+        .with(Expression::return_of(Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            1,
+        ))),
+    );
 
-    let verdicts = notify_customer.verdicts();
+    let verdicts = notify_customer.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -60,12 +76,16 @@ fn passing_a_returned_object_as_an_argument_is_allowed() {
 #[test]
 fn calling_a_setter_on_a_returned_object_is_a_violation() {
     let move_customer = Method::new("OrderService", "pay", 1).call(
-        Call::new(Expression::parameter("order"), "getCustomer", 1)
-            .then("setAddress", 1)
-            .with(Expression::parameter("address")),
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            1,
+        )
+        .then("setAddress", 1)
+        .with(Expression::parameter("address", TypeRef::class("Address"))),
     );
 
-    let verdicts = move_customer.verdicts();
+    let verdicts = move_customer.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -79,12 +99,16 @@ fn calling_a_setter_on_a_returned_object_is_a_violation() {
 #[test]
 fn calling_a_mutator_on_a_returned_collection_is_a_violation() {
     let add_line = Method::new("OrderService", "pay", 1).call(
-        Call::new(Expression::parameter("order"), "getLines", 1)
-            .then("add", 1)
-            .with(Expression::parameter("line")),
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getLines",
+            1,
+        )
+        .then("add", 1)
+        .with(Expression::parameter("line", TypeRef::class("Line"))),
     );
 
-    let verdicts = add_line.verdicts();
+    let verdicts = add_line.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -103,7 +127,7 @@ fn calling_a_method_on_an_unassigned_local_is_a_violation() {
         1,
     ));
 
-    let verdicts = pay.verdicts();
+    let verdicts = pay.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -120,11 +144,15 @@ fn calling_a_method_on_a_local_holding_a_returned_object_is_a_violation() {
     let pay = Method::new("OrderService", "pay", 1)
         .assign(
             "customer",
-            Expression::return_of(Call::new(Expression::parameter("order"), "getCustomer", 1)),
+            Expression::return_of(Call::new(
+                Expression::parameter("order", TypeRef::class("Order")),
+                "getCustomer",
+                1,
+            )),
         )
         .call(Call::new(Expression::local("customer"), "getWallet", 1).then("withdraw", 1));
 
-    let verdicts = pay.verdicts();
+    let verdicts = pay.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -145,12 +173,16 @@ fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_use
     let inspect = Method::new("OrderService", "pay", 1)
         .assign(
             "customer",
-            Expression::return_of(Call::new(Expression::parameter("order"), "getCustomer", 1)),
+            Expression::return_of(Call::new(
+                Expression::parameter("order", TypeRef::class("Order")),
+                "getCustomer",
+                1,
+            )),
         )
         .call(Call::new(Expression::local("customer"), "getWallet", 1))
         .call(Call::new(Expression::local("customer"), "getAddress", 1));
 
-    let verdicts = inspect.verdicts();
+    let verdicts = inspect.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -173,13 +205,16 @@ fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_use
 #[test]
 fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
     let pay = Method::new("OrderService", "pay", 1)
-        .assign("current", Expression::parameter("order"))
+        .assign(
+            "current",
+            Expression::parameter("order", TypeRef::class("Order")),
+        )
         .call(
             Call::new(Expression::local("current"), "charge", 1)
-                .with(Expression::parameter("amount")),
+                .with(Expression::parameter("amount", TypeRef::class("Amount"))),
         );
 
-    let verdicts = pay.verdicts();
+    let verdicts = pay.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -194,17 +229,21 @@ fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
 #[test]
 fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_violation() {
     let discount = Method::new("OrderService", "pay", 1).call(
-        Call::new(Expression::parameter("order"), "getLines", 1)
-            .then("forEach", 1)
-            .with(
-                Lambda::new(&["line"]).call(
-                    Call::new(Expression::local("line"), "applyDiscount", 1)
-                        .with(Expression::parameter("rate")),
-                ),
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getLines",
+            1,
+        )
+        .then("forEach", 1)
+        .with(
+            Lambda::new(&["line"]).call(
+                Call::new(Expression::local("line"), "applyDiscount", 1)
+                    .with(Expression::parameter("rate", TypeRef::class("Rate"))),
             ),
+        ),
     );
 
-    let verdicts = discount.verdicts();
+    let verdicts = discount.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -223,11 +262,19 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_viol
 #[test]
 fn calling_a_method_on_a_lambda_parameter_fed_by_an_own_field_is_allowed() {
     let ship_all = Method::new("OrderService", "pay", 1).call(
-        Call::new(Expression::field("orders"), "forEach", 1)
-            .with(Lambda::new(&["order"]).call(Call::new(Expression::local("order"), "ship", 1))),
+        Call::new(
+            Expression::field("orders", TypeRef::class("Orders")),
+            "forEach",
+            1,
+        )
+        .with(Lambda::new(&["order"]).call(Call::new(
+            Expression::local("order"),
+            "ship",
+            1,
+        ))),
     );
 
-    let verdicts = ship_all.verdicts();
+    let verdicts = ship_all.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -245,19 +292,19 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_an_own_field_is_allowed() {
 #[test]
 fn calling_a_method_on_an_object_created_in_the_method_is_allowed() {
     let greeting = Method::new("OrderService", "pay", 1).call(Call::new(
-        Expression::created(Creation::new("StringBuilder")),
+        Expression::created(Creation::new(TypeRef::class("StringBuilder"))),
         "append",
         1,
     ));
 
-    let verdicts = greeting.verdicts();
+    let verdicts = greeting.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
         [Verdict::allowed(
             "append",
             1,
-            Reason::created("StringBuilder")
+            Reason::created(TypeRef::class("StringBuilder"))
         )]
     );
 }
@@ -265,21 +312,28 @@ fn calling_a_method_on_an_object_created_in_the_method_is_allowed() {
 #[test]
 fn calls_inside_constructor_arguments_are_judged() {
     let print = Method::new("OrderService", "pay", 1).call(Call::new(
-        Expression::created(Creation::new("Receipt").with(Expression::return_of(
-            Call::new(Expression::parameter("order"), "getCustomer", 1).then("getName", 1),
-        ))),
+        Expression::created(
+            Creation::new(TypeRef::class("Receipt")).with(Expression::return_of(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("Order")),
+                    "getCustomer",
+                    1,
+                )
+                .then("getName", 1),
+            )),
+        ),
         "print",
         1,
     ));
 
-    let verdicts = print.verdicts();
+    let verdicts = print.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
         [
             Verdict::allowed("getCustomer", 1, Reason::parameter("order")),
             Verdict::violation("getName", 1, Reason::return_of("getCustomer")),
-            Verdict::allowed("print", 1, Reason::created("Receipt")),
+            Verdict::allowed("print", 1, Reason::created(TypeRef::class("Receipt"))),
         ]
     );
 }
@@ -287,23 +341,32 @@ fn calls_inside_constructor_arguments_are_judged() {
 #[test]
 fn calling_a_static_method_on_a_type_is_allowed() {
     let create = Method::new("OrderService", "pay", 1).call(Call::new(
-        Expression::static_type("Order"),
+        Expression::static_type(TypeRef::class("Order")),
         "builder",
         1,
     ));
 
-    let verdicts = create.verdicts();
+    let verdicts = create.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
-        [Verdict::allowed("builder", 1, Reason::static_type("Order"))]
+        [Verdict::allowed(
+            "builder",
+            1,
+            Reason::static_type(TypeRef::class("Order"))
+        )]
     );
 }
 
 #[test]
 fn a_lambda_body_can_assign_a_local_and_call_it() {
     let inspect_all = Method::new("OrderService", "pay", 1).call(
-        Call::new(Expression::field("orders"), "forEach", 1).with(
+        Call::new(
+            Expression::field("orders", TypeRef::class("Orders")),
+            "forEach",
+            1,
+        )
+        .with(
             Lambda::new(&["order"])
                 .assign(
                     "customer",
@@ -313,7 +376,7 @@ fn a_lambda_body_can_assign_a_local_and_call_it() {
         ),
     );
 
-    let verdicts = inspect_all.verdicts();
+    let verdicts = inspect_all.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -338,14 +401,18 @@ fn a_loop_variable_takes_the_standing_of_the_iterable_and_judges_it_once() {
     let discount = Method::new("OrderService", "pay", 1)
         .for_each(
             "line",
-            Expression::return_of(Call::new(Expression::parameter("order"), "getLines", 1)),
+            Expression::return_of(Call::new(
+                Expression::parameter("order", TypeRef::class("Order")),
+                "getLines",
+                1,
+            )),
         )
         .call(
             Call::new(Expression::local("line"), "applyDiscount", 1)
-                .with(Expression::parameter("rate")),
+                .with(Expression::parameter("rate", TypeRef::class("Rate"))),
         );
 
-    let verdicts = discount.verdicts();
+    let verdicts = discount.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
@@ -364,13 +431,17 @@ fn a_loop_variable_takes_the_standing_of_the_iterable_and_judges_it_once() {
 fn every_verdict_carries_the_line_of_its_call() {
     let pay = Method::new("OrderService", "pay", 10)
         .call(
-            Call::new(Expression::parameter("order"), "getCustomer", 11)
-                .then("getWallet", 12)
-                .then("withdraw", 13),
+            Call::new(
+                Expression::parameter("order", TypeRef::class("Order")),
+                "getCustomer",
+                11,
+            )
+            .then("getWallet", 12)
+            .then("withdraw", 13),
         )
         .call(Call::new(Expression::This, "audit", 14));
 
-    let verdicts = pay.verdicts();
+    let verdicts = pay.verdicts(&Types::new());
 
     assert_eq!(
         verdicts,
