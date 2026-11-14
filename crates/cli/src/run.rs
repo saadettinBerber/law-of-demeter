@@ -1,9 +1,14 @@
 use std::ffi::OsString;
 use std::io::Write;
 
+use law_of_demeter_core::application::CheckProject;
+
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
+use crate::class_file_types::ClassFileTypes;
 use crate::jdk_choice::choose_jdk;
-use crate::source_files::Mapper;
+use crate::report_text::render;
+use crate::source_files::{Mapper, SourceFiles};
+use crate::sources::java_files;
 
 pub const CLEAN: u8 = 0;
 pub const VIOLATIONS: u8 = 1;
@@ -35,7 +40,7 @@ pub fn run<I: IntoIterator<Item = OsString>>(
             write!(out, "{}", usage()).ok();
             CLEAN
         }
-        Ok(Command::Check(arguments)) => check(&arguments, environment, mapper, err),
+        Ok(Command::Check(arguments)) => check(&arguments, environment, mapper, out, err),
         Err(UsageError(message)) => {
             write!(err, "Hata: {message}\n\n{}", usage()).ok();
             FAILURE
@@ -47,6 +52,7 @@ fn check(
     arguments: &Arguments,
     environment: &Environment,
     mapper: Option<&Mapper>,
+    out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
     let mut fail = |message: String| {
@@ -56,16 +62,21 @@ fn check(
     if let Some(root) = arguments.sources.iter().find(|root| !root.is_dir()) {
         return fail(format!("kaynak kökü bulunamadı: {}", root.display()));
     }
-    if let Err(UsageError(message)) = choose_jdk(
+    let (jdk, release) = match choose_jdk(
         arguments,
         environment.java_home.clone(),
         environment.path.clone(),
     ) {
-        return fail(message);
-    }
-    if mapper.is_none() {
+        Ok(chosen) => chosen,
+        Err(UsageError(message)) => return fail(message),
+    };
+    let Some(mapper) = mapper else {
         return fail("kaynak ayrıştırıcı bağlı değil".to_owned());
-    }
+    };
+    let sources = SourceFiles::new(java_files(&arguments.sources).files, mapper);
+    let types = ClassFileTypes::new(arguments.classpath.clone(), Some((jdk, release)));
+    let report = CheckProject::new(&sources, &types).execute();
+    write!(out, "{}", render(&report, arguments.show_allowed)).ok();
     CLEAN
 }
 

@@ -174,3 +174,19 @@ fn a_binary_without_a_source_mapper_fails_instead_of_pretending() {
         )
     );
 }
+
+#[test]
+fn a_project_without_violations_reports_so_and_succeeds() {
+    let root = project(&[("Order.java", "clean")]);
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert_eq!(
+        (
+            outcome.code,
+            outcome.out.starts_with("İhlal bulunamadı.\n"),
+            outcome.err
+        ),
+        (CLEAN, true, String::new())
+    );
+}
