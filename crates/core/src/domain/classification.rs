@@ -44,7 +44,8 @@ fn classify_shape(shape: &TypeShape) -> Classification {
     match shape.kind() {
         TypeKind::Record => Classification::DataStructure,
         TypeKind::Class => classify_class(shape),
-        TypeKind::Enum | TypeKind::Interface => Classification::Unknown,
+        TypeKind::Enum => Classification::Value,
+        TypeKind::Interface => Classification::Object,
     }
 }
 

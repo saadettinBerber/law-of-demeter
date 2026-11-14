@@ -160,3 +160,49 @@ fn an_overload_of_an_object_method_with_other_parameters_is_behavior() {
 
     assert_eq!(classification, Classification::Object);
 }
+
+#[test]
+fn an_enum_is_a_value() {
+    let status = TypeShape::new("Status", TypeKind::Enum)
+        .with_method(MethodShape::new("isFinal").returning(TypeRef::primitive("boolean")));
+
+    let classification = classify(status);
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn an_interface_is_an_object() {
+    let wallet = TypeShape::new("Wallet", TypeKind::Interface)
+        .with_method(MethodShape::new("getBalance").returning(int()));
+
+    let classification = classify(wallet);
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn a_data_structure_and_the_object_it_carries_are_told_apart() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("OrderShippedEvent", TypeKind::Class)
+                .with_field(FieldShape::new("order", TypeRef::class("Order")))
+                .with_method(
+                    MethodShape::new("getOrder")
+                        .returning(TypeRef::class("Order"))
+                        .reading("order"),
+                ),
+        )
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class)
+                .with_method(MethodShape::new("getTotal").returning(int())),
+        );
+
+    let event = types.classify(&TypeRef::class("OrderShippedEvent"));
+    let carried = types.classify(&TypeRef::class("Order"));
+
+    assert_eq!(
+        (event, carried),
+        (Classification::DataStructure, Classification::Object)
+    );
+}
