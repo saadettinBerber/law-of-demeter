@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use super::{Arguments, Command, parse};
+use super::{Arguments, Command, UsageError, parse};
 
 fn parsed(arguments: &[&str]) -> Command {
     parse(arguments.iter().map(OsString::from)).expect("arguments parse")
@@ -75,5 +75,56 @@ fn show_allowed_is_a_flag() {
             show_allowed: true,
             ..Arguments::default()
         })
+    );
+}
+
+fn rejected(arguments: &[&str]) -> UsageError {
+    parse(arguments.iter().map(OsString::from)).expect_err("arguments are rejected")
+}
+
+#[test]
+fn at_least_one_source_root_is_required() {
+    let error = rejected(&["--classpath", "lib"]);
+
+    assert_eq!(error, UsageError("en az bir --source gerekli".to_owned()));
+}
+
+#[test]
+fn an_unknown_option_is_rejected() {
+    let error = rejected(&["-s", "src", "--verbose"]);
+
+    assert_eq!(
+        error,
+        UsageError("bilinmeyen seçenek: --verbose".to_owned())
+    );
+}
+
+#[test]
+fn an_option_without_its_value_is_rejected() {
+    let error = rejected(&["-s", "src", "--classpath"]);
+
+    assert_eq!(
+        error,
+        UsageError("--classpath için değer gerekli".to_owned())
+    );
+}
+
+#[test]
+fn a_release_that_is_not_a_number_is_rejected() {
+    let error = rejected(&["-s", "src", "--release", "yirmi"]);
+
+    assert_eq!(
+        error,
+        UsageError("--release bir sürüm numarası olmalı: yirmi".to_owned())
+    );
+}
+
+#[test]
+fn a_stray_positional_argument_is_rejected() {
+    let error = rejected(&["-s", "src", "Order.java"]);
+
+    assert_eq!(
+        error,
+        UsageError("beklenmeyen argüman: Order.java".to_owned())
     );
 }
