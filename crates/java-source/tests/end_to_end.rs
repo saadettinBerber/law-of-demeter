@@ -417,16 +417,8 @@ fn allowed_5_java_collections_and_streams() {
         verdicts,
         [
             Verdict::allowed("stream", 3, Reason::parameter("orders")),
-            Verdict::allowed(
-                "filter",
-                3,
-                Reason::classified(Classification::Container, orders_stream.clone())
-            ),
-            Verdict::allowed(
-                "count",
-                3,
-                Reason::classified(Classification::Container, orders_stream)
-            ),
+            Verdict::allowed("filter", 3, Reason::parameter("orders")),
+            Verdict::allowed("count", 3, Reason::parameter("orders")),
         ]
     );
 }

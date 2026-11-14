@@ -107,13 +107,13 @@ impl Call {
 
     fn result_standing(&self, types: &Types, receiver: &Subject) -> Standing {
         let standing = &receiver.standing;
-        let is_fluent = receiver
-            .type_ref
-            .as_ref()
-            .is_some_and(|type_ref| self.is_fluent_on(types, type_ref));
+        let keeps_standing = receiver.type_ref.as_ref().is_some_and(|type_ref| {
+            self.is_fluent_on(types, type_ref)
+                || types.classify(type_ref) == Classification::Container
+        });
         if matches!(self.receiver, Expression::StaticType(_)) {
             Standing::Friend(Reason::static_result(&self.name))
-        } else if is_fluent {
+        } else if keeps_standing {
             standing.clone()
         } else if is_factory_method(&self.name) && matches!(standing, Standing::Friend(_)) {
             Standing::Friend(Reason::factory_result(&self.name))

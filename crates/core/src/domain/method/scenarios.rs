@@ -168,16 +168,8 @@ fn transforming_a_collection_with_a_stream_is_allowed() {
         verdicts,
         [
             Verdict::allowed("stream", 2, Reason::parameter("orders")),
-            Verdict::allowed(
-                "filter",
-                2,
-                Reason::classified(Classification::Container, stream.clone())
-            ),
-            Verdict::allowed(
-                "count",
-                2,
-                Reason::classified(Classification::Container, stream)
-            ),
+            Verdict::allowed("filter", 2, Reason::parameter("orders")),
+            Verdict::allowed("count", 2, Reason::parameter("orders")),
         ]
     );
 }

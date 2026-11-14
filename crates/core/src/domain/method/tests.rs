@@ -872,6 +872,15 @@ fn a_lambda_body_can_assign_a_local_with_a_declared_type() {
     );
 }
 
+fn customers_with_list() -> Types {
+    customers().with_shape(TypeShape::new("Order", TypeKind::Class).with_method(
+        MethodShape::new("getAll").returning(TypeRef::generic(
+            "java.util.List",
+            vec![TypeRef::class("Customer")],
+        )),
+    ))
+}
+
 fn customers() -> Types {
     Types::new()
         .with_shape(
@@ -904,26 +913,30 @@ fn customers() -> Types {
 }
 
 #[test]
-fn a_generic_call_returns_the_type_argument_of_its_receiver() {
+fn a_generic_call_on_a_returned_container_returns_the_type_argument_of_its_receiver() {
+    let customers = TypeRef::generic("java.util.List", vec![TypeRef::class("Customer")]);
     let first_name = Method::new("Mailer", "firstName", 1).call(
         Call::new(
-            Expression::parameter(
-                "customers",
-                TypeRef::generic("java.util.List", vec![TypeRef::class("Customer")]),
-            ),
-            "get",
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getAll",
             2,
         )
+        .then("get", 2)
         .with(Expression::literal())
         .then("getName", 2),
     );
 
-    let verdicts = first_name.verdicts(&customers());
+    let verdicts = first_name.verdicts(&customers_with_list());
 
     assert_eq!(
         verdicts,
         [
-            Verdict::allowed("get", 2, Reason::parameter("customers")),
+            Verdict::allowed("getAll", 2, Reason::parameter("order")),
+            Verdict::allowed(
+                "get",
+                2,
+                Reason::classified(Classification::Container, customers)
+            ),
             Verdict::allowed(
                 "getName",
                 2,

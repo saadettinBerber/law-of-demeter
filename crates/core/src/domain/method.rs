@@ -75,6 +75,8 @@ impl Method {
 }
 
 #[cfg(test)]
+mod calibration;
+#[cfg(test)]
 mod compound;
 #[cfg(test)]
 mod scenarios;
