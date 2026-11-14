@@ -295,7 +295,7 @@ impl Subject {
     fn through(self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
         Self {
             standing: self.standing.through(wrap),
-            type_ref: None,
+            type_ref: self.type_ref,
         }
     }
 

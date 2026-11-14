@@ -562,3 +562,40 @@ fn a_loop_variable_takes_the_element_type_of_the_iterable() {
         ]
     );
 }
+
+#[test]
+fn a_var_local_takes_the_type_of_its_value() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Config", TypeKind::Record).with_method(
+                MethodShape::new("server")
+                    .reading("server")
+                    .returning(TypeRef::class("Server")),
+            ),
+        )
+        .with_shape(TypeShape::new("Server", TypeKind::Record));
+    let read_port = Method::new("Connector", "portOf", 1)
+        .assign_var(
+            "server",
+            Expression::return_of(Call::new(
+                Expression::parameter("config", TypeRef::class("Config")),
+                "server",
+                2,
+            )),
+        )
+        .call(Call::new(Expression::local("server"), "port", 3));
+
+    let verdicts = read_port.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("server", 2, Reason::parameter("config")),
+            Verdict::allowed(
+                "port",
+                3,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Server"))
+            ),
+        ]
+    );
+}
