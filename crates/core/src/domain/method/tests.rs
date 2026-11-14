@@ -92,3 +92,18 @@ fn calling_a_mutator_on_a_returned_collection_is_a_violation() {
         ]
     );
 }
+
+#[test]
+fn calling_a_method_on_an_unassigned_local_is_a_violation() {
+    let pay = Method::new().call(Call::new(Expression::local("customer"), "getWallet"));
+
+    let verdicts = pay.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "getWallet",
+            Reason::unassigned_local("customer")
+        )]
+    );
+}

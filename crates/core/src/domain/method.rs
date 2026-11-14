@@ -4,9 +4,14 @@ pub enum Expression {
     Field(String),
     Parameter(String),
     ReturnOf(Box<Call>),
+    Local(String),
 }
 
 impl Expression {
+    pub fn local(name: &str) -> Self {
+        Self::Local(name.to_owned())
+    }
+
     pub fn return_of(call: Call) -> Self {
         Self::ReturnOf(Box::new(call))
     }
@@ -14,7 +19,7 @@ impl Expression {
     fn verdicts(&self) -> Vec<Verdict> {
         match self {
             Self::ReturnOf(call) => call.verdicts(),
-            Self::This | Self::Field(_) | Self::Parameter(_) => Vec::new(),
+            Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) => Vec::new(),
         }
     }
 
@@ -24,6 +29,7 @@ impl Expression {
             Self::Field(field) => Standing::Friend(Reason::field(field)),
             Self::Parameter(parameter) => Standing::Friend(Reason::parameter(parameter)),
             Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
+            Self::Local(name) => Standing::Stranger(Reason::unassigned_local(name)),
         }
     }
 
@@ -94,6 +100,7 @@ pub enum Reason {
     Field(String),
     Parameter(String),
     ReturnOf(String),
+    UnassignedLocal(String),
 }
 
 impl Reason {
@@ -107,6 +114,10 @@ impl Reason {
 
     pub fn return_of(call: &str) -> Self {
         Self::ReturnOf(call.to_owned())
+    }
+
+    pub fn unassigned_local(name: &str) -> Self {
+        Self::UnassignedLocal(name.to_owned())
     }
 }
 
