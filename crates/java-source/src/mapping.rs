@@ -1,8 +1,18 @@
+mod expressions;
+mod statements;
+mod steps;
+mod types;
+
+use std::collections::HashMap;
 use std::path::Path;
 
 use law_of_demeter_core::domain::method::Method;
+use law_of_demeter_core::domain::type_shape::TypeRef;
 
-use crate::{Class, ParseError, SourceFile, parse_with};
+use crate::{Class, Method as ParsedMethod, ParseError, SourceFile, parse_with};
+
+use steps::Steps;
+use types::{object, type_ref_or_object};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappedFile {
@@ -29,23 +39,82 @@ fn map_file(file: &SourceFile) -> MappedFile {
         methods: file
             .classes
             .iter()
-            .flat_map(|class| map_class(file, class))
+            .flat_map(|class| {
+                class
+                    .methods
+                    .iter()
+                    .map(|method| MethodMapper::new(file, class, method).map())
+            })
             .collect(),
     }
 }
 
-fn map_class(file: &SourceFile, class: &Class) -> Vec<Method> {
-    let _ = file;
-    class
-        .methods
-        .iter()
-        .map(|method| {
-            let name = if method.is_constructor() {
-                "<init>"
-            } else {
-                &method.name
-            };
-            Method::new(&class.name, name, method.line)
-        })
-        .collect()
+struct MethodMapper<'a> {
+    file: &'a SourceFile,
+    class: &'a Class,
+    method: &'a ParsedMethod,
+    parameters: HashMap<&'a str, TypeRef>,
+    steps: Steps,
+}
+
+impl<'a> MethodMapper<'a> {
+    fn new(file: &'a SourceFile, class: &'a Class, method: &'a ParsedMethod) -> Self {
+        Self {
+            file,
+            class,
+            method,
+            parameters: method
+                .parameters
+                .iter()
+                .map(|parameter| {
+                    (
+                        parameter.name.as_str(),
+                        type_ref_or_object(&parameter.declared_type),
+                    )
+                })
+                .collect(),
+            steps: Steps::default(),
+        }
+    }
+
+    fn map(mut self) -> Method {
+        let name = if self.method.is_constructor() {
+            "<init>"
+        } else {
+            &self.method.name
+        };
+        let method = Method::new(&self.class.name, name, self.method.line);
+        if let Some(body) = &self.method.body {
+            self.statements(body);
+        }
+        self.steps.into_method(method)
+    }
+
+    fn parameter_type(&self, name: &str) -> TypeRef {
+        self.parameters.get(name).cloned().unwrap_or_else(object)
+    }
+
+    fn field_type(&self, class_name: &str, field: &str) -> TypeRef {
+        self.file
+            .classes
+            .iter()
+            .find(|class| class.name == class_name)
+            .and_then(|class| {
+                class
+                    .fields
+                    .iter()
+                    .find(|candidate| candidate.name == field)
+            })
+            .map_or_else(object, |field| type_ref_or_object(&field.declared_type))
+    }
+
+    fn captured_type(&self, name: &str) -> TypeRef {
+        self.class
+            .captured
+            .iter()
+            .rfind(|variable| variable.name == name)
+            .map_or_else(object, |variable| {
+                type_ref_or_object(&variable.declared_type)
+            })
+    }
 }
