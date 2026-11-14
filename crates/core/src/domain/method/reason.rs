@@ -6,6 +6,7 @@ pub enum Reason {
     This,
     Literal,
     Field(String),
+    FieldOf(String),
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
@@ -52,6 +53,10 @@ impl Reason {
 
     pub fn field(name: &str) -> Self {
         Self::Field(name.to_owned())
+    }
+
+    pub fn field_of(name: &str) -> Self {
+        Self::FieldOf(name.to_owned())
     }
 
     pub fn parameter(name: &str) -> Self {

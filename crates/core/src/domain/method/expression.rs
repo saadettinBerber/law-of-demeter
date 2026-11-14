@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
 use super::block::Block;
 use super::call::Call;
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject};
+use crate::domain::classification::Types;
 use crate::domain::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,6 +27,10 @@ pub enum Expression {
     Cast {
         type_ref: TypeRef,
         operand: Box<Expression>,
+    },
+    FieldOf {
+        target: Box<Expression>,
+        name: String,
     },
 }
 
@@ -66,6 +73,13 @@ impl Expression {
         Self::Operation(operands)
     }
 
+    pub fn field_of(target: Expression, name: &str) -> Self {
+        Self::FieldOf {
+            target: Box::new(target),
+            name: name.to_owned(),
+        }
+    }
+
     pub fn cast(type_ref: TypeRef, operand: Expression) -> Self {
         Self::Cast {
             type_ref,
@@ -103,6 +117,24 @@ impl Expression {
                     type_ref: None,
                 },
             },
+            Self::FieldOf { target, name } => {
+                let judged = target.judge(context);
+                let standing = if matches!(**target, Self::StaticType(_)) {
+                    Standing::Friend(Reason::static_result(name))
+                } else {
+                    Standing::Stranger(Reason::field_of(name))
+                };
+                let type_ref = judged
+                    .subject
+                    .type_ref
+                    .as_ref()
+                    .and_then(class_name)
+                    .and_then(|owner| field_type(context.types, owner, name));
+                Judged {
+                    verdicts: judged.verdicts,
+                    subject: Subject { standing, type_ref },
+                }
+            }
             Self::Cast { type_ref, operand } => {
                 let judged = operand.judge(context);
                 Judged {
@@ -112,6 +144,31 @@ impl Expression {
             }
         }
     }
+}
+
+fn class_name(type_ref: &TypeRef) -> Option<&str> {
+    match type_ref {
+        TypeRef::Class { name, .. } => Some(name),
+        TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => None,
+    }
+}
+
+fn field_type(types: &Types, owner: &str, name: &str) -> Option<TypeRef> {
+    let mut pending = vec![owner];
+    let mut seen = HashSet::new();
+    while let Some(current) = pending.pop() {
+        if !seen.insert(current) {
+            continue;
+        }
+        let Some(shape) = types.shape(current) else {
+            continue;
+        };
+        if let Some(field) = shape.fields().iter().find(|field| field.name() == name) {
+            return Some(field.type_ref().clone());
+        }
+        pending.extend(shape.supertypes().iter().filter_map(class_name));
+    }
+    None
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

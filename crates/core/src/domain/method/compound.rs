@@ -1,6 +1,6 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
 use crate::domain::classification::{Classification, Types};
-use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 fn customer_of_order() -> Expression {
     Expression::return_of(Call::new(
@@ -193,6 +193,167 @@ fn casting_a_stranger_does_not_make_it_a_friend() {
         [
             Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
             Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+        ]
+    );
+}
+
+fn customer_with_behavior() -> TypeShape {
+    TypeShape::new("Customer", TypeKind::Class).with_method(MethodShape::new("rename"))
+}
+
+fn order_with_public_fields() -> TypeShape {
+    TypeShape::new("Order", TypeKind::Class)
+        .with_field(FieldShape::new("customer", TypeRef::class("Customer")))
+        .with_field(FieldShape::new("address", TypeRef::class("Address")))
+}
+
+#[test]
+fn calling_a_method_on_a_field_of_another_object_is_reaching_into_it() {
+    let types = Types::new()
+        .with_shape(order_with_public_fields())
+        .with_shape(customer_with_behavior());
+    let rename = Method::new("OrderService", "rename", 1).call(Call::new(
+        Expression::field_of(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "customer",
+        ),
+        "rename",
+        2,
+    ));
+
+    let verdicts = rename.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "rename",
+            2,
+            Reason::field_of("customer")
+        )]
+    );
+}
+
+#[test]
+fn a_field_of_another_object_takes_the_type_the_catalog_declares_for_it() {
+    let types = Types::new()
+        .with_shape(order_with_public_fields())
+        .with_shape(address_shape());
+    let city = Method::new("Shipping", "cityOf", 1).call(Call::new(
+        Expression::field_of(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "address",
+        ),
+        "getCity",
+        2,
+    ));
+
+    let verdicts = city.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "getCity",
+            2,
+            Reason::classified(Classification::DataStructure, TypeRef::class("Address"))
+        )]
+    );
+}
+
+#[test]
+fn a_field_declared_in_a_supertype_is_found() {
+    let types = Types::new()
+        .with_shape(TypeShape::new("Order", TypeKind::Class).extending(TypeRef::class("BaseOrder")))
+        .with_shape(
+            TypeShape::new("BaseOrder", TypeKind::Class)
+                .with_field(FieldShape::new("address", TypeRef::class("Address"))),
+        )
+        .with_shape(address_shape());
+    let city = Method::new("Shipping", "cityOf", 1).call(Call::new(
+        Expression::field_of(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "address",
+        ),
+        "getCity",
+        2,
+    ));
+
+    let verdicts = city.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "getCity",
+            2,
+            Reason::classified(Classification::DataStructure, TypeRef::class("Address"))
+        )]
+    );
+}
+
+#[test]
+fn a_field_the_catalog_does_not_know_is_unresolved() {
+    let note = Method::new("Shipping", "note", 1).call(Call::new(
+        Expression::field_of(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "note",
+        ),
+        "trim",
+        2,
+    ));
+
+    let verdicts = note.verdicts(&Types::new());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "trim",
+            2,
+            Reason::unresolved_type(None, Reason::field_of("note"))
+        )]
+    );
+}
+
+#[test]
+fn a_static_field_of_a_type_is_a_friend() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Status", TypeKind::Enum)
+            .with_field(FieldShape::new("PAID", TypeRef::class("Status")).as_static()),
+    );
+    let name = Method::new("Shipping", "nameOf", 1).call(Call::new(
+        Expression::field_of(Expression::static_type(TypeRef::class("Status")), "PAID"),
+        "name",
+        2,
+    ));
+
+    let verdicts = name.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("name", 2, Reason::static_result("PAID"))]
+    );
+}
+
+#[test]
+fn the_calls_inside_the_object_a_field_is_read_from_are_judged() {
+    let types = Types::new()
+        .with_shape(order_with_public_fields())
+        .with_shape(customer_with_behavior());
+    let rename = Method::new("OrderService", "rename", 1).call(Call::new(
+        Expression::field_of(customer_of_order(), "address"),
+        "trim",
+        3,
+    ));
+
+    let verdicts = rename.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
+            Verdict::violation(
+                "trim",
+                3,
+                Reason::unresolved_type(None, Reason::field_of("address"))
+            ),
         ]
     );
 }

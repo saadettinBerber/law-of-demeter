@@ -31,6 +31,9 @@ pub fn describe(reason: &Reason) -> String {
         },
         Reason::This => "f'nin kendi nesnesi".to_owned(),
         Reason::Field(name) => format!("{name} sınıfın alanı"),
+        Reason::FieldOf(name) => {
+            format!("başka bir nesnenin {name} alanı f'nin arkadaşı değil")
+        }
         Reason::Parameter(name) => format!("{name} f'ye argüman olarak verildi"),
         Reason::Created(type_ref) => {
             format!("f'nin içinde oluşturulan nesne ({})", type_name(type_ref))
@@ -73,6 +76,7 @@ pub fn category(reason: &Reason) -> &'static str {
         Reason::UnassignedLocal(_) => "Değişkene değer atanmamış",
         Reason::This => "Kendi nesnesi",
         Reason::Field(_) => "Sınıfın alanı",
+        Reason::FieldOf(_) => "Başka nesnenin alanı",
         Reason::Parameter(_) => "Argüman",
         Reason::Created(_) => "Metotta oluşturulan nesne",
         Reason::StaticType(_) => "Statik çağrı",
