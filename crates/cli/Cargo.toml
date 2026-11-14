@@ -1,0 +1,13 @@
+[package]
+name = "law-of-demeter-cli"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "law-of-demeter"
+path = "src/main.rs"
+
+[dependencies]
+law-of-demeter-core.workspace = true
+law-of-demeter-class-file = { path = "../class-file" }
