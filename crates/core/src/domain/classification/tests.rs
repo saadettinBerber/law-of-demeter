@@ -1136,3 +1136,253 @@ fn a_user_class_extending_a_jdk_value_with_a_shape_is_a_value() {
 
     assert_eq!(classification, Classification::Value);
 }
+
+fn variable(name: &str) -> TypeRef {
+    TypeRef::variable(name)
+}
+
+fn generic_of(name: &str, arguments: Vec<TypeRef>) -> TypeRef {
+    TypeRef::generic(name, arguments)
+}
+
+fn order() -> TypeRef {
+    TypeRef::class("Order")
+}
+
+fn generic_collections() -> Types {
+    let list = TypeShape::new("java.util.List", TypeKind::Interface)
+        .with_type_parameter("E")
+        .with_method(
+            MethodShape::new("get")
+                .with_parameters(vec![int()])
+                .returning(variable("E")),
+        );
+    let array_list = TypeShape::new("java.util.ArrayList", TypeKind::Class)
+        .with_type_parameter("E")
+        .with_superclass(TypeRef::class("java.lang.Object"))
+        .extending(generic_of("java.util.List", vec![variable("E")]));
+    let map = TypeShape::new("java.util.Map", TypeKind::Interface)
+        .with_type_parameter("K")
+        .with_type_parameter("V")
+        .with_method(
+            MethodShape::new("get")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .returning(variable("V")),
+        )
+        .with_method(MethodShape::new("entrySet").returning(generic_of(
+            "java.util.Set",
+            vec![generic_of(
+                "java.util.Map$Entry",
+                vec![variable("K"), variable("V")],
+            )],
+        )));
+    let optional = TypeShape::new("java.util.Optional", TypeKind::Class)
+        .with_type_parameter("T")
+        .with_method(MethodShape::new("orElseThrow").returning(variable("T")))
+        .with_method(
+            MethodShape::new("map")
+                .with_parameters(vec![TypeRef::class("java.util.function.Function")])
+                .returning(generic_of("java.util.Optional", vec![variable("U")])),
+        );
+    Types::new()
+        .with_shape(list)
+        .with_shape(array_list)
+        .with_shape(map)
+        .with_shape(optional)
+}
+
+#[test]
+fn a_type_argument_is_substituted_through_the_supertype_chain() {
+    let types = generic_collections();
+    let receiver = generic_of("java.util.ArrayList", vec![order()]);
+
+    let returned = types.return_type_on(&receiver, "get", 1);
+
+    assert_eq!(returned, Some(order()));
+}
+
+#[test]
+fn a_map_value_type_is_substituted_for_the_value_parameter() {
+    let types = generic_collections();
+    let receiver = generic_of("java.util.Map", vec![string(), order()]);
+
+    let returned = types.return_type_on(&receiver, "get", 1);
+
+    assert_eq!(returned, Some(order()));
+}
+
+#[test]
+fn an_optional_gives_back_its_type_argument() {
+    let types = generic_collections();
+    let receiver = generic_of("java.util.Optional", vec![order()]);
+
+    let returned = types.return_type_on(&receiver, "orElseThrow", 0);
+
+    assert_eq!(returned, Some(order()));
+}
+
+#[test]
+fn arguments_are_substituted_inside_nested_generic_return_types() {
+    let types = generic_collections();
+    let receiver = generic_of("java.util.Map", vec![string(), order()]);
+
+    let returned = types.return_type_on(&receiver, "entrySet", 0);
+
+    assert_eq!(
+        returned,
+        Some(generic_of(
+            "java.util.Set",
+            vec![generic_of("java.util.Map$Entry", vec![string(), order()])]
+        ))
+    );
+}
+
+#[test]
+fn a_raw_receiver_leaves_the_type_variable() {
+    let types = generic_collections();
+
+    let returned = (
+        types.return_type_on(&TypeRef::class("java.util.ArrayList"), "get", 1),
+        types.return_type_on(&TypeRef::class("java.util.List"), "get", 1),
+    );
+
+    assert_eq!(returned, (Some(variable("E")), Some(variable("E"))));
+}
+
+#[test]
+fn an_unbound_variable_argument_stays_a_variable() {
+    let types = generic_collections();
+    let receiver = generic_of("java.util.List", vec![variable("T")]);
+
+    let returned = types.return_type_on(&receiver, "get", 1);
+
+    assert_eq!(returned, Some(variable("T")));
+}
+
+#[test]
+fn a_method_level_type_parameter_stays_a_variable() {
+    let types = generic_collections();
+    let receiver = generic_of("java.util.Optional", vec![order()]);
+
+    let returned = types.return_type_on(&receiver, "map", 1);
+
+    assert_eq!(
+        returned,
+        Some(generic_of("java.util.Optional", vec![variable("U")]))
+    );
+}
+
+#[test]
+fn concrete_arguments_in_a_subtype_declaration_are_substituted() {
+    let types = generic_collections().with_shape(
+        TypeShape::new("OrderList", TypeKind::Class)
+            .with_superclass(generic_of("java.util.ArrayList", vec![order()])),
+    );
+
+    let returned = types.return_type_on(&TypeRef::class("OrderList"), "get", 1);
+
+    assert_eq!(returned, Some(order()));
+}
+
+#[test]
+fn renamed_type_parameters_are_substituted_along_the_whole_chain() {
+    let types = generic_collections().with_shape(
+        TypeShape::new("Registry", TypeKind::Class)
+            .with_type_parameter("Item")
+            .with_superclass(generic_of(
+                "java.util.ArrayList",
+                vec![generic_of("java.util.Optional", vec![variable("Item")])],
+            )),
+    );
+    let receiver = generic_of("Registry", vec![order()]);
+
+    let returned = types.return_type_on(&receiver, "get", 1);
+
+    assert_eq!(
+        returned,
+        Some(generic_of("java.util.Optional", vec![order()]))
+    );
+}
+
+#[test]
+fn a_return_type_that_is_not_generic_is_returned_unchanged() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Order", TypeKind::Class)
+            .with_type_parameter("T")
+            .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
+            .with_method(MethodShape::new("getIds").returning(TypeRef::array(int())))
+            .with_method(MethodShape::new("getItems").returning(TypeRef::array(variable("T")))),
+    );
+    let receiver = generic_of("Order", vec![string()]);
+
+    let returned = (
+        types.return_type_on(&receiver, "getCustomer", 0),
+        types.return_type_on(&receiver, "getIds", 0),
+        types.return_type_on(&receiver, "getItems", 0),
+    );
+
+    assert_eq!(
+        returned,
+        (
+            Some(TypeRef::class("Customer")),
+            Some(TypeRef::array(int())),
+            Some(TypeRef::array(string()))
+        )
+    );
+}
+
+#[test]
+fn an_unknown_receiver_or_method_has_no_substituted_return_type() {
+    let types = generic_collections();
+
+    let returned = (
+        types.return_type_on(&generic_of("Mystery", vec![order()]), "get", 1),
+        types.return_type_on(&generic_of("java.util.List", vec![order()]), "missing", 1),
+        types.return_type_on(&TypeRef::array(order()), "get", 1),
+        types.return_type_on(&variable("T"), "get", 1),
+    );
+
+    assert_eq!(returned, (None, None, None, None));
+}
+
+#[test]
+fn overloads_with_different_substituted_returns_are_ambiguous() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Box", TypeKind::Class)
+            .with_type_parameter("T")
+            .with_method(
+                MethodShape::new("pick")
+                    .with_parameters(vec![int()])
+                    .returning(variable("T")),
+            )
+            .with_method(
+                MethodShape::new("pick")
+                    .with_parameters(vec![string()])
+                    .returning(string()),
+            ),
+    );
+
+    let returned = types.return_type_on(&generic_of("Box", vec![order()]), "pick", 1);
+
+    assert_eq!(returned, None);
+}
+
+#[test]
+fn a_substituted_return_type_terminates_in_a_cyclic_hierarchy() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Left", TypeKind::Interface)
+                .with_type_parameter("T")
+                .extending(generic_of("Right", vec![variable("T")])),
+        )
+        .with_shape(
+            TypeShape::new("Right", TypeKind::Interface)
+                .with_type_parameter("T")
+                .extending(generic_of("Left", vec![variable("T")]))
+                .with_method(MethodShape::new("value").returning(variable("T"))),
+        );
+
+    let returned = types.return_type_on(&generic_of("Left", vec![order()]), "value", 0);
+
+    assert_eq!(returned, Some(order()));
+}

@@ -43,11 +43,19 @@ impl Types {
         parameter_count: usize,
     ) -> Option<&TypeRef> {
         let overloads = self.overloads(type_name, method, parameter_count);
-        let (first, rest) = overloads.split_first()?;
-        rest.iter()
-            .all(|overload| overload.returns() == first.returns())
-            .then(|| first.returns())
-            .flatten()
+        unambiguous_return(&overloads)
+    }
+
+    pub fn return_type_on(
+        &self,
+        receiver: &TypeRef,
+        method: &str,
+        parameter_count: usize,
+    ) -> Option<TypeRef> {
+        let (declaring, overloads) = self.overloads_on(receiver, method, parameter_count)?;
+        let returned = unambiguous_return(&overloads)?;
+        let (_, bindings) = self.bound(&declaring)?;
+        Some(substitute(returned, &bindings))
     }
 
     fn overloads(
@@ -56,22 +64,28 @@ impl Types {
         method: &str,
         parameter_count: usize,
     ) -> Vec<&MethodShape> {
-        self.ancestors(&TypeRef::class(type_name))
-            .iter()
-            .filter_map(class_name)
-            .filter_map(|name| self.shape(name))
-            .map(|shape| {
-                shape
-                    .methods()
-                    .iter()
-                    .filter(|candidate| {
-                        candidate.name() == method
-                            && candidate.parameters().len() == parameter_count
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .find(|declared| !declared.is_empty())
+        self.overloads_on(&TypeRef::class(type_name), method, parameter_count)
+            .map(|(_, overloads)| overloads)
             .unwrap_or_default()
+    }
+
+    fn overloads_on(
+        &self,
+        receiver: &TypeRef,
+        method: &str,
+        parameter_count: usize,
+    ) -> Option<(TypeRef, Vec<&MethodShape>)> {
+        self.ancestors(receiver).into_iter().find_map(|ancestor| {
+            let shape = self.shape(class_name(&ancestor)?)?;
+            let declared: Vec<_> = shape
+                .methods()
+                .iter()
+                .filter(|candidate| {
+                    candidate.name() == method && candidate.parameters().len() == parameter_count
+                })
+                .collect();
+            (!declared.is_empty()).then_some((ancestor, declared))
+        })
     }
 
     fn ancestors(&self, receiver: &TypeRef) -> Vec<TypeRef> {
@@ -79,22 +93,40 @@ impl Types {
         let mut index = 0;
         while let Some(current) = found.get(index) {
             index += 1;
-            let Some(shape) = class_name(current).and_then(|name| self.shape(name)) else {
+            let Some((shape, bindings)) = self.bound(current) else {
                 continue;
             };
             let unseen: Vec<_> = shape
                 .supertypes()
                 .iter()
+                .map(|supertype| substitute(supertype, &bindings))
                 .filter(|supertype| {
                     !found
                         .iter()
                         .any(|known| class_name(known) == class_name(supertype))
                 })
-                .cloned()
                 .collect();
             found.extend(unseen);
         }
         found
+    }
+
+    fn bound(&self, type_ref: &TypeRef) -> Option<(&TypeShape, HashMap<String, TypeRef>)> {
+        let TypeRef::Class { name, arguments } = type_ref else {
+            return None;
+        };
+        let shape = self.shape(name)?;
+        let bindings = if shape.type_parameters().len() == arguments.len() {
+            shape
+                .type_parameters()
+                .iter()
+                .cloned()
+                .zip(arguments.iter().cloned())
+                .collect()
+        } else {
+            HashMap::new()
+        };
+        Some((shape, bindings))
     }
 
     pub fn is_fluent(&self, type_name: &str, method: &str, parameter_count: usize) -> bool {
@@ -253,6 +285,32 @@ pub fn element_type(type_ref: &TypeRef) -> Option<&TypeRef> {
             arguments.last()
         }
         TypeRef::Class { .. } | TypeRef::Primitive(_) | TypeRef::Variable(_) => None,
+    }
+}
+
+fn unambiguous_return<'a>(overloads: &[&'a MethodShape]) -> Option<&'a TypeRef> {
+    let (first, rest) = overloads.split_first()?;
+    rest.iter()
+        .all(|overload| overload.returns() == first.returns())
+        .then(|| first.returns())
+        .flatten()
+}
+
+fn substitute(type_ref: &TypeRef, bindings: &HashMap<String, TypeRef>) -> TypeRef {
+    match type_ref {
+        TypeRef::Variable(name) => bindings
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| type_ref.clone()),
+        TypeRef::Class { name, arguments } => TypeRef::Class {
+            name: name.clone(),
+            arguments: arguments
+                .iter()
+                .map(|argument| substitute(argument, bindings))
+                .collect(),
+        },
+        TypeRef::Array(element) => TypeRef::Array(Box::new(substitute(element, bindings))),
+        TypeRef::Primitive(_) => type_ref.clone(),
     }
 }
 
