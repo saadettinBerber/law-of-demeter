@@ -159,14 +159,16 @@ impl Lambda {
 pub struct Call {
     receiver: Expression,
     name: String,
+    line: usize,
     arguments: Vec<Argument>,
 }
 
 impl Call {
-    pub fn new(receiver: Expression, name: &str) -> Self {
+    pub fn new(receiver: Expression, name: &str, line: usize) -> Self {
         Self {
             receiver,
             name: name.to_owned(),
+            line,
             arguments: Vec::new(),
         }
     }
@@ -176,8 +178,8 @@ impl Call {
         self
     }
 
-    pub fn then(self, name: &str) -> Self {
-        Self::new(Expression::return_of(self), name)
+    pub fn then(self, name: &str, line: usize) -> Self {
+        Self::new(Expression::return_of(self), name, line)
     }
 
     fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
@@ -188,7 +190,7 @@ impl Call {
                 .iter()
                 .flat_map(|argument| argument.verdicts(scope, &receiver)),
         );
-        verdicts.push(receiver.verdict(&self.name));
+        verdicts.push(receiver.verdict(&self.name, self.line));
         verdicts
     }
 }
@@ -202,10 +204,10 @@ enum Standing {
 }
 
 impl Standing {
-    fn verdict(self, call: &str) -> Verdict {
+    fn verdict(self, call: &str, line: usize) -> Verdict {
         match self {
-            Self::Friend(reason) => Verdict::allowed(call, reason),
-            Self::Stranger(reason) => Verdict::violation(call, reason),
+            Self::Friend(reason) => Verdict::allowed(call, line, reason),
+            Self::Stranger(reason) => Verdict::violation(call, line, reason),
         }
     }
 
@@ -280,21 +282,31 @@ impl Reason {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
-    Allowed { call: String, reason: Reason },
-    Violation { call: String, reason: Reason },
+    Allowed {
+        call: String,
+        line: usize,
+        reason: Reason,
+    },
+    Violation {
+        call: String,
+        line: usize,
+        reason: Reason,
+    },
 }
 
 impl Verdict {
-    pub fn allowed(call: &str, reason: Reason) -> Self {
+    pub fn allowed(call: &str, line: usize, reason: Reason) -> Self {
         Self::Allowed {
             call: call.to_owned(),
+            line,
             reason,
         }
     }
 
-    pub fn violation(call: &str, reason: Reason) -> Self {
+    pub fn violation(call: &str, line: usize, reason: Reason) -> Self {
         Self::Violation {
             call: call.to_owned(),
+            line,
             reason,
         }
     }
@@ -372,14 +384,34 @@ impl Block {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Method {
+    class_name: String,
+    name: String,
+    line: usize,
     body: Block,
 }
 
 impl Method {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(class_name: &str, name: &str, line: usize) -> Self {
+        Self {
+            class_name: class_name.to_owned(),
+            name: name.to_owned(),
+            line,
+            body: Block::default(),
+        }
+    }
+
+    pub fn class_name(&self) -> &str {
+        &self.class_name
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn line(&self) -> usize {
+        self.line
     }
 
     pub fn call(mut self, call: Call) -> Self {
