@@ -1,10 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use tree_sitter::Node;
 
 use crate::error::ParseError;
 use crate::model::DeclaredType;
-use crate::model::{Class, ClassKind, Import, SourceFile, TypeName};
+use crate::model::{Class, ClassKind, Field, Import, SourceFile, TypeName};
 use crate::resolver::TypeResolver;
 use crate::scope::Scope;
 use crate::tree::parse_tree;
@@ -29,10 +29,29 @@ pub(crate) fn read_file(
         .map(|declaration| declaration.name.clone())
         .collect::<HashSet<_>>();
     let resolver = TypeResolver::new(package.as_deref(), &imports, declared, type_exists);
-    let reader = Reader { text, resolver };
+    let mut reader = Reader {
+        text,
+        resolver,
+        field_names: HashMap::new(),
+    };
+    let fields: Vec<Vec<Field>> = declarations
+        .iter()
+        .map(|declaration| reader.fields(declaration))
+        .collect();
+    reader.field_names = declarations
+        .iter()
+        .zip(&fields)
+        .map(|(declaration, fields)| {
+            (
+                declaration.name.clone(),
+                fields.iter().map(|field| field.name.clone()).collect(),
+            )
+        })
+        .collect();
     let classes = declarations
         .iter()
-        .map(|declaration| reader.class(declaration))
+        .zip(fields)
+        .map(|(declaration, fields)| reader.class(declaration, fields))
         .collect();
     Ok(SourceFile {
         path: path.to_owned(),
@@ -173,10 +192,11 @@ fn class_kind(node_kind: &str) -> Option<ClassKind> {
 pub(crate) struct Reader<'a> {
     pub(crate) text: Text<'a>,
     pub(crate) resolver: TypeResolver<'a>,
+    pub(crate) field_names: HashMap<String, HashSet<String>>,
 }
 
 impl Reader<'_> {
-    fn class(&self, declaration: &Declaration) -> Class {
+    fn class(&self, declaration: &Declaration, fields: Vec<Field>) -> Class {
         let scope = Scope::new(&declaration.name, &declaration.type_variables);
         Class {
             name: declaration.name.clone(),
@@ -184,7 +204,7 @@ impl Reader<'_> {
             outer: declaration.outer.clone(),
             annotations: self.annotations(declaration.node, &scope),
             supertypes: self.supertypes(declaration.node, &scope),
-            fields: self.fields(declaration),
+            fields,
             methods: self.methods(declaration),
         }
     }

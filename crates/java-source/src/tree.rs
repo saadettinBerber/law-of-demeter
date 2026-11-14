@@ -42,3 +42,10 @@ fn first_error(node: Node) -> Option<Node> {
     let mut cursor = node.walk();
     node.children(&mut cursor).find_map(first_error)
 }
+
+pub(crate) fn named_children(node: Node) -> Vec<Node> {
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .filter(|child| !child.kind().ends_with("comment"))
+        .collect()
+}

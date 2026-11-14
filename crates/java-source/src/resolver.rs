@@ -91,8 +91,16 @@ impl<'a> TypeResolver<'a> {
         }
     }
 
-    fn known(&self, candidate: &str) -> Option<String> {
+    pub(crate) fn known(&self, candidate: &str) -> Option<String> {
         (self.type_exists)(candidate).then(|| candidate.to_owned())
+    }
+
+    pub(crate) fn qualified_by_catalog(&self, name: &str) -> Option<String> {
+        let segments: Vec<&str> = name.split('.').collect();
+        (1..segments.len()).find_map(|split| {
+            let (package, classes) = segments.split_at(split);
+            self.known(&format!("{}.{}", package.join("."), classes.join("$")))
+        })
     }
 
     fn in_package(&self, name: &str) -> String {

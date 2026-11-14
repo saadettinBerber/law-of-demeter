@@ -1,8 +1,8 @@
 use tree_sitter::Node;
 
-use crate::model::{ClassKind, DeclaredType, Field, Method, Parameter};
+use crate::model::{ClassKind, DeclaredType, Field, Method, Parameter, Statement};
 use crate::reader::{Declaration, Reader};
-use crate::scope::Scope;
+use crate::scope::{Binding, Scope};
 use crate::tree::line_of;
 
 impl Reader<'_> {
@@ -96,35 +96,50 @@ impl Reader<'_> {
 
     fn method(&self, node: Node, declaration: &Declaration) -> Option<Method> {
         let name = node.child_by_field_name("name")?;
-        let scope = Scope::new(&declaration.name, &declaration.type_variables)
+        let mut scope = Scope::new(&declaration.name, &declaration.type_variables)
             .with_type_variables(self.text.type_parameters(node));
         let returns = node
             .child_by_field_name("type")
             .map(|declared| self.declared_type(declared, &scope));
+        let parameters = node
+            .child_by_field_name("parameters")
+            .map(|parameters| self.parameters(parameters, &scope))
+            .unwrap_or_default();
         Some(Method {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
             is_static: has_modifier(node, "static"),
-            parameters: node
-                .child_by_field_name("parameters")
-                .map(|parameters| self.parameters(parameters, &scope))
-                .unwrap_or_default(),
             returns,
-            body: node.child_by_field_name("body").map(|_| Vec::new()),
+            body: self.body(node, &parameters, &mut scope),
+            parameters,
         })
     }
 
     fn compact_constructor(&self, node: Node, declaration: &Declaration) -> Option<Method> {
         let name = node.child_by_field_name("name")?;
-        let scope = Scope::new(&declaration.name, &declaration.type_variables);
+        let mut scope = Scope::new(&declaration.name, &declaration.type_variables);
+        let parameters = self.record_parameters(declaration, &scope);
         Some(Method {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
             is_static: false,
-            parameters: self.record_parameters(declaration, &scope),
             returns: None,
-            body: node.child_by_field_name("body").map(|_| Vec::new()),
+            body: self.body(node, &parameters, &mut scope),
+            parameters,
         })
+    }
+
+    fn body(
+        &self,
+        method: Node,
+        parameters: &[Parameter],
+        scope: &mut Scope,
+    ) -> Option<Vec<Statement>> {
+        let body = method.child_by_field_name("body")?;
+        for parameter in parameters {
+            scope.declare(&parameter.name, Binding::Parameter);
+        }
+        Some(self.block_statements(body, scope))
     }
 
     fn parameters(&self, parameters: Node, scope: &Scope) -> Vec<Parameter> {
