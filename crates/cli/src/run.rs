@@ -77,7 +77,8 @@ fn check(
     let types = ClassFileTypes::new(arguments.classpath.clone(), Some((jdk, release)));
     let report = CheckProject::new(&sources, &types).execute();
     write!(out, "{}", render(&report, arguments.show_allowed)).ok();
-    if report.counts().violations > 0 {
+    let counts = report.counts();
+    if counts.violations + counts.hybrid_classes > 0 {
         VIOLATIONS
     } else {
         CLEAN

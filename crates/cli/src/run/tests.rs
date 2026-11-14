@@ -128,6 +128,10 @@ fn mapper_by_text(
 ) -> Result<Declarations, ReadError> {
     match text {
         "broken" => Err(ReadError::at_line(path, 1, "beklenmeyen simge")),
+        "hybrid" => Ok(Declarations {
+            classes: vec!["shop.Account".to_owned()],
+            methods: Vec::new(),
+        }),
         "violation" => Ok(Declarations {
             classes: Vec::new(),
             methods: vec![violating_method()],
@@ -216,6 +220,18 @@ fn a_violation_is_listed_and_fails_with_exit_code_one() {
             "İhlaller (1):\n{}:5  app.Shipping.discount  applyDiscount()  İhlal: line döngü değişkeni: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil\n",
             file.display()
         ))),
+        (VIOLATIONS, true)
+    );
+}
+
+#[test]
+fn a_hybrid_class_is_listed_and_fails_with_exit_code_one() {
+    let root = project(&[("Account.java", "hybrid")]);
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert_eq!(
+        (outcome.code, outcome.out.contains("Hibrit sınıflar (1):\n")),
         (VIOLATIONS, true)
     );
 }
