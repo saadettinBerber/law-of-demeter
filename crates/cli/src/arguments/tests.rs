@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use super::{Arguments, Command, UsageError, parse};
+use super::{Arguments, Command, UsageError, parse, usage};
 
 fn parsed(arguments: &[&str]) -> Command {
     parse(arguments.iter().map(OsString::from)).expect("arguments parse")
@@ -142,4 +142,30 @@ fn an_option_can_carry_its_value_after_an_equals_sign() {
             ..Arguments::default()
         })
     );
+}
+
+#[test]
+fn help_is_requested_with_either_spelling_and_needs_no_source() {
+    let commands = [parsed(&["--help"]), parsed(&["-h"])];
+
+    assert_eq!(commands, [Command::Help, Command::Help]);
+}
+
+#[test]
+fn the_usage_text_names_every_option() {
+    let text = usage();
+
+    let missing: Vec<_> = [
+        "--source",
+        "--classpath",
+        "--jdk-home",
+        "--release",
+        "--show-allowed",
+        "--help",
+    ]
+    .into_iter()
+    .filter(|option| !text.contains(option))
+    .collect();
+
+    assert_eq!(missing, Vec::<&str>::new());
 }

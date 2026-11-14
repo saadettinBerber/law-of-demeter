@@ -17,6 +17,23 @@ pub enum Command {
     Help,
 }
 
+pub fn usage() -> &'static str {
+    "Kullanım: law-of-demeter --source <DİZİN>... [SEÇENEKLER]
+
+Java kaynağında Law of Demeter ihlallerini bulur.
+
+Seçenekler:
+  -s, --source <DİZİN>      Kaynak kökü; birden çok kez verilebilir (zorunlu)
+  -c, --classpath <YOL>     Dizin ya da jar; birden çok kez ya da ':' ile ayrılmış liste verilebilir
+      --jdk-home <DİZİN>    JDK dizini (varsayılan: JAVA_HOME, sonra PATH'teki javac)
+      --release <SÜRÜM>     Okunacak Java sürümü (varsayılan: JDK'nın kendi sürümü)
+      --show-allowed        Uygun çağrıları da uydukları kuralla birlikte listeler
+  -h, --help                Bu yardımı gösterir
+
+Çıkış kodu: 0 ihlal yok, 1 ihlal var, 2 kullanım ya da ölümcül hata.
+"
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UsageError(pub String);
 
@@ -26,6 +43,7 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
     while let Some(argument) = arguments.next() {
         let option = argument.to_string_lossy();
         match option.as_ref() {
+            "--help" | "-h" => return Ok(Command::Help),
             "--source" | "-s" => parsed.sources.push(value(&option, &mut arguments)?.into()),
             "--classpath" | "-c" => parsed.classpath.extend(
                 env::split_paths(&value(&option, &mut arguments)?)
