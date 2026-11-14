@@ -49,16 +49,22 @@ fn classify_shape(shape: &TypeShape) -> Classification {
 }
 
 fn classify_class(shape: &TypeShape) -> Classification {
-    let has_setter = shape.methods().iter().any(is_setter);
-    let has_behavior = shape
-        .methods()
-        .iter()
-        .any(|method| !is_getter(method) && !is_setter(method));
+    let exposed = || shape.methods().iter().filter(|method| is_exposed(method));
+    let has_setter = exposed().any(is_setter);
+    let has_behavior = exposed().any(|method| !is_getter(method) && !is_setter(method));
     match (has_behavior, has_setter) {
         (true, true) => Classification::Hybrid,
         (true, false) => Classification::Object,
         (false, _) => Classification::DataStructure,
     }
+}
+
+fn is_exposed(method: &MethodShape) -> bool {
+    let is_object_method = matches!(
+        (method.name(), method.parameters().len()),
+        ("equals", 1) | ("hashCode" | "toString", 0)
+    );
+    method.is_public() && !method.is_static() && !is_object_method && method.name() != "<init>"
 }
 
 fn is_getter(method: &MethodShape) -> bool {

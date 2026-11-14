@@ -122,3 +122,41 @@ fn generated_and_hand_written_accessors_are_classified_the_same() {
         (Classification::Hybrid, Classification::Hybrid)
     );
 }
+
+#[test]
+fn constructors_object_methods_statics_and_non_public_methods_are_not_behavior() {
+    let dto = TypeShape::new("Customer", TypeKind::Class)
+        .with_method(
+            MethodShape::new("getName")
+                .returning(string())
+                .reading("name"),
+        )
+        .with_method(MethodShape::new("<init>"))
+        .with_method(MethodShape::new("toString").returning(string()).generated())
+        .with_method(MethodShape::new("hashCode").returning(int()).generated())
+        .with_method(
+            MethodShape::new("equals")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .generated(),
+        )
+        .with_method(
+            MethodShape::new("builder")
+                .returning(TypeRef::class("Customer$Builder"))
+                .as_static(),
+        )
+        .with_method(MethodShape::new("validate").not_public());
+
+    let classification = classify(dto);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn an_overload_of_an_object_method_with_other_parameters_is_behavior() {
+    let customer = TypeShape::new("Customer", TypeKind::Class)
+        .with_method(MethodShape::new("toString").with_parameters(vec![int()]));
+
+    let classification = classify(customer);
+
+    assert_eq!(classification, Classification::Object);
+}
