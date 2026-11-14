@@ -233,6 +233,13 @@ impl Call {
     ) -> Verdict {
         let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
         match classified {
+            Some((Classification::Container, type_ref)) if is_mutator(&self.name) => {
+                Verdict::violation(
+                    &self.name,
+                    self.line,
+                    Reason::container_mutation(type_ref.clone(), source.clone()),
+                )
+            }
             Some((
                 classification @ (Classification::DataStructure
                 | Classification::Value
@@ -267,6 +274,18 @@ impl Call {
             type_ref,
         }
     }
+}
+
+const MUTATOR_WORDS: [&str; 14] = [
+    "add", "remove", "retain", "clear", "put", "set", "push", "pop", "poll", "offer", "sort",
+    "replace", "merge", "compute",
+];
+
+fn is_mutator(name: &str) -> bool {
+    MUTATOR_WORDS.iter().any(|word| {
+        name.strip_prefix(word)
+            .is_some_and(|rest| !rest.starts_with(char::is_lowercase))
+    })
 }
 
 fn class_name(type_ref: &TypeRef) -> Option<&str> {
@@ -378,6 +397,10 @@ pub enum Reason {
     ReturnOf(String),
     UnassignedLocal(String),
     Fluent(TypeRef),
+    ContainerMutation {
+        type_ref: TypeRef,
+        source: Box<Reason>,
+    },
     Created(TypeRef),
     StaticType(TypeRef),
     Local {
@@ -429,6 +452,13 @@ impl Reason {
         Self::LoopVariable {
             name: name.to_owned(),
             feed: Box::new(feed),
+        }
+    }
+
+    pub fn container_mutation(type_ref: TypeRef, source: Reason) -> Self {
+        Self::ContainerMutation {
+            type_ref,
+            source: Box::new(source),
         }
     }
 

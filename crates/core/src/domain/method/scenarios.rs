@@ -185,3 +185,38 @@ fn transforming_a_collection_with_a_stream_is_allowed() {
         ]
     );
 }
+
+#[test]
+fn changing_a_collection_returned_by_a_getter_is_a_violation() {
+    let lines = TypeRef::generic("java.util.List", vec![TypeRef::class("OrderLine")]);
+    let types = Types::new().with_shape(
+        class("Order").with_method(
+            MethodShape::new("getLines")
+                .reading("lines")
+                .returning(lines.clone()),
+        ),
+    );
+    let add_line = Method::new("OrderService", "addLine", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getLines",
+            2,
+        )
+        .then("add", 2)
+        .with(Expression::parameter("line", TypeRef::class("OrderLine"))),
+    );
+
+    let verdicts = add_line.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", 2, Reason::parameter("order")),
+            Verdict::violation(
+                "add",
+                2,
+                Reason::container_mutation(lines, Reason::return_of("getLines"))
+            ),
+        ]
+    );
+}
