@@ -337,3 +337,26 @@ fn the_source_mapper_is_told_which_types_the_classpath_and_the_jdk_provide() {
             .contains("Hata: jdk=true classpath=true unknown=false\n")
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn a_directory_that_cannot_be_walked_shows_up_among_the_source_errors() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let root = project(&[("Order.java", "clean")]);
+    let locked = root.path().join("locked");
+    fs::create_dir(&locked).expect("create directory");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).expect("lock directory");
+    let walkable = fs::read_dir(&locked).is_ok();
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).expect("unlock directory");
+    assert!(
+        walkable
+            || outcome.out.contains(&format!(
+                "Kaynak hataları (1):\n{}  Hata: ",
+                locked.display()
+            ))
+    );
+}
