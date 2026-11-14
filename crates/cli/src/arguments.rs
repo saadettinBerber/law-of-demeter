@@ -1,3 +1,4 @@
+use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -25,6 +26,14 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
     while let Some(argument) = arguments.next() {
         if argument == "--source" || argument == "-s" {
             parsed.sources.extend(arguments.next().map(PathBuf::from));
+        } else if argument == "--classpath" || argument == "-c" {
+            parsed.classpath.extend(
+                arguments
+                    .next()
+                    .iter()
+                    .flat_map(env::split_paths)
+                    .filter(|entry| !entry.as_os_str().is_empty()),
+            );
         }
     }
     Ok(Command::Check(parsed))

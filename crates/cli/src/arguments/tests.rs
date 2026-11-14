@@ -22,3 +22,29 @@ fn source_roots_can_be_repeated_in_long_and_short_form() {
         })
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn classpath_entries_can_be_repeated_and_joined_with_colons() {
+    let command = parsed(&[
+        "-s",
+        "src",
+        "--classpath",
+        "a.jar::lib/classes",
+        "-c",
+        "b.jar",
+    ]);
+
+    assert_eq!(
+        command,
+        Command::Check(Arguments {
+            sources: vec![PathBuf::from("src")],
+            classpath: vec![
+                PathBuf::from("a.jar"),
+                PathBuf::from("lib/classes"),
+                PathBuf::from("b.jar")
+            ],
+            ..Arguments::default()
+        })
+    );
+}
