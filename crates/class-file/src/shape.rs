@@ -1,4 +1,5 @@
 use cafebabe::attributes::{AttributeData, AttributeInfo};
+use cafebabe::descriptors::FieldType;
 use cafebabe::{
     ClassAccessFlags, ClassFile, FieldAccessFlags, FieldInfo, MethodAccessFlags, MethodInfo,
     parse_class,
@@ -104,7 +105,24 @@ fn method_of(method: &MethodInfo) -> Result<Option<MethodShape>, String> {
     if !method.access_flags.contains(MethodAccessFlags::PUBLIC) {
         shape = shape.not_public();
     }
+    if is_lombok_generated(&method.attributes) {
+        shape = shape.generated();
+    }
     Ok(Some(shape))
+}
+
+fn is_lombok_generated(attributes: &[AttributeInfo]) -> bool {
+    attributes.iter().any(|attribute| match &attribute.data {
+        AttributeData::RuntimeInvisibleAnnotations(annotations) => {
+            annotations.iter().any(|annotation| {
+                matches!(
+                    &annotation.type_descriptor.field_type,
+                    FieldType::Object(name) if &**name == "lombok/Generated"
+                )
+            })
+        }
+        _ => false,
+    })
 }
 
 fn signature_of<'a>(attributes: &'a [AttributeInfo]) -> Option<&'a str> {

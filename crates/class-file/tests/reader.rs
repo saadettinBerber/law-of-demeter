@@ -219,3 +219,33 @@ fn leaves_out_constructors_initializers_bridges_and_synthetic_methods() {
     );
     assert_eq!(method_names(&status), ["values", "valueOf"]);
 }
+
+fn generated_method_names(shape: &TypeShape) -> Vec<&str> {
+    shape
+        .methods()
+        .iter()
+        .filter(|method| method.is_generated())
+        .map(MethodShape::name)
+        .collect()
+}
+
+#[test]
+fn marks_methods_carrying_the_lombok_generated_annotation() {
+    let account = shape("shop.Account");
+
+    let generated = generated_method_names(&account);
+
+    assert_eq!(
+        generated,
+        ["getBalance", "getOwner", "setBalance", "setOwner"]
+    );
+}
+
+#[test]
+fn does_not_mark_hand_written_methods_as_generated() {
+    let customer = shape("shop.Customer");
+
+    let generated = generated_method_names(&customer);
+
+    assert!(generated.is_empty());
+}
