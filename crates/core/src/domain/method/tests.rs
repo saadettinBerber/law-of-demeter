@@ -263,3 +263,15 @@ fn calls_inside_constructor_arguments_are_judged() {
         ]
     );
 }
+
+#[test]
+fn calling_a_static_method_on_a_type_is_allowed() {
+    let create = Method::new().call(Call::new(Expression::static_type("Order"), "builder"));
+
+    let verdicts = create.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("builder", Reason::static_type("Order"))]
+    );
+}

@@ -8,9 +8,14 @@ pub enum Expression {
     ReturnOf(Box<Call>),
     Local(String),
     New(Creation),
+    StaticType(String),
 }
 
 impl Expression {
+    pub fn static_type(name: &str) -> Self {
+        Self::StaticType(name.to_owned())
+    }
+
     pub fn created(creation: Creation) -> Self {
         Self::New(creation)
     }
@@ -27,7 +32,11 @@ impl Expression {
         match self {
             Self::ReturnOf(call) => call.verdicts(scope),
             Self::New(creation) => creation.verdicts(scope),
-            Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) => Vec::new(),
+            Self::This
+            | Self::Field(_)
+            | Self::Parameter(_)
+            | Self::Local(_)
+            | Self::StaticType(_) => Vec::new(),
         }
     }
 
@@ -38,6 +47,7 @@ impl Expression {
             Self::Parameter(parameter) => Standing::Friend(Reason::parameter(parameter)),
             Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
             Self::New(creation) => Standing::Friend(Reason::created(&creation.type_name)),
+            Self::StaticType(name) => Standing::Friend(Reason::static_type(name)),
             Self::Local(name) => scope
                 .get(name)
                 .cloned()
@@ -210,6 +220,7 @@ pub enum Reason {
     ReturnOf(String),
     UnassignedLocal(String),
     Created(String),
+    StaticType(String),
     Local { name: String, origin: Box<Reason> },
     LambdaParameter { name: String, feed: Box<Reason> },
 }
@@ -243,6 +254,10 @@ impl Reason {
 
     pub fn created(type_name: &str) -> Self {
         Self::Created(type_name.to_owned())
+    }
+
+    pub fn static_type(name: &str) -> Self {
+        Self::StaticType(name.to_owned())
     }
 
     pub fn unassigned_local(name: &str) -> Self {
