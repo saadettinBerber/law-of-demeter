@@ -6,13 +6,13 @@
 | [Karar bekleyen üç senaryoyu karara bağla: veri yapısının taşıdığı nesne, tutan sınıfın getter'ı, Tell-Don't-Ask'in kapsamı.](SCENARIOS.md) | Yapıldı |
 | [Domain her çağrı için kararı ve nedenini versin: uygun mu, ihlal mi, hangi kural yüzünden.](SCENARIOS.md) | Yapıldı |
 | [Katmanları ayrı crate'lere böl; `.class` okuyucu ile domain arasındaki tip şekli sözleşmesini kur.](AGENTS.md#mimari) | Yapıldı |
-| [Arkadaş listesini ve yabancıya uzanmayı TDD ile yaz; zinciri yerel değişkene bölmek sonucu değiştirmesin.](SCENARIOS.md#uygun-değil) | Yapılmadı |
-| [Tipi veri yapısı, nesne, hibrit ya da değer olarak sınıflandır; hesap yapan getter'ı, enum'u ve depo sorgusunu doğru ayır.](README.md#veri-yapıları) | Yapılmadı |
-| [Getter'ın döndürdüğü nesneyi, koleksiyonu ve koleksiyonun elemanlarını dışarıdan değiştirmeyi raporla.](SCENARIOS.md#uygun-değil) | Yapılmadı |
-| [Hibrit sınıfı raporla; Lombok'la ve elle yazılmış erişimciler aynı sayılsın.](SCENARIOS.md#uygun-değil) | Yapılmadı |
-| [Değerleri, builder'ları, stream'leri, factory'leri, depo sorgularını ve yalnızca iletilen yabancıyı raporlama; feature envy ve Tell-Don't-Ask kapsam dışı.](SCENARIOS.md#uygun) | Yapılmadı |
-| ["Projeyi denetle" kullanım senaryosunu ve port'ları yaz; sahte adapter'larla sına.](README.md#mimari) | Yapılmadı |
-| [Java ayrıştırıcıyı learning test ile seç; çağrıları ve hedeflerinin nereden geldiğini domain diline çevir.](README.md#mimari) | Yapılmadı |
-| [`.class` okuyucuyu yaz: alanlar, metotlar, dönüş tipleri ve generic imzalar, Lombok'un ürettikleri dahil; çözülemeyen tipi sessizce geçme.](README.md#mimari) | Yapılmadı |
+| [Arkadaş listesini TDD ile yaz: yerel değişken, argüman, lambda, `new` ve statik çağrı; döndürülen nesneyi ya da koleksiyonu değiştirmek ihlal.](SCENARIOS.md#uygun-değil) | Yapıldı |
+| [Tipi veri yapısı, nesne, hibrit, değer ya da konteyner olarak sınıflandır; akıcı çağrıyı, factory ve depo sorgusu adlarını tanı.](README.md#veri-yapıları) | Yapıldı |
+| [`.class` okuyucuyu yaz: alanlar, metotlar, generic imzalar, alan okuyan ve yazan metotlar.](README.md#mimari) | Yapıldı |
+| [Java ayrıştırıcıyı learning test ile seç; kaynağı metot, çağrı ve ifade modeline ayrıştır.](README.md#mimari) | Yapıldı |
+| [Domain kararlarını tip bilgisiyle ver: veri yapısı, değer, konteyner, akıcı zincir, factory, depo sorgusu, döngü değişkeni ve hibrit sınıf; bütün senaryolar domain testinde.](SCENARIOS.md) | Yapılmadı |
+| [JDK tiplerini oku; tek bozuk sınıf bütün okumayı durdurmasın.](README.md#mimari) | Yapılmadı |
+| [Java ayrıştırıcıdaki boşlukları kapat: anonim ve yerel sınıf gövdeleri, alan başlangıç değerleri.](README.md#mimari) | Yapılmadı |
+| ["Projeyi denetle" kullanım senaryosunu, port'ları ve ayrıştırıcı modelinin domain'e çevrilmesini yaz; sahte adapter'larla sına.](README.md#mimari) | Yapılmadı |
 | [CLI'yi ve metin raporunu bağla; uygun çağrıları kullanıcı isterse uydukları kuralla göster.](README.md#mimari) | Yapılmadı |
 | Gerçek bir Java projesinde dene; her yanlış alarmı yeni bir senaryoya dönüştür. | Yapılmadı |
