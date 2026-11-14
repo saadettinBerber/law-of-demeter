@@ -1,5 +1,5 @@
 use super::{Call, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::Types;
+use crate::domain::classification::{Classification, Types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 fn class(name: &str) -> TypeShape {
@@ -224,5 +224,151 @@ fn values_iterators_and_their_next_elements_of_a_container_field_are_friends() {
             2,
             Reason::field("carts")
         ))
+    );
+}
+
+const LOCK: &str = "java.util.concurrent.locks.ReentrantReadWriteLock";
+const STAMP: &str = "java.util.concurrent.locks.StampedLock";
+const WRITE_LOCK: &str = "java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock";
+
+fn with_project(types: Types, classes: &[&str]) -> Types {
+    types.with_project_types(classes.iter().map(|name| (*name).to_owned()))
+}
+
+fn libraries() -> Types {
+    with_project(
+        Types::new()
+            .with_shape(class(LOCK).with_method(returning(
+                "writeLock",
+                0,
+                TypeRef::class(WRITE_LOCK),
+            )))
+            .with_shape(class(WRITE_LOCK).with_method(MethodShape::new("lock")))
+            .with_shape(class("java.lang.Class").with_method(returning(
+                "getName",
+                0,
+                TypeRef::class("java.lang.String"),
+            )))
+            .with_shape(
+                class("Shop")
+                    .with_method(returning("getClass", 0, TypeRef::class("java.lang.Class")))
+                    .with_method(returning("getStamp", 0, TypeRef::class(STAMP))),
+            )
+            .with_shape(class("Wallet").with_method(MethodShape::new("withdraw")))
+            .with_shape(class("Customer").with_method(returning(
+                "getWallet",
+                0,
+                TypeRef::class("Wallet"),
+            )))
+            .with_shape(class("Order").with_method(returning(
+                "getCustomer",
+                0,
+                TypeRef::class("Customer"),
+            ))),
+        &["Shop", "Order", "Customer", "Wallet"],
+    )
+}
+
+#[test]
+fn a_call_on_a_library_object_returned_by_a_field_is_allowed() {
+    let guard = Method::new("Shop", "guard", 1).call(
+        Call::new(
+            Expression::field("lock", TypeRef::class(LOCK)),
+            "writeLock",
+            2,
+        )
+        .then("lock", 2),
+    );
+
+    let verdicts = guard.verdicts(&libraries());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("writeLock", 2, Reason::field("lock")),
+            Verdict::allowed("lock", 2, Reason::library(TypeRef::class(WRITE_LOCK))),
+        ]
+    );
+}
+
+#[test]
+fn the_name_read_from_the_class_of_this_is_allowed_as_a_value() {
+    let describe = Method::new("Shop", "describe", 1)
+        .call(Call::new(Expression::This, "getClass", 2).then("getName", 2));
+
+    let verdicts = describe.verdicts(&libraries());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getClass", 2, Reason::This),
+            Verdict::allowed(
+                "getName",
+                2,
+                Reason::classified(Classification::Value, TypeRef::class("java.lang.Class"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_call_on_a_project_object_returned_by_a_parameter_stays_a_violation() {
+    let charge = Method::new("Shop", "charge", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            2,
+        )
+        .then("getWallet", 2),
+    );
+
+    let verdicts = charge.verdicts(&libraries());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
+            Verdict::violation("getWallet", 2, Reason::return_of("getCustomer")),
+        ]
+    );
+}
+
+#[test]
+fn a_call_on_a_type_missing_from_the_catalog_stays_unresolved() {
+    let guard = Method::new("Shop", "guard", 1)
+        .call(Call::new(Expression::This, "getStamp", 2).then("validate", 2));
+
+    let verdicts = guard.verdicts(&libraries());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "validate",
+            2,
+            Reason::unresolved_type(Some(TypeRef::class(STAMP)), Reason::return_of("getStamp"))
+        )
+    );
+}
+
+#[test]
+fn library_knowledge_stays_off_when_the_catalog_knows_no_project_types() {
+    let types = Types::new()
+        .with_shape(class(LOCK).with_method(returning("writeLock", 0, TypeRef::class(WRITE_LOCK))))
+        .with_shape(class(WRITE_LOCK).with_method(MethodShape::new("lock")))
+        .with_shape(class("Shop"));
+    let guard = Method::new("Shop", "guard", 1).call(
+        Call::new(
+            Expression::field("lock", TypeRef::class(LOCK)),
+            "writeLock",
+            2,
+        )
+        .then("lock", 2),
+    );
+
+    let verdicts = guard.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("lock", 2, Reason::return_of("writeLock"))
     );
 }

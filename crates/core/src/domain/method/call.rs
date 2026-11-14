@@ -39,26 +39,27 @@ impl Call {
         for argument in &self.arguments {
             verdicts.extend(argument.judge(context, &receiver.subject));
         }
-        verdicts.push(self.verdict(context.types, &receiver.subject));
+        verdicts.push(self.verdict(context, &receiver.subject));
         let subject = self.result(context.types, &receiver.subject);
         Judged { verdicts, subject }
     }
 
-    fn verdict(&self, types: &Types, receiver: &Subject) -> Verdict {
+    fn verdict(&self, context: &Context, receiver: &Subject) -> Verdict {
         match &receiver.standing {
             Standing::Friend(reason) => Verdict::allowed(&self.name, self.line, reason.clone()),
             Standing::Stranger(source) => {
-                self.stranger_verdict(types, receiver.type_ref.as_ref(), source)
+                self.stranger_verdict(context, receiver.type_ref.as_ref(), source)
             }
         }
     }
 
     fn stranger_verdict(
         &self,
-        types: &Types,
+        context: &Context,
         type_ref: Option<&TypeRef>,
         source: &Reason,
     ) -> Verdict {
+        let types = context.types;
         let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
         match classified {
             Some((Classification::Container, type_ref)) if is_mutator(&self.name) => {
@@ -69,14 +70,20 @@ impl Call {
                 )
             }
             Some((
-                classification @ (Classification::DataStructure
-                | Classification::Value
-                | Classification::Container),
+                classification @ (Classification::Value | Classification::Container),
                 type_ref,
             )) => Verdict::allowed(
                 &self.name,
                 self.line,
                 Reason::classified(classification, type_ref.clone()),
+            ),
+            Some((_, type_ref)) if is_library(context, type_ref) => {
+                Verdict::allowed(&self.name, self.line, Reason::library(type_ref.clone()))
+            }
+            Some((Classification::DataStructure, type_ref)) => Verdict::allowed(
+                &self.name,
+                self.line,
+                Reason::classified(Classification::DataStructure, type_ref.clone()),
             ),
             Some((_, type_ref)) if self.is_fluent_on(types, type_ref) => {
                 Verdict::allowed(&self.name, self.line, Reason::fluent(type_ref.clone()))
@@ -123,6 +130,15 @@ impl Call {
             Standing::Stranger(Reason::return_of(&self.name))
         }
     }
+}
+
+fn is_library(context: &Context, type_ref: &TypeRef) -> bool {
+    let types = context.types;
+    let project_context =
+        class_name(&context.this_type).is_some_and(|name| types.is_project_type(name));
+    project_context
+        && class_name(type_ref)
+            .is_some_and(|name| types.shape(name).is_some() && !types.is_project_type(name))
 }
 
 const MUTATOR_WORDS: [&str; 14] = [
