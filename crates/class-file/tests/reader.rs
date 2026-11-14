@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use law_of_demeter_class_file::read_types;
 use law_of_demeter_core::domain::type_shape::{
@@ -7,6 +9,21 @@ use law_of_demeter_core::domain::type_shape::{
 
 fn fixtures() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
+}
+
+fn jar() -> PathBuf {
+    fixtures().join("fixtures.jar")
+}
+
+fn scratch_directory(name: &str) -> PathBuf {
+    let directory = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = fs::remove_dir_all(&directory);
+    fs::create_dir_all(&directory).unwrap();
+    directory
+}
+
+fn names(shapes: &[TypeShape]) -> Vec<&str> {
+    shapes.iter().map(TypeShape::name).collect()
 }
 
 fn read_shop() -> Vec<TypeShape> {
@@ -505,4 +522,125 @@ fn reads_methods_with_their_own_type_parameters_and_leaves_out_bridges() {
         method_names(&catalog),
         ["find", "findAll", "convert", "rethrow"]
     );
+}
+
+#[test]
+fn reads_every_type_of_a_jar_file() {
+    let shapes = read_types(&[jar()]).unwrap();
+
+    let wallet = shapes.iter().find(|shape| shape.name() == "lib.Wallet");
+
+    assert_eq!(names(&shapes), ["lib.Currency", "lib.Wallet"]);
+    assert_eq!(
+        wallet.map(|shape| method_names(shape)),
+        Some(vec!["withdraw"])
+    );
+}
+
+#[test]
+fn reads_directories_and_jars_given_together() {
+    let shapes = read_types(&[jar(), fixtures().join("classes")]).unwrap();
+
+    let names = names(&shapes);
+
+    assert!(names.contains(&"lib.Wallet"));
+    assert!(names.contains(&"shop.Order"));
+}
+
+#[test]
+fn ignores_multi_release_copies_under_meta_inf_in_a_jar() {
+    let directory = scratch_directory("multi-release-jar");
+    let multi_release = directory.join("multi-release.jar");
+    write_jar(
+        &multi_release,
+        "META-INF/versions/9/app/Shifted.class",
+        b"x",
+    );
+
+    let shapes = read_types(&[&multi_release]).unwrap();
+
+    assert!(shapes.is_empty());
+}
+
+#[test]
+fn a_missing_path_is_an_error_carrying_that_path() {
+    let missing = fixtures().join("does-not-exist");
+
+    let error = read_types(&[&missing]).unwrap_err();
+
+    assert_eq!(error.path(), missing);
+}
+
+#[test]
+fn a_file_that_is_not_a_class_file_is_an_error_carrying_its_path() {
+    let directory = scratch_directory("not-a-class");
+    let broken = directory.join("Broken.class");
+    fs::write(&broken, b"this is not a class file").unwrap();
+
+    let error = read_types(&[&directory]).unwrap_err();
+
+    assert_eq!(error.path(), broken);
+}
+
+#[test]
+fn a_truncated_class_file_is_an_error_carrying_its_path() {
+    let directory = scratch_directory("truncated-class");
+    let truncated = directory.join("Order.class");
+    let bytes = fs::read(fixtures().join("classes/shop/Order.class")).unwrap();
+    fs::write(&truncated, &bytes[..bytes.len() / 2]).unwrap();
+
+    let error = read_types(&[&truncated]).unwrap_err();
+
+    assert_eq!(error.path(), truncated);
+}
+
+#[test]
+fn a_jar_that_is_not_a_zip_is_an_error_carrying_its_path() {
+    let directory = scratch_directory("not-a-zip");
+    let broken = directory.join("broken.jar");
+    fs::write(&broken, b"this is not a zip archive").unwrap();
+
+    let error = read_types(&[&broken]).unwrap_err();
+
+    assert_eq!(error.path(), broken);
+}
+
+#[test]
+fn a_malformed_class_inside_a_jar_is_an_error_naming_the_jar_and_the_entry() {
+    let directory = scratch_directory("bad-entry-jar");
+    let broken = directory.join("broken.jar");
+    write_jar(&broken, "app/Broken.class", b"not a class");
+
+    let error = read_types(&[&broken]).unwrap_err();
+
+    assert_eq!(error.path(), broken);
+    assert!(error.to_string().contains("app/Broken.class"));
+}
+
+#[test]
+fn an_unreadable_generic_signature_is_an_error_instead_of_a_skipped_type() {
+    let directory = scratch_directory("bad-signature");
+    let damaged = directory.join("Order.class");
+    let signature = b"()Ljava/util/List<Lshop/OrderLine;>;";
+    let mut bytes = fs::read(fixtures().join("classes/shop/Order.class")).unwrap();
+    let start = bytes
+        .windows(signature.len())
+        .position(|window| window == signature)
+        .unwrap();
+    bytes[start + signature.len() - 3..start + signature.len()].copy_from_slice(b";;;");
+    fs::write(&damaged, bytes).unwrap();
+
+    let error = read_types(&[&damaged]).unwrap_err();
+
+    assert_eq!(error.path(), damaged);
+    assert!(error.to_string().contains("getLines"));
+}
+
+fn write_jar(path: &Path, entry: &str, content: &[u8]) {
+    let mut writer = zip::ZipWriter::new(fs::File::create(path).unwrap());
+    writer
+        .start_file(entry, zip::write::SimpleFileOptions::default())
+        .unwrap();
+    writer.write_all(content).unwrap();
+    writer.finish().unwrap();
 }
