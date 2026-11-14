@@ -629,3 +629,51 @@ fn a_local_with_a_declared_type_takes_that_type_when_its_value_has_none() {
         ]
     );
 }
+
+#[test]
+fn a_fluent_call_on_a_returned_object_is_allowed() {
+    let builder = TypeRef::class("ReportBuilder");
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class).with_method(
+                MethodShape::new("getReportBuilder")
+                    .reading("builder")
+                    .returning(builder.clone()),
+            ),
+        )
+        .with_shape(
+            TypeShape::new("ReportBuilder", TypeKind::Class)
+                .with_method(
+                    MethodShape::new("title")
+                        .with_parameters(vec![TypeRef::class("java.lang.String")])
+                        .returning(builder.clone()),
+                )
+                .with_method(
+                    MethodShape::new("footer")
+                        .with_parameters(vec![TypeRef::class("java.lang.String")])
+                        .returning(builder.clone()),
+                ),
+        );
+    let prepare = Method::new("OrderService", "prepare", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getReportBuilder",
+            2,
+        )
+        .then("title", 2)
+        .with(Expression::literal())
+        .then("footer", 2)
+        .with(Expression::literal()),
+    );
+
+    let verdicts = prepare.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getReportBuilder", 2, Reason::parameter("order")),
+            Verdict::allowed("title", 2, Reason::fluent(builder.clone())),
+            Verdict::allowed("footer", 2, Reason::fluent(builder)),
+        ]
+    );
+}

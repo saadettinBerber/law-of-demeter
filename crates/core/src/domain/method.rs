@@ -243,8 +243,16 @@ impl Call {
                 self.line,
                 Reason::classified(classification, type_ref.clone()),
             ),
+            Some((_, type_ref)) if self.is_fluent_on(types, type_ref) => {
+                Verdict::allowed(&self.name, self.line, Reason::fluent(type_ref.clone()))
+            }
             _ => Verdict::violation(&self.name, self.line, source.clone()),
         }
+    }
+
+    fn is_fluent_on(&self, types: &Types, type_ref: &TypeRef) -> bool {
+        class_name(type_ref)
+            .is_some_and(|name| types.is_fluent(name, &self.name, self.arguments.len()))
     }
 
     fn result(&self, types: &Types, receiver: &Subject) -> Subject {
@@ -369,6 +377,7 @@ pub enum Reason {
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
+    Fluent(TypeRef),
     Created(TypeRef),
     StaticType(TypeRef),
     Local {
@@ -421,6 +430,10 @@ impl Reason {
             name: name.to_owned(),
             feed: Box::new(feed),
         }
+    }
+
+    pub fn fluent(type_ref: TypeRef) -> Self {
+        Self::Fluent(type_ref)
     }
 
     pub fn classified(classification: Classification, type_ref: TypeRef) -> Self {
