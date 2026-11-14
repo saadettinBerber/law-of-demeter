@@ -599,3 +599,33 @@ fn a_var_local_takes_the_type_of_its_value() {
         ]
     );
 }
+
+#[test]
+fn a_local_with_a_declared_type_takes_that_type_when_its_value_has_none() {
+    let types = Types::new().with_shape(TypeShape::new("Server", TypeKind::Record));
+    let read_port = Method::new("Connector", "portOf", 1)
+        .assign(
+            "server",
+            TypeRef::class("Server"),
+            Expression::return_of(Call::new(
+                Expression::parameter("config", TypeRef::class("Config")),
+                "server",
+                2,
+            )),
+        )
+        .call(Call::new(Expression::local("server"), "port", 3));
+
+    let verdicts = read_port.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("server", 2, Reason::parameter("config")),
+            Verdict::allowed(
+                "port",
+                3,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Server"))
+            ),
+        ]
+    );
+}

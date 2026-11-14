@@ -156,6 +156,11 @@ impl Lambda {
         self
     }
 
+    pub fn assign(mut self, local: &str, type_ref: TypeRef, value: Expression) -> Self {
+        self.body = self.body.assign(local, type_ref, value);
+        self
+    }
+
     pub fn assign_var(mut self, local: &str, value: Expression) -> Self {
         self.body = self.body.assign_var(local, value);
         self
@@ -296,6 +301,13 @@ impl Subject {
         Self {
             standing: self.standing.through(wrap),
             type_ref: self.type_ref,
+        }
+    }
+
+    fn declared_as(self, declared: Option<&TypeRef>) -> Self {
+        Self {
+            type_ref: declared.cloned().or(self.type_ref),
+            ..self
         }
     }
 
@@ -468,6 +480,7 @@ enum Step {
     Call(Call),
     Assign {
         local: String,
+        declared: Option<TypeRef>,
         value: Expression,
     },
     ForEach {
@@ -480,14 +493,16 @@ impl Step {
     fn judge(&self, context: &mut Context) -> Vec<Verdict> {
         match self {
             Self::Call(call) => call.judge(context).verdicts,
-            Self::Assign { local, value } => {
+            Self::Assign {
+                local,
+                declared,
+                value,
+            } => {
                 let judged = value.judge(context);
-                context.bind(
-                    local,
-                    judged
-                        .subject
-                        .through(|origin| Reason::local(local, origin)),
-                );
+                let subject = judged
+                    .subject
+                    .through(|origin| Reason::local(local, origin));
+                context.bind(local, subject.declared_as(declared.as_ref()));
                 judged.verdicts
             }
             Self::ForEach { variable, iterable } => {
@@ -515,9 +530,19 @@ impl Block {
         self
     }
 
+    fn assign(mut self, local: &str, type_ref: TypeRef, value: Expression) -> Self {
+        self.steps.push(Step::Assign {
+            local: local.to_owned(),
+            declared: Some(type_ref),
+            value,
+        });
+        self
+    }
+
     fn assign_var(mut self, local: &str, value: Expression) -> Self {
         self.steps.push(Step::Assign {
             local: local.to_owned(),
+            declared: None,
             value,
         });
         self
@@ -571,6 +596,11 @@ impl Method {
 
     pub fn call(mut self, call: Call) -> Self {
         self.body = self.body.call(call);
+        self
+    }
+
+    pub fn assign(mut self, local: &str, type_ref: TypeRef, value: Expression) -> Self {
+        self.body = self.body.assign(local, type_ref, value);
         self
     }
 
