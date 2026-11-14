@@ -115,6 +115,10 @@ pub enum Statement {
         condition: Expression,
         body: Vec<Statement>,
     },
+    DoWhile {
+        body: Vec<Statement>,
+        condition: Expression,
+    },
     Try {
         resources: Vec<Statement>,
         body: Vec<Statement>,

@@ -45,9 +45,8 @@ impl Reader<'_> {
             "if_statement" => vec![self.if_statement(node, scope)],
             "for_statement" => vec![self.for_statement(node, scope)],
             "enhanced_for_statement" => self.for_each_statement(node, scope).into_iter().collect(),
-            "while_statement" | "do_statement" => {
-                self.while_statement(node, scope).into_iter().collect()
-            }
+            "while_statement" => self.while_statement(node, scope).into_iter().collect(),
+            "do_statement" => self.do_statement(node, scope).into_iter().collect(),
             "try_statement" | "try_with_resources_statement" => {
                 vec![self.try_statement(node, scope)]
             }
@@ -207,6 +206,12 @@ impl Reader<'_> {
         let condition = self.condition(node, scope);
         let body = self.branch_statements(node.child_by_field_name("body")?, scope);
         Some(Statement::While { condition, body })
+    }
+
+    fn do_statement(&self, node: Node, scope: &mut Scope) -> Option<Statement> {
+        let body = self.branch_statements(node.child_by_field_name("body")?, scope);
+        let condition = self.condition(node, scope);
+        Some(Statement::DoWhile { body, condition })
     }
 
     fn try_statement(&self, node: Node, scope: &mut Scope) -> Statement {

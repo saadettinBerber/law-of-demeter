@@ -92,9 +92,9 @@ fn a_while_and_a_do_while_keep_condition_and_body() {
                 condition: call(parameter("a"), "ok", vec![], 3),
                 body: vec![go(parameter("a"), 4)],
             },
-            Statement::While {
-                condition: call(parameter("a"), "ok", vec![], 8),
+            Statement::DoWhile {
                 body: vec![go(parameter("a"), 7)],
+                condition: call(parameter("a"), "ok", vec![], 8),
             },
         ]
     );
