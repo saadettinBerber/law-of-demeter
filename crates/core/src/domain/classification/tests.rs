@@ -1386,3 +1386,106 @@ fn a_substituted_return_type_terminates_in_a_cyclic_hierarchy() {
 
     assert_eq!(returned, Some(order()));
 }
+
+#[test]
+fn the_element_of_a_direct_container_is_found_with_or_without_shapes() {
+    let containers = [
+        generic_of("java.util.List", vec![order()]),
+        generic_of("java.util.stream.Stream", vec![order()]),
+        generic_of("java.util.Optional", vec![order()]),
+        generic_of("java.util.Map", vec![string(), order()]),
+        generic_of("java.util.ArrayList", vec![order()]),
+        TypeRef::array(order()),
+    ];
+    let catalogs = [Types::new(), generic_collections()];
+
+    let elements: Vec<_> = catalogs
+        .iter()
+        .flat_map(|types| {
+            containers
+                .iter()
+                .map(|container| types.element_type_of(container))
+        })
+        .collect();
+
+    assert_eq!(
+        elements,
+        vec![Some(order()); containers.len() * catalogs.len()]
+    );
+}
+
+#[test]
+fn the_element_of_a_subtype_of_a_container_is_found_through_its_declaration() {
+    let types = generic_collections()
+        .with_shape(
+            TypeShape::new("OrderList", TypeKind::Class)
+                .with_superclass(generic_of("java.util.ArrayList", vec![order()])),
+        )
+        .with_shape(
+            TypeShape::new("Registry", TypeKind::Class)
+                .with_type_parameter("V")
+                .with_superclass(generic_of(
+                    "java.util.HashMap",
+                    vec![string(), variable("V")],
+                )),
+        )
+        .with_shape(
+            TypeShape::new("Page", TypeKind::Class)
+                .with_type_parameter("T")
+                .extending(generic_of("java.lang.Iterable", vec![variable("T")])),
+        );
+
+    let elements = (
+        types.element_type_of(&TypeRef::class("OrderList")),
+        types.element_type_of(&generic_of("Registry", vec![order()])),
+        types.element_type_of(&generic_of("Page", vec![order()])),
+    );
+
+    assert_eq!(elements, (Some(order()), Some(order()), Some(order())));
+}
+
+#[test]
+fn the_element_of_a_raw_container_subtype_stays_a_variable() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Registry", TypeKind::Class)
+            .with_type_parameter("V")
+            .with_superclass(generic_of(
+                "java.util.HashMap",
+                vec![string(), variable("V")],
+            )),
+    );
+
+    let element = types.element_type_of(&TypeRef::class("Registry"));
+
+    assert_eq!(element, Some(variable("V")));
+}
+
+#[test]
+fn a_raw_container_or_a_non_container_has_no_element() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Page", TypeKind::Class)
+            .with_type_parameter("T")
+            .with_method(MethodShape::new("first").returning(variable("T"))),
+    );
+
+    let elements = (
+        types.element_type_of(&TypeRef::class("java.util.List")),
+        types.element_type_of(&generic_of("Page", vec![order()])),
+        types.element_type_of(&order()),
+        types.element_type_of(&int()),
+        types.element_type_of(&variable("T")),
+    );
+
+    assert_eq!(elements, (None, None, None, None, None));
+}
+
+#[test]
+fn the_element_of_a_type_in_a_cyclic_hierarchy_terminates() {
+    let types = Types::new()
+        .with_shape(class("First", "Second", vec![]))
+        .with_shape(class("Second", "First", vec![]));
+
+    let element = types.element_type_of(&TypeRef::class("First"));
+
+    assert_eq!(element, None);
+}

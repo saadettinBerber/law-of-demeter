@@ -129,6 +129,14 @@ impl Types {
         Some((shape, bindings))
     }
 
+    pub fn element_type_of(&self, type_ref: &TypeRef) -> Option<TypeRef> {
+        let container = self.ancestors(type_ref).into_iter().find(|ancestor| {
+            matches!(ancestor, TypeRef::Array(_))
+                || class_name(ancestor).and_then(jdk::classify) == Some(Classification::Container)
+        })?;
+        element_type(&container).cloned()
+    }
+
     pub fn is_fluent(&self, type_name: &str, method: &str, parameter_count: usize) -> bool {
         let overloads = self.overloads(type_name, method, parameter_count);
         !overloads.is_empty()
