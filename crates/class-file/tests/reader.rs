@@ -2,7 +2,7 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use law_of_demeter_class_file::read_types;
+use law_of_demeter_class_file::{Reading, read_types, read_types_lenient};
 use law_of_demeter_core::domain::type_shape::{
     FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
 };
@@ -553,8 +553,7 @@ fn ignores_multi_release_copies_under_meta_inf_in_a_jar() {
     let multi_release = directory.join("multi-release.jar");
     write_jar(
         &multi_release,
-        "META-INF/versions/9/app/Shifted.class",
-        b"x",
+        &[("META-INF/versions/9/app/Shifted.class", b"x")],
     );
 
     let shapes = read_types(&[&multi_release]).unwrap();
@@ -609,7 +608,7 @@ fn a_jar_that_is_not_a_zip_is_an_error_carrying_its_path() {
 fn a_malformed_class_inside_a_jar_is_an_error_naming_the_jar_and_the_entry() {
     let directory = scratch_directory("bad-entry-jar");
     let broken = directory.join("broken.jar");
-    write_jar(&broken, "app/Broken.class", b"not a class");
+    write_jar(&broken, &[("app/Broken.class", b"not a class")]);
 
     let error = read_types(&[&broken]).unwrap_err();
 
@@ -636,11 +635,111 @@ fn an_unreadable_generic_signature_is_an_error_instead_of_a_skipped_type() {
     assert!(error.to_string().contains("getLines"));
 }
 
-fn write_jar(path: &Path, entry: &str, content: &[u8]) {
+fn write_jar(path: &Path, entries: &[(&str, &[u8])]) {
     let mut writer = zip::ZipWriter::new(fs::File::create(path).unwrap());
-    writer
-        .start_file(entry, zip::write::SimpleFileOptions::default())
-        .unwrap();
-    writer.write_all(content).unwrap();
+    for (entry, content) in entries {
+        writer
+            .start_file(*entry, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        writer.write_all(content).unwrap();
+    }
     writer.finish().unwrap();
+}
+
+fn error_paths(reading: &Reading) -> Vec<&Path> {
+    reading.errors.iter().map(|error| error.path()).collect()
+}
+
+fn customer_class() -> Vec<u8> {
+    fs::read(fixtures().join("classes/shop/Customer.class")).unwrap()
+}
+
+#[test]
+fn lenient_reading_keeps_readable_types_and_reports_each_unreadable_file_with_its_path() {
+    let directory = scratch_directory("lenient-directory");
+    fs::write(directory.join("Customer.class"), customer_class()).unwrap();
+    fs::write(directory.join("Empty.class"), b"").unwrap();
+    fs::write(directory.join("Broken.class"), b"not a class").unwrap();
+
+    let reading = read_types_lenient(&[&directory]);
+
+    assert_eq!(names(&reading.shapes), ["shop.Customer"]);
+    assert_eq!(
+        error_paths(&reading),
+        [
+            directory.join("Broken.class"),
+            directory.join("Empty.class")
+        ]
+    );
+}
+
+#[test]
+fn lenient_reading_continues_with_the_next_path_after_a_missing_one() {
+    let missing = fixtures().join("does-not-exist");
+
+    let reading = read_types_lenient(&[missing.clone(), jar()]);
+
+    assert_eq!(names(&reading.shapes), ["lib.Currency", "lib.Wallet"]);
+    assert_eq!(error_paths(&reading), [missing]);
+}
+
+#[test]
+fn lenient_reading_keeps_the_good_entries_of_a_jar_with_a_bad_one() {
+    let directory = scratch_directory("lenient-jar");
+    let mixed = directory.join("mixed.jar");
+    let customer = customer_class();
+    write_jar(
+        &mixed,
+        &[
+            ("app/Broken.class", b"not a class"),
+            ("shop/Customer.class", &customer),
+        ],
+    );
+
+    let reading = read_types_lenient(&[&mixed]);
+
+    assert_eq!(names(&reading.shapes), ["shop.Customer"]);
+    assert_eq!(error_paths(&reading), [mixed]);
+    assert!(reading.errors[0].to_string().contains("app/Broken.class"));
+}
+
+#[test]
+fn lenient_reading_reports_a_jar_that_is_not_a_zip_and_goes_on() {
+    let directory = scratch_directory("lenient-not-a-zip");
+    let broken = directory.join("broken.jar");
+    fs::write(&broken, b"this is not a zip archive").unwrap();
+
+    let reading = read_types_lenient(&[broken.clone(), jar()]);
+
+    assert_eq!(names(&reading.shapes), ["lib.Currency", "lib.Wallet"]);
+    assert_eq!(error_paths(&reading), [broken]);
+}
+
+#[test]
+fn lenient_reading_reports_a_class_with_an_unreadable_signature_and_keeps_the_others() {
+    let directory = scratch_directory("lenient-bad-signature");
+    let signature = b"()Ljava/util/List<Lshop/OrderLine;>;";
+    let mut damaged = fs::read(fixtures().join("classes/shop/Order.class")).unwrap();
+    let start = damaged
+        .windows(signature.len())
+        .position(|window| window == signature)
+        .unwrap();
+    damaged[start + signature.len() - 3..start + signature.len()].copy_from_slice(b";;;");
+    fs::write(directory.join("Order.class"), damaged).unwrap();
+    fs::write(directory.join("Customer.class"), customer_class()).unwrap();
+
+    let reading = read_types_lenient(&[&directory]);
+
+    assert_eq!(names(&reading.shapes), ["shop.Customer"]);
+    assert_eq!(error_paths(&reading), [directory.join("Order.class")]);
+}
+
+#[test]
+fn lenient_reading_of_clean_input_matches_strict_reading() {
+    let paths = [fixtures().join("classes"), jar()];
+
+    let reading = read_types_lenient(&paths);
+
+    assert!(reading.errors.is_empty());
+    assert_eq!(reading.shapes, read_types(&paths).unwrap());
 }
