@@ -6,3 +6,5 @@ publish.workspace = true
 
 [dependencies]
 law-of-demeter-core.workspace = true
+cafebabe = "0.9.0"
+zip = { version = "9.5.1", default-features = false, features = ["deflate-flate2-zlib-rs"] }
