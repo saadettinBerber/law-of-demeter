@@ -2,6 +2,7 @@ mod declarations;
 mod declared_types;
 mod error;
 mod expressions;
+mod mapping;
 mod members;
 mod model;
 mod reader;
@@ -11,6 +12,7 @@ mod statements;
 mod tree;
 
 pub use error::ParseError;
+pub use mapping::{MappedFile, map_source};
 pub use model::{
     Call, Catch, Class, ClassKind, ClassOrigin, DeclaredType, Expression, Field,
     INSTANCE_INITIALIZER, ImplicitTarget, Import, Lambda, LambdaParameter, LocalVariable, Method,
