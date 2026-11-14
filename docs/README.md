@@ -3,8 +3,6 @@
 Bu klasör, Rust geliştirme ve test belgelerinin kaynak repolardan değiştirilmeden alınmış kopyalarını içerir.
 Kaynak dosyaların içerikleri ve kendi repo köklerine göre dizin yapıları korunmuştur.
 
-`decisin.md` başlangıç için boş bırakılmıştır.
-
 Belgelerdeki göreli bağlantılar da özgün hâliyle korunmuştur. Kod, görsel ve bu kopyaya dahil olmayan diğer dosyalara ulaşmak için aşağıdaki **kaynak** bağlantılarını kullanın.
 
 ## rust-development
