@@ -1,5 +1,11 @@
-[package]
-name = "law-of-demeter"
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/class-file", "crates/java-source"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 publish = false
+
+[workspace.dependencies]
+law-of-demeter-core = { path = "crates/core" }

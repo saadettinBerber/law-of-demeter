@@ -3,5 +3,16 @@
 version = 4
 
 [[package]]
-name = "law-of-demeter"
+name = "law-of-demeter-class-file"
+version = "0.1.0"
+dependencies = [
+ "law-of-demeter-core",
+]
+
+[[package]]
+name = "law-of-demeter-core"
+version = "0.1.0"
+
+[[package]]
+name = "law-of-demeter-java-source"
 version = "0.1.0"
