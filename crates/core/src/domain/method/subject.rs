@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::reason::{Reason, Verdict};
-use crate::domain::classification::{Types, element_type};
+use crate::domain::classification::Types;
 use crate::domain::type_shape::TypeRef;
 
 #[derive(Debug, Clone)]
@@ -51,10 +51,13 @@ impl Subject {
         }
     }
 
-    pub(super) fn element(&self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
+    pub(super) fn element(&self, types: &Types, wrap: impl FnOnce(Reason) -> Reason) -> Self {
         Self {
             standing: self.standing.clone().through(wrap),
-            type_ref: self.type_ref.as_ref().and_then(element_type).cloned(),
+            type_ref: self
+                .type_ref
+                .as_ref()
+                .and_then(|type_ref| types.element_type_of(type_ref)),
         }
     }
 }

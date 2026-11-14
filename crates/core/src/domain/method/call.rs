@@ -96,12 +96,9 @@ impl Call {
     }
 
     fn result(&self, types: &Types, receiver: &Subject) -> Subject {
-        let type_ref = receiver
-            .type_ref
-            .as_ref()
-            .and_then(class_name)
-            .and_then(|name| types.return_type(name, &self.name, self.arguments.len()))
-            .cloned();
+        let type_ref = receiver.type_ref.as_ref().and_then(|receiver_type| {
+            types.return_type_on(receiver_type, &self.name, self.arguments.len())
+        });
         Subject {
             standing: self.result_standing(types, receiver),
             type_ref,

@@ -287,7 +287,9 @@ impl Lambda {
         for parameter in &self.parameters {
             inner.bind(
                 parameter,
-                feed.element(|feed| Reason::lambda_parameter(parameter, feed)),
+                feed.element(context.types, |feed| {
+                    Reason::lambda_parameter(parameter, feed)
+                }),
             );
         }
         self.body.judge(&mut inner)

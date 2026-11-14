@@ -1,6 +1,6 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
 use crate::domain::classification::{Classification, Types};
-use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
 fn calling_a_method_on_an_unassigned_local_is_a_violation() {
@@ -868,6 +868,95 @@ fn a_lambda_body_can_assign_a_local_with_a_declared_type() {
                 Reason::classified(Classification::DataStructure, TypeRef::class("Server"))
             ),
             Verdict::allowed("forEach", 2, Reason::field("jobs")),
+        ]
+    );
+}
+
+fn customers() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("java.util.List", TypeKind::Interface)
+                .with_type_parameter("E")
+                .with_method(
+                    MethodShape::new("get")
+                        .with_parameters(vec![TypeRef::primitive("int")])
+                        .returning(TypeRef::variable("E")),
+                ),
+        )
+        .with_shape(
+            TypeShape::new("CustomerList", TypeKind::Class).with_superclass(TypeRef::generic(
+                "java.util.ArrayList",
+                vec![TypeRef::class("Customer")],
+            )),
+        )
+        .with_shape(TypeShape::new("Order", TypeKind::Class).with_method(
+            MethodShape::new("getCustomers").returning(TypeRef::class("CustomerList")),
+        ))
+        .with_shape(
+            TypeShape::new("Customer", TypeKind::Class)
+                .with_field(FieldShape::new("name", TypeRef::class("java.lang.String")))
+                .with_method(
+                    MethodShape::new("getName")
+                        .reading("name")
+                        .returning(TypeRef::class("java.lang.String")),
+                ),
+        )
+}
+
+#[test]
+fn a_generic_call_returns_the_type_argument_of_its_receiver() {
+    let first_name = Method::new("Mailer", "firstName", 1).call(
+        Call::new(
+            Expression::parameter(
+                "customers",
+                TypeRef::generic("java.util.List", vec![TypeRef::class("Customer")]),
+            ),
+            "get",
+            2,
+        )
+        .with(Expression::literal())
+        .then("getName", 2),
+    );
+
+    let verdicts = first_name.verdicts(&customers());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("get", 2, Reason::parameter("customers")),
+            Verdict::allowed(
+                "getName",
+                2,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Customer"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_loop_over_a_returned_container_subtype_takes_its_element_type() {
+    let names = Method::new("Mailer", "names", 1)
+        .for_each(
+            "customer",
+            Expression::return_of(Call::new(
+                Expression::parameter("order", TypeRef::class("Order")),
+                "getCustomers",
+                2,
+            )),
+        )
+        .call(Call::new(Expression::local("customer"), "getName", 3));
+
+    let verdicts = names.verdicts(&customers());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomers", 2, Reason::parameter("order")),
+            Verdict::allowed(
+                "getName",
+                3,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Customer"))
+            ),
         ]
     );
 }

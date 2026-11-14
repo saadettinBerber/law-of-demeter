@@ -42,7 +42,7 @@ impl Step {
                     variable,
                     judged
                         .subject
-                        .element(|feed| Reason::loop_variable(variable, feed)),
+                        .element(context.types, |feed| Reason::loop_variable(variable, feed)),
                 );
                 judged.verdicts
             }
