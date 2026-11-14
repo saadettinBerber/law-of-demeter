@@ -16,6 +16,7 @@ enum Step {
         variable: String,
         iterable: Expression,
     },
+    Evaluate(Expression),
 }
 
 impl Step {
@@ -34,6 +35,7 @@ impl Step {
                 context.bind(local, subject.declared_as(declared.as_ref()));
                 judged.verdicts
             }
+            Self::Evaluate(value) => value.judge(context).verdicts,
             Self::ForEach { variable, iterable } => {
                 let judged = iterable.judge(context);
                 context.bind(
@@ -82,6 +84,11 @@ impl Block {
             variable: variable.to_owned(),
             iterable,
         });
+        self
+    }
+
+    pub(super) fn evaluate(mut self, value: Expression) -> Self {
+        self.steps.push(Step::Evaluate(value));
         self
     }
 

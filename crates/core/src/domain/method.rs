@@ -64,11 +64,18 @@ impl Method {
         self
     }
 
+    pub fn evaluate(mut self, value: Expression) -> Self {
+        self.body = self.body.evaluate(value);
+        self
+    }
+
     pub fn verdicts(&self, types: &Types) -> Vec<Verdict> {
         self.body.judge(&mut Context::new(types, &self.class_name))
     }
 }
 
+#[cfg(test)]
+mod compound;
 #[cfg(test)]
 mod scenarios;
 #[cfg(test)]

@@ -167,6 +167,16 @@ impl Lambda {
         self
     }
 
+    pub fn evaluate(mut self, value: Expression) -> Self {
+        self.body = self.body.evaluate(value);
+        self
+    }
+
+    pub fn for_each(mut self, variable: &str, iterable: Expression) -> Self {
+        self.body = self.body.for_each(variable, iterable);
+        self
+    }
+
     pub(super) fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
         let mut inner = context.clone();
         for parameter in &self.parameters {
