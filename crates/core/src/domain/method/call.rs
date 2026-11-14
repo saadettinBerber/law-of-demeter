@@ -1,0 +1,148 @@
+use super::expression::{Argument, Expression};
+use super::reason::{Reason, Verdict};
+use super::subject::{Context, Judged, Standing, Subject};
+use crate::domain::classification::{
+    Classification, Types, is_factory_method, is_repository_query,
+};
+use crate::domain::type_shape::TypeRef;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Call {
+    receiver: Expression,
+    name: String,
+    line: usize,
+    arguments: Vec<Argument>,
+}
+
+impl Call {
+    pub fn new(receiver: Expression, name: &str, line: usize) -> Self {
+        Self {
+            receiver,
+            name: name.to_owned(),
+            line,
+            arguments: Vec::new(),
+        }
+    }
+
+    pub fn with(mut self, argument: impl Into<Argument>) -> Self {
+        self.arguments.push(argument.into());
+        self
+    }
+
+    pub fn then(self, name: &str, line: usize) -> Self {
+        Self::new(Expression::return_of(self), name, line)
+    }
+
+    pub(super) fn judge(&self, context: &Context) -> Judged {
+        let receiver = self.receiver.judge(context);
+        let mut verdicts = receiver.verdicts;
+        for argument in &self.arguments {
+            verdicts.extend(argument.judge(context, &receiver.subject));
+        }
+        verdicts.push(self.verdict(context.types, &receiver.subject));
+        let subject = self.result(context.types, &receiver.subject);
+        Judged { verdicts, subject }
+    }
+
+    fn verdict(&self, types: &Types, receiver: &Subject) -> Verdict {
+        match &receiver.standing {
+            Standing::Friend(reason) => Verdict::allowed(&self.name, self.line, reason.clone()),
+            Standing::Stranger(source) => {
+                self.stranger_verdict(types, receiver.type_ref.as_ref(), source)
+            }
+        }
+    }
+
+    fn stranger_verdict(
+        &self,
+        types: &Types,
+        type_ref: Option<&TypeRef>,
+        source: &Reason,
+    ) -> Verdict {
+        let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
+        match classified {
+            Some((Classification::Container, type_ref)) if is_mutator(&self.name) => {
+                Verdict::violation(
+                    &self.name,
+                    self.line,
+                    Reason::container_mutation(type_ref.clone(), source.clone()),
+                )
+            }
+            Some((
+                classification @ (Classification::DataStructure
+                | Classification::Value
+                | Classification::Container),
+                type_ref,
+            )) => Verdict::allowed(
+                &self.name,
+                self.line,
+                Reason::classified(classification, type_ref.clone()),
+            ),
+            Some((_, type_ref)) if self.is_fluent_on(types, type_ref) => {
+                Verdict::allowed(&self.name, self.line, Reason::fluent(type_ref.clone()))
+            }
+            Some((Classification::Unknown, _)) | None => Verdict::violation(
+                &self.name,
+                self.line,
+                Reason::unresolved_type(type_ref.cloned(), source.clone()),
+            ),
+            Some(_) => Verdict::violation(&self.name, self.line, source.clone()),
+        }
+    }
+
+    fn is_fluent_on(&self, types: &Types, type_ref: &TypeRef) -> bool {
+        class_name(type_ref)
+            .is_some_and(|name| types.is_fluent(name, &self.name, self.arguments.len()))
+    }
+
+    fn result(&self, types: &Types, receiver: &Subject) -> Subject {
+        let type_ref = receiver
+            .type_ref
+            .as_ref()
+            .and_then(class_name)
+            .and_then(|name| types.return_type(name, &self.name, self.arguments.len()))
+            .cloned();
+        Subject {
+            standing: self.result_standing(types, receiver),
+            type_ref,
+        }
+    }
+
+    fn result_standing(&self, types: &Types, receiver: &Subject) -> Standing {
+        let standing = &receiver.standing;
+        let is_fluent = receiver
+            .type_ref
+            .as_ref()
+            .is_some_and(|type_ref| self.is_fluent_on(types, type_ref));
+        if matches!(self.receiver, Expression::StaticType(_)) {
+            Standing::Friend(Reason::static_result(&self.name))
+        } else if is_fluent {
+            standing.clone()
+        } else if is_factory_method(&self.name) && matches!(standing, Standing::Friend(_)) {
+            Standing::Friend(Reason::factory_result(&self.name))
+        } else if is_repository_query(&self.name) && standing.is_held() {
+            Standing::Friend(Reason::query_result(&self.name))
+        } else {
+            Standing::Stranger(Reason::return_of(&self.name))
+        }
+    }
+}
+
+const MUTATOR_WORDS: [&str; 14] = [
+    "add", "remove", "retain", "clear", "put", "set", "push", "pop", "poll", "offer", "sort",
+    "replace", "merge", "compute",
+];
+
+fn is_mutator(name: &str) -> bool {
+    MUTATOR_WORDS.iter().any(|word| {
+        name.strip_prefix(word)
+            .is_some_and(|rest| !rest.starts_with(char::is_lowercase))
+    })
+}
+
+fn class_name(type_ref: &TypeRef) -> Option<&str> {
+    match type_ref {
+        TypeRef::Class { name, .. } => Some(name),
+        TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => None,
+    }
+}
