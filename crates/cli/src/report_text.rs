@@ -14,6 +14,12 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
             .collect()
     };
     let mut text = String::new();
+    let has_violation = findings
+        .iter()
+        .any(|finding| finding.is_violation() && !finding.is_unresolved());
+    if !has_violation && report.hybrid_classes().is_empty() {
+        text.push_str("İhlal bulunamadı.\n\n");
+    }
     section(
         &mut text,
         "İhlaller",

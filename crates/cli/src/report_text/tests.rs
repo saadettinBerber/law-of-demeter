@@ -381,3 +381,12 @@ fn allowed_calls_are_counted_per_reason_when_they_are_shown() {
         ["  2  Argüman", "  1  Veri yapısı"]
     );
 }
+
+#[test]
+fn a_report_without_violations_says_so() {
+    let report = report_of(vec![allowed(1, Reason::parameter("order"))]);
+
+    let text = render(&report, false);
+
+    assert_eq!(text.lines().next(), Some("İhlal bulunamadı."));
+}
