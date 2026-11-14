@@ -5,6 +5,7 @@
 | [Altıgen mimariyi, katmanları ve port'ları belirle.](README.md#mimari) | Yapıldı |
 | [Karar bekleyen üç senaryoyu karara bağla: veri yapısının taşıdığı nesne, tutan sınıfın getter'ı, Tell-Don't-Ask'in kapsamı.](SCENARIOS.md) | Yapıldı |
 | [Domain her çağrı için kararı ve nedenini versin: uygun mu, ihlal mi, hangi kural yüzünden.](SCENARIOS.md) | Yapıldı |
+| [Katmanları ayrı crate'lere böl; `.class` okuyucu ile domain arasındaki tip şekli sözleşmesini kur.](AGENTS.md#mimari) | Yapıldı |
 | [Arkadaş listesini ve yabancıya uzanmayı TDD ile yaz; zinciri yerel değişkene bölmek sonucu değiştirmesin.](SCENARIOS.md#uygun-değil) | Yapılmadı |
 | [Tipi veri yapısı, nesne, hibrit ya da değer olarak sınıflandır; hesap yapan getter'ı, enum'u ve depo sorgusunu doğru ayır.](README.md#veri-yapıları) | Yapılmadı |
 | [Getter'ın döndürdüğü nesneyi, koleksiyonu ve koleksiyonun elemanlarını dışarıdan değiştirmeyi raporla.](SCENARIOS.md#uygun-değil) | Yapılmadı |

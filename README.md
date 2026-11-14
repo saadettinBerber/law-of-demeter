@@ -146,6 +146,8 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
 
+Her katman ayrı bir crate'tir: `core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır. Bağımlılık yönünü derleyici korur.
+
 <details>
 <summary><strong>Örnek: bir çağrının yolu</strong></summary>
 
