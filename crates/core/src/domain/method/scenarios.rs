@@ -131,11 +131,7 @@ fn operating_on_a_value_is_allowed() {
         verdicts,
         [
             Verdict::allowed("plus", 2, Reason::parameter("issuedAt")),
-            Verdict::allowed(
-                "truncatedTo",
-                2,
-                Reason::classified(Classification::Value, instant)
-            ),
+            Verdict::allowed("truncatedTo", 2, Reason::parameter("issuedAt")),
         ]
     );
 }
@@ -280,6 +276,61 @@ fn talking_to_the_object_a_repository_query_returned_is_allowed() {
         [
             Verdict::allowed("findById", 2, Reason::field("orders")),
             Verdict::allowed("ship", 2, Reason::query_result("findById")),
+        ]
+    );
+}
+
+#[test]
+fn builder_chains_stay_with_the_builder() {
+    let order = TypeRef::class("Order");
+    let builder = TypeRef::class("Order$Builder");
+    let types = Types::new()
+        .with_shape(
+            class("Order").with_method(
+                MethodShape::new("builder")
+                    .as_static()
+                    .returning(builder.clone()),
+            ),
+        )
+        .with_shape(
+            class("Order$Builder")
+                .with_method(
+                    MethodShape::new("id")
+                        .with_parameters(vec![TypeRef::class("java.lang.String")])
+                        .returning(builder.clone()),
+                )
+                .with_method(
+                    MethodShape::new("total")
+                        .with_parameters(vec![TypeRef::primitive("int")])
+                        .returning(builder.clone()),
+                )
+                .with_method(MethodShape::new("build").returning(order.clone())),
+        );
+    let create = Method::new("Orders", "create", 1).call(
+        Call::new(Expression::static_type(order.clone()), "builder", 2)
+            .then("id", 2)
+            .with(Expression::parameter(
+                "id",
+                TypeRef::class("java.lang.String"),
+            ))
+            .then("total", 2)
+            .with(Expression::parameter("total", TypeRef::primitive("int")))
+            .then("build", 2),
+    );
+    let constructor = Method::new("Order", "<init>", 10);
+
+    let verdicts = [create.verdicts(&types), constructor.verdicts(&types)];
+
+    assert_eq!(
+        verdicts,
+        [
+            vec![
+                Verdict::allowed("builder", 2, Reason::static_type(order)),
+                Verdict::allowed("id", 2, Reason::static_result("builder")),
+                Verdict::allowed("total", 2, Reason::static_result("builder")),
+                Verdict::allowed("build", 2, Reason::static_result("builder")),
+            ],
+            vec![],
         ]
     );
 }

@@ -272,17 +272,24 @@ impl Call {
             .and_then(|name| types.return_type(name, &self.name, self.arguments.len()))
             .cloned();
         Subject {
-            standing: self.result_standing(&receiver.standing),
+            standing: self.result_standing(types, receiver),
             type_ref,
         }
     }
 
-    fn result_standing(&self, receiver: &Standing) -> Standing {
+    fn result_standing(&self, types: &Types, receiver: &Subject) -> Standing {
+        let standing = &receiver.standing;
+        let is_fluent = receiver
+            .type_ref
+            .as_ref()
+            .is_some_and(|type_ref| self.is_fluent_on(types, type_ref));
         if matches!(self.receiver, Expression::StaticType(_)) {
             Standing::Friend(Reason::static_result(&self.name))
-        } else if is_factory_method(&self.name) && matches!(receiver, Standing::Friend(_)) {
+        } else if is_fluent {
+            standing.clone()
+        } else if is_factory_method(&self.name) && matches!(standing, Standing::Friend(_)) {
             Standing::Friend(Reason::factory_result(&self.name))
-        } else if is_repository_query(&self.name) && receiver.is_held() {
+        } else if is_repository_query(&self.name) && standing.is_held() {
             Standing::Friend(Reason::query_result(&self.name))
         } else {
             Standing::Stranger(Reason::return_of(&self.name))
