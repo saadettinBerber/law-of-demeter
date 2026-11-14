@@ -43,6 +43,7 @@ impl Import {
 pub struct Class {
     pub name: String,
     pub kind: ClassKind,
+    pub origin: ClassOrigin,
     pub outer: Option<String>,
     pub annotations: Vec<TypeName>,
     pub supertypes: Vec<DeclaredType>,
@@ -135,6 +136,7 @@ pub enum Expression {
     Parameter(String),
     Local(String),
     LambdaParameter(String),
+    Captured(String),
     Field(String),
     OuterField {
         owner: String,
@@ -192,6 +194,7 @@ pub enum ImplicitTarget {
 pub struct New {
     pub created: DeclaredType,
     pub arguments: Vec<Expression>,
+    pub anonymous_class: Option<String>,
     pub line: usize,
 }
 
@@ -280,6 +283,13 @@ impl DeclaredType {
     pub fn wildcard(upper_bound: Option<DeclaredType>) -> Self {
         Self::Wildcard(upper_bound.map(Box::new))
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassOrigin {
+    Member,
+    Anonymous,
+    Local,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

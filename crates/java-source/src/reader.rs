@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use tree_sitter::Node;
 
+use crate::declarations::{Declaration, Declarations};
 use crate::error::ParseError;
-use crate::model::DeclaredType;
-use crate::model::{Class, ClassKind, Field, Import, SourceFile, TypeName};
+use crate::model::{Class, ClassKind, ClassOrigin, DeclaredType, Import, SourceFile, TypeName};
 use crate::resolver::TypeResolver;
 use crate::scope::Scope;
-use crate::tree::parse_tree;
+use crate::tree::{named_children, parse_tree};
 
 pub(crate) fn read_file(
     path: &str,
@@ -19,44 +19,28 @@ pub(crate) fn read_file(
     let text = Text { source };
     let package = text.package(root);
     let imports = text.imports(root);
-    let prefix = package
-        .as_ref()
-        .map_or_else(String::new, |name| format!("{name}."));
-    let mut declarations = Vec::new();
-    text.collect_declarations(root, &prefix, None, &[], &mut declarations);
-    let declared = declarations
+    let Declarations { list, names } = text.declarations(root, package.as_deref());
+    let declared = list
         .iter()
+        .filter(|declaration| declaration.origin == ClassOrigin::Member)
         .map(|declaration| declaration.name.clone())
         .collect::<HashSet<_>>();
-    let resolver = TypeResolver::new(package.as_deref(), &imports, declared, type_exists);
-    let mut reader = Reader {
+    let reader = Reader {
         text,
-        resolver,
-        field_names: HashMap::new(),
-        method_names: HashMap::new(),
+        resolver: TypeResolver::new(package.as_deref(), &imports, declared, type_exists),
+        field_names: names_by_class(&list, |declaration| text.field_names(declaration)),
+        method_names: names_by_class(&list, |declaration| text.method_names(declaration)),
+        nested_names: names,
     };
-    let fields: Vec<Vec<Field>> = declarations
+    let mut read: HashMap<String, Class> = list
         .iter()
-        .map(|declaration| reader.fields(declaration))
+        .filter(|declaration| declaration.origin == ClassOrigin::Member)
+        .flat_map(|declaration| reader.read_class(declaration))
+        .map(|class| (class.name.clone(), class))
         .collect();
-    reader.field_names = declarations
+    let classes = list
         .iter()
-        .zip(&fields)
-        .map(|(declaration, fields)| {
-            (
-                declaration.name.clone(),
-                fields.iter().map(|field| field.name.clone()).collect(),
-            )
-        })
-        .collect();
-    reader.method_names = declarations
-        .iter()
-        .map(|declaration| (declaration.name.clone(), reader.method_names(declaration)))
-        .collect();
-    let classes = declarations
-        .iter()
-        .zip(fields)
-        .map(|(declaration, fields)| reader.class(declaration, fields))
+        .filter_map(|declaration| read.remove(&declaration.name))
         .collect();
     Ok(SourceFile {
         path: path.to_owned(),
@@ -64,6 +48,16 @@ pub(crate) fn read_file(
         imports,
         classes,
     })
+}
+
+fn names_by_class(
+    declarations: &[Declaration],
+    names: impl Fn(&Declaration) -> HashSet<String>,
+) -> HashMap<String, HashSet<String>> {
+    declarations
+        .iter()
+        .map(|declaration| (declaration.name.clone(), names(declaration)))
+        .collect()
 }
 
 #[derive(Clone, Copy)]
@@ -109,89 +103,6 @@ impl Text<'_> {
             is_wildcard: has("asterisk"),
         })
     }
-
-    fn collect_declarations<'t>(
-        &self,
-        container: Node<'t>,
-        prefix: &str,
-        outer: Option<&str>,
-        type_variables: &[String],
-        declarations: &mut Vec<Declaration<'t>>,
-    ) {
-        let mut cursor = container.walk();
-        for child in container.named_children(&mut cursor) {
-            if child.kind() == "enum_body_declarations" {
-                self.collect_declarations(child, prefix, outer, type_variables, declarations);
-            } else if let Some(kind) = class_kind(child.kind()) {
-                self.collect_declaration(child, kind, prefix, outer, type_variables, declarations);
-            }
-        }
-    }
-
-    fn collect_declaration<'t>(
-        &self,
-        node: Node<'t>,
-        kind: ClassKind,
-        prefix: &str,
-        outer: Option<&str>,
-        enclosing_type_variables: &[String],
-        declarations: &mut Vec<Declaration<'t>>,
-    ) {
-        let Some(name) = node.child_by_field_name("name") else {
-            return;
-        };
-        let binary_name = format!("{prefix}{}", self.of(name));
-        let mut type_variables = enclosing_type_variables.to_vec();
-        type_variables.extend(self.type_parameters(node));
-        declarations.push(Declaration {
-            node,
-            kind,
-            name: binary_name.clone(),
-            outer: outer.map(str::to_owned),
-            type_variables: type_variables.clone(),
-        });
-        if let Some(body) = node.child_by_field_name("body") {
-            self.collect_declarations(
-                body,
-                &format!("{binary_name}$"),
-                Some(&binary_name),
-                &type_variables,
-                declarations,
-            );
-        }
-    }
-
-    pub(crate) fn type_parameters(&self, declaration: Node) -> Vec<String> {
-        let Some(parameters) = declaration.child_by_field_name("type_parameters") else {
-            return Vec::new();
-        };
-        let mut cursor = parameters.walk();
-        parameters
-            .named_children(&mut cursor)
-            .filter(|parameter| parameter.kind() == "type_parameter")
-            .filter_map(|parameter| parameter.named_child(0))
-            .map(|name| self.of(name).to_owned())
-            .collect()
-    }
-}
-
-pub(crate) struct Declaration<'t> {
-    pub(crate) node: Node<'t>,
-    pub(crate) kind: ClassKind,
-    pub(crate) name: String,
-    pub(crate) outer: Option<String>,
-    pub(crate) type_variables: Vec<String>,
-}
-
-fn class_kind(node_kind: &str) -> Option<ClassKind> {
-    match node_kind {
-        "class_declaration" => Some(ClassKind::Class),
-        "interface_declaration" => Some(ClassKind::Interface),
-        "enum_declaration" => Some(ClassKind::Enum),
-        "record_declaration" => Some(ClassKind::Record),
-        "annotation_type_declaration" => Some(ClassKind::Annotation),
-        _ => None,
-    }
 }
 
 pub(crate) struct Reader<'a> {
@@ -199,20 +110,54 @@ pub(crate) struct Reader<'a> {
     pub(crate) resolver: TypeResolver<'a>,
     pub(crate) field_names: HashMap<String, HashSet<String>>,
     pub(crate) method_names: HashMap<String, HashSet<String>>,
+    pub(crate) nested_names: HashMap<usize, String>,
 }
 
 impl Reader<'_> {
-    fn class(&self, declaration: &Declaration, fields: Vec<Field>) -> Class {
-        let scope = Scope::new(&declaration.name, &declaration.type_variables);
-        Class {
+    pub(crate) fn read_class(&self, declaration: &Declaration) -> Vec<Class> {
+        let scope = Scope::for_class(declaration);
+        let mut nested = Vec::new();
+        let class = Class {
             name: declaration.name.clone(),
             kind: declaration.kind,
+            origin: declaration.origin,
             outer: declaration.outer.clone(),
             annotations: self.annotations(declaration.node, &scope),
-            supertypes: self.supertypes(declaration.node, &scope),
-            fields,
-            methods: self.methods(declaration),
-        }
+            supertypes: self.supertypes(declaration, &scope),
+            fields: self.fields(declaration),
+            methods: self.methods(declaration, &mut nested),
+        };
+        let mut classes = vec![class];
+        classes.extend(nested);
+        classes
+    }
+
+    pub(crate) fn read_nested<'t>(
+        &self,
+        node: Node<'t>,
+        kind: ClassKind,
+        origin: ClassOrigin,
+        scope: &mut Scope,
+    ) -> Option<String> {
+        let name = self.nested_names.get(&node.id())?.clone();
+        let body = match origin {
+            ClassOrigin::Anonymous => named_children(node)
+                .into_iter()
+                .find(|child| child.kind() == "class_body"),
+            _ => node.child_by_field_name("body"),
+        };
+        let declaration = Declaration {
+            node,
+            body,
+            kind,
+            origin,
+            name: name.clone(),
+            outer: Some(scope.class.clone()),
+            type_variables: scope.type_variables().to_vec(),
+            capture: scope.capture(),
+        };
+        scope.add_nested(self.read_class(&declaration));
+        Some(name)
     }
 
     fn annotations(&self, declaration: Node, scope: &Scope) -> Vec<TypeName> {
@@ -232,10 +177,22 @@ impl Reader<'_> {
             .collect()
     }
 
-    fn supertypes(&self, declaration: Node, scope: &Scope) -> Vec<DeclaredType> {
-        let mut cursor = declaration.walk();
-        let clauses: Vec<Node> = declaration
-            .children(&mut cursor)
+    fn supertypes(&self, declaration: &Declaration, scope: &Scope) -> Vec<DeclaredType> {
+        match (declaration.node.kind(), &declaration.outer) {
+            ("object_creation_expression", _) => declaration
+                .node
+                .child_by_field_name("type")
+                .map(|created| self.declared_type(created, scope))
+                .into_iter()
+                .collect(),
+            ("enum_constant", Some(enum_name)) => vec![DeclaredType::class(enum_name)],
+            _ => self.declared_supertypes(declaration.node, scope),
+        }
+    }
+
+    fn declared_supertypes(&self, declaration: Node, scope: &Scope) -> Vec<DeclaredType> {
+        let clauses: Vec<Node> = named_children(declaration)
+            .into_iter()
             .filter(|child| {
                 matches!(
                     child.kind(),
@@ -245,19 +202,13 @@ impl Reader<'_> {
             .collect();
         clauses
             .into_iter()
-            .flat_map(|clause| {
-                let mut cursor = clause.walk();
-                clause
-                    .named_children(&mut cursor)
-                    .flat_map(|child| {
-                        if child.kind() == "type_list" {
-                            let mut cursor = child.walk();
-                            child.named_children(&mut cursor).collect()
-                        } else {
-                            vec![child]
-                        }
-                    })
-                    .collect::<Vec<_>>()
+            .flat_map(named_children)
+            .flat_map(|child| {
+                if child.kind() == "type_list" {
+                    named_children(child)
+                } else {
+                    vec![child]
+                }
             })
             .map(|supertype| self.declared_type(supertype, scope))
             .collect()

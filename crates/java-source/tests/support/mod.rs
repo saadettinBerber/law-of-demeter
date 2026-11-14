@@ -102,6 +102,7 @@ pub fn created(binary_name: &str, arguments: Vec<Expression>, line: usize) -> Ex
     Expression::New(New {
         created: DeclaredType::class(binary_name),
         arguments,
+        anonymous_class: None,
         line,
     })
 }

@@ -49,3 +49,16 @@ pub(crate) fn named_children(node: Node) -> Vec<Node> {
         .filter(|child| !child.kind().ends_with("comment"))
         .collect()
 }
+
+pub(crate) fn members(body: Node) -> Vec<Node> {
+    named_children(body)
+        .into_iter()
+        .flat_map(|member| {
+            if member.kind() == "enum_body_declarations" {
+                members(member)
+            } else {
+                vec![member]
+            }
+        })
+        .collect()
+}

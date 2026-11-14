@@ -58,6 +58,7 @@ fn a_diamond_and_a_generic_new_keep_their_arguments() {
         Expression::New(law_of_demeter_java_source::New {
             created: DeclaredType::unresolved("ArrayList"),
             arguments: vec![],
+            anonymous_class: None,
             line: 3,
         })
     );

@@ -1,20 +1,19 @@
-use std::collections::HashSet;
-
 use tree_sitter::Node;
 
+use crate::declarations::Declaration;
 use crate::model::{
-    ClassKind, DeclaredType, Expression, Field, INSTANCE_INITIALIZER, Method, New, Parameter,
-    STATIC_INITIALIZER, Statement,
+    Class, ClassKind, ClassOrigin, DeclaredType, Expression, Field, INSTANCE_INITIALIZER, Method,
+    New, Parameter, STATIC_INITIALIZER, Statement,
 };
-use crate::reader::{Declaration, Reader};
+use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
-use crate::tree::{line_of, named_children};
+use crate::tree::{line_of, members, named_children};
 
 impl Reader<'_> {
     pub(crate) fn fields(&self, declaration: &Declaration) -> Vec<Field> {
-        let scope = Scope::new(&declaration.name, &declaration.type_variables);
+        let scope = Scope::for_class(declaration);
         let mut fields = self.record_components(declaration, &scope);
-        let Some(body) = declaration.node.child_by_field_name("body") else {
+        let Some(body) = declaration.body else {
             return fields;
         };
         for member in members(body) {
@@ -29,25 +28,36 @@ impl Reader<'_> {
         fields
     }
 
-    pub(crate) fn methods(&self, declaration: &Declaration) -> Vec<Method> {
-        let Some(body) = declaration.node.child_by_field_name("body") else {
+    pub(crate) fn methods(
+        &self,
+        declaration: &Declaration,
+        nested: &mut Vec<Class>,
+    ) -> Vec<Method> {
+        let Some(body) = declaration.body else {
             return Vec::new();
         };
         let mut methods: Vec<Method> = members(body)
             .into_iter()
             .filter_map(|member| match member.kind() {
                 "method_declaration" | "constructor_declaration" => {
-                    self.method(member, declaration)
+                    self.method(member, declaration, nested)
                 }
-                "compact_constructor_declaration" => self.compact_constructor(member, declaration),
+                "compact_constructor_declaration" => {
+                    self.compact_constructor(member, declaration, nested)
+                }
                 _ => None,
             })
             .collect();
-        methods.extend(self.initializers(body, declaration));
+        methods.extend(self.initializers(body, declaration, nested));
         methods
     }
 
-    fn initializers(&self, body: Node, declaration: &Declaration) -> Vec<Method> {
+    fn initializers(
+        &self,
+        body: Node,
+        declaration: &Declaration,
+        nested: &mut Vec<Class>,
+    ) -> Vec<Method> {
         let mut static_part = Initializer::new(STATIC_INITIALIZER, true, declaration);
         let mut instance_part = Initializer::new(INSTANCE_INITIALIZER, false, declaration);
         for member in members(body) {
@@ -68,7 +78,7 @@ impl Reader<'_> {
         }
         [static_part, instance_part]
             .into_iter()
-            .filter_map(Initializer::into_method)
+            .filter_map(|part| part.into_method(nested))
             .collect()
     }
 
@@ -99,15 +109,25 @@ impl Reader<'_> {
                     .collect()
             }
             "enum_constant" => {
-                let (Some(name), Some(arguments)) = (
-                    member.child_by_field_name("name"),
-                    member.child_by_field_name("arguments"),
-                ) else {
+                let Some(name) = member.child_by_field_name("name") else {
                     return Vec::new();
                 };
+                let arguments = member.child_by_field_name("arguments");
+                if arguments.is_none() && member.child_by_field_name("body").is_none() {
+                    return Vec::new();
+                }
+                let arguments = arguments
+                    .map(|arguments| self.operands(arguments, scope))
+                    .unwrap_or_default();
                 let created = Expression::New(New {
                     created: DeclaredType::class(&declaration.name),
-                    arguments: self.operands(arguments, scope),
+                    arguments,
+                    anonymous_class: self.read_nested(
+                        member,
+                        ClassKind::Class,
+                        ClassOrigin::Anonymous,
+                        scope,
+                    ),
                     line: line_of(member),
                 });
                 vec![self.initialization_of(self.text.of(name), created)]
@@ -132,18 +152,6 @@ impl Reader<'_> {
             Expression::Field(field.to_owned()),
             value,
         ]))
-    }
-
-    pub(crate) fn method_names(&self, declaration: &Declaration) -> HashSet<String> {
-        let Some(body) = declaration.node.child_by_field_name("body") else {
-            return HashSet::new();
-        };
-        members(body)
-            .into_iter()
-            .filter(|member| member.kind() == "method_declaration")
-            .filter_map(|member| member.child_by_field_name("name"))
-            .map(|name| self.text.of(name).to_owned())
-            .collect()
     }
 
     fn record_components(&self, declaration: &Declaration, scope: &Scope) -> Vec<Field> {
@@ -200,10 +208,15 @@ impl Reader<'_> {
         })
     }
 
-    fn method(&self, node: Node, declaration: &Declaration) -> Option<Method> {
+    fn method(
+        &self,
+        node: Node,
+        declaration: &Declaration,
+        nested: &mut Vec<Class>,
+    ) -> Option<Method> {
         let name = node.child_by_field_name("name")?;
-        let mut scope = Scope::new(&declaration.name, &declaration.type_variables)
-            .with_type_variables(self.text.type_parameters(node));
+        let mut scope =
+            Scope::for_class(declaration).with_type_variables(self.text.type_parameters(node));
         let returns = node
             .child_by_field_name("type")
             .map(|declared| self.declared_type(declared, &scope));
@@ -211,26 +224,35 @@ impl Reader<'_> {
             .child_by_field_name("parameters")
             .map(|parameters| self.parameters(parameters, &scope))
             .unwrap_or_default();
+        let body = self.body(node, &parameters, &mut scope);
+        nested.extend(scope.take_nested());
         Some(Method {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
             is_static: has_modifier(node, "static"),
             returns,
-            body: self.body(node, &parameters, &mut scope),
+            body,
             parameters,
         })
     }
 
-    fn compact_constructor(&self, node: Node, declaration: &Declaration) -> Option<Method> {
+    fn compact_constructor(
+        &self,
+        node: Node,
+        declaration: &Declaration,
+        nested: &mut Vec<Class>,
+    ) -> Option<Method> {
         let name = node.child_by_field_name("name")?;
-        let mut scope = Scope::new(&declaration.name, &declaration.type_variables);
+        let mut scope = Scope::for_class(declaration);
         let parameters = self.record_parameters(declaration, &scope);
+        let body = self.body(node, &parameters, &mut scope);
+        nested.extend(scope.take_nested());
         Some(Method {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
             is_static: false,
             returns: None,
-            body: self.body(node, &parameters, &mut scope),
+            body,
             parameters,
         })
     }
@@ -289,19 +311,6 @@ impl Reader<'_> {
     }
 }
 
-fn members(body: Node) -> Vec<Node> {
-    let mut cursor = body.walk();
-    body.named_children(&mut cursor)
-        .flat_map(|member| {
-            if member.kind() == "enum_body_declarations" {
-                self::members(member)
-            } else {
-                vec![member]
-            }
-        })
-        .collect()
-}
-
 fn has_modifier(node: Node, modifier: &str) -> bool {
     let mut cursor = node.walk();
     node.children(&mut cursor)
@@ -327,7 +336,7 @@ impl Initializer {
         Self {
             name,
             is_static,
-            scope: Scope::new(&declaration.name, &declaration.type_variables),
+            scope: Scope::for_class(declaration),
             line: None,
             statements: Vec::new(),
         }
@@ -341,7 +350,8 @@ impl Initializer {
         self.statements.extend(statements);
     }
 
-    fn into_method(self) -> Option<Method> {
+    fn into_method(mut self, nested: &mut Vec<Class>) -> Option<Method> {
+        nested.extend(self.scope.take_nested());
         Some(Method {
             name: self.name.to_owned(),
             line: self.line?,

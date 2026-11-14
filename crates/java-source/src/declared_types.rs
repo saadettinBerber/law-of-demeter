@@ -36,6 +36,8 @@ impl Reader<'_> {
             DeclaredType::Var
         } else if scope.is_type_variable(name) {
             DeclaredType::variable(name)
+        } else if let Some(binary_name) = scope.lookup_type(name) {
+            DeclaredType::class(binary_name)
         } else {
             DeclaredType::Class {
                 name: self.resolver.resolve(name, &scope.class),

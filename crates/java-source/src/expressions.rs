@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use tree_sitter::Node;
 
 use crate::model::{
-    Call, DeclaredType, Expression, ImplicitTarget, Lambda, LambdaParameter, New, PatternBinding,
-    Statement, Switch, SwitchBranch, TypeName,
+    Call, ClassKind, ClassOrigin, DeclaredType, Expression, ImplicitTarget, Lambda,
+    LambdaParameter, New, PatternBinding, Statement, Switch, SwitchBranch, TypeName,
 };
 use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
@@ -46,14 +46,20 @@ impl Reader<'_> {
         if let Some(binding) = scope.lookup(name) {
             return binding;
         }
-        if let Some(owner) = self.owner_of_field(name, &scope.class) {
-            return if owner == scope.class {
-                Expression::Field(name.to_owned())
-            } else {
-                Expression::OuterField {
-                    owner,
-                    name: name.to_owned(),
-                }
+        if self.declares_field(&scope.class, name) {
+            return Expression::Field(name.to_owned());
+        }
+        if scope.is_captured(name) {
+            return Expression::Captured(name.to_owned());
+        }
+        if let Some(owner) = scope
+            .class
+            .rsplit_once('$')
+            .and_then(|(outer, _)| self.owner_of_field(name, outer))
+        {
+            return Expression::OuterField {
+                owner,
+                name: name.to_owned(),
             };
         }
         if let Some(owner) = self.resolver.static_import_owner(name) {
@@ -62,10 +68,20 @@ impl Reader<'_> {
                 name: name.to_owned(),
             };
         }
-        match self.resolver.resolve_simple(name, &scope.class) {
+        let binary_name = scope
+            .lookup_type(name)
+            .map(str::to_owned)
+            .or_else(|| self.resolver.resolve_simple(name, &scope.class));
+        match binary_name {
             Some(binary_name) => Expression::Type(TypeName::Resolved(binary_name)),
             None => Expression::Unresolved(name.to_owned()),
         }
+    }
+
+    fn declares_field(&self, class: &str, name: &str) -> bool {
+        self.field_names
+            .get(class)
+            .is_some_and(|names| names.contains(name))
     }
 
     fn owner_of_field(&self, name: &str, class: &str) -> Option<String> {
@@ -188,6 +204,12 @@ impl Reader<'_> {
         Expression::New(New {
             created: self.declared_type(created, scope),
             arguments,
+            anonymous_class: self.read_nested(
+                node,
+                ClassKind::Class,
+                ClassOrigin::Anonymous,
+                scope,
+            ),
             line: line_of(node),
         })
     }

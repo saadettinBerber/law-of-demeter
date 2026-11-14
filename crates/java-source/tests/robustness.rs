@@ -93,9 +93,12 @@ fn a_file_with_many_kinds_of_declarations_and_statements_parses() {
         [
             "shop.broad.Marker",
             "shop.broad.Color",
+            "shop.broad.Color$1",
             "shop.broad.Shape",
             "shop.broad.Pair",
             "shop.broad.Broad",
+            "shop.broad.Broad$1",
+            "shop.broad.Broad$1Local",
             "shop.broad.Broad$Inner",
             "shop.broad.Broad$Inner$Deeper"
         ]

@@ -1,4 +1,5 @@
-use crate::model::Expression;
+use crate::declarations::Declaration;
+use crate::model::{Class, Expression};
 
 #[derive(Clone, Copy)]
 pub(crate) enum Binding {
@@ -18,18 +19,34 @@ impl Binding {
     }
 }
 
+#[derive(Clone, Default)]
+pub(crate) struct Capture {
+    variables: Vec<String>,
+    types: Vec<(String, String)>,
+}
+
+#[derive(Default)]
+struct Frame {
+    variables: Vec<(String, Binding)>,
+    types: Vec<(String, String)>,
+}
+
 pub(crate) struct Scope {
     pub(crate) class: String,
     type_variables: Vec<String>,
-    frames: Vec<Vec<(String, Binding)>>,
+    frames: Vec<Frame>,
+    captured: Capture,
+    nested: Vec<Class>,
 }
 
 impl Scope {
-    pub(crate) fn new(class: &str, type_variables: &[String]) -> Self {
+    pub(crate) fn for_class(declaration: &Declaration) -> Self {
         Self {
-            class: class.to_owned(),
-            type_variables: type_variables.to_vec(),
-            frames: vec![Vec::new()],
+            class: declaration.name.clone(),
+            type_variables: declaration.type_variables.clone(),
+            frames: vec![Frame::default()],
+            captured: declaration.capture.clone(),
+            nested: Vec::new(),
         }
     }
 
@@ -38,12 +55,16 @@ impl Scope {
         self
     }
 
+    pub(crate) fn type_variables(&self) -> &[String] {
+        &self.type_variables
+    }
+
     pub(crate) fn is_type_variable(&self, name: &str) -> bool {
         self.type_variables.iter().any(|variable| variable == name)
     }
 
     pub(crate) fn open_frame(&mut self) {
-        self.frames.push(Vec::new());
+        self.frames.push(Frame::default());
     }
 
     pub(crate) fn close_frame(&mut self) {
@@ -52,7 +73,13 @@ impl Scope {
 
     pub(crate) fn declare(&mut self, name: &str, binding: Binding) {
         if let Some(frame) = self.frames.last_mut() {
-            frame.push((name.to_owned(), binding));
+            frame.variables.push((name.to_owned(), binding));
+        }
+    }
+
+    pub(crate) fn declare_type(&mut self, name: &str, binary_name: &str) {
+        if let Some(frame) = self.frames.last_mut() {
+            frame.types.push((name.to_owned(), binary_name.to_owned()));
         }
     }
 
@@ -60,8 +87,44 @@ impl Scope {
         self.frames
             .iter()
             .rev()
-            .flat_map(|frame| frame.iter().rev())
+            .flat_map(|frame| frame.variables.iter().rev())
             .find(|(declared, _)| declared == name)
             .map(|(_, binding)| binding.expression(name))
+    }
+
+    pub(crate) fn lookup_type(&self, name: &str) -> Option<&str> {
+        self.frames
+            .iter()
+            .rev()
+            .flat_map(|frame| frame.types.iter().rev())
+            .chain(self.captured.types.iter().rev())
+            .find(|(declared, _)| declared == name)
+            .map(|(_, binary_name)| binary_name.as_str())
+    }
+
+    pub(crate) fn is_captured(&self, name: &str) -> bool {
+        self.captured
+            .variables
+            .iter()
+            .any(|captured| captured == name)
+    }
+
+    pub(crate) fn capture(&self) -> Capture {
+        let mut capture = self.captured.clone();
+        for frame in &self.frames {
+            capture
+                .variables
+                .extend(frame.variables.iter().map(|(name, _)| name.clone()));
+            capture.types.extend(frame.types.iter().cloned());
+        }
+        capture
+    }
+
+    pub(crate) fn add_nested(&mut self, classes: Vec<Class>) {
+        self.nested.extend(classes);
+    }
+
+    pub(crate) fn take_nested(&mut self) -> Vec<Class> {
+        std::mem::take(&mut self.nested)
     }
 }

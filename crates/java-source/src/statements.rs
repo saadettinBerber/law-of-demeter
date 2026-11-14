@@ -1,6 +1,9 @@
 use tree_sitter::Node;
 
-use crate::model::{Catch, DeclaredType, Expression, LocalVariable, Statement};
+use crate::declarations::class_kind;
+use crate::model::{
+    Catch, ClassKind, ClassOrigin, DeclaredType, Expression, LocalVariable, Statement,
+};
 use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
 use crate::tree::{line_of, named_children};
@@ -59,8 +62,24 @@ impl Reader<'_> {
                     self.operands(node, scope),
                 ))]
             }
+            kind if class_kind(kind).is_some_and(|class| class != ClassKind::Annotation) => {
+                self.local_class(node, scope);
+                Vec::new()
+            }
             _ => Vec::new(),
         }
+    }
+
+    fn local_class(&self, node: Node, scope: &mut Scope) {
+        let (Some(kind), Some(name)) = (class_kind(node.kind()), node.child_by_field_name("name"))
+        else {
+            return;
+        };
+        let Some(binary_name) = self.nested_names.get(&node.id()) else {
+            return;
+        };
+        scope.declare_type(self.text.of(name), binary_name);
+        self.read_nested(node, kind, ClassOrigin::Local, scope);
     }
 
     fn local_variables(&self, node: Node, scope: &mut Scope) -> Vec<Statement> {
