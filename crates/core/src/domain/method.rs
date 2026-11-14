@@ -215,16 +215,29 @@ impl Call {
     fn verdict(&self, types: &Types, receiver: &Subject) -> Verdict {
         match &receiver.standing {
             Standing::Friend(reason) => Verdict::allowed(&self.name, self.line, reason.clone()),
-            Standing::Stranger(source) => match receiver.type_ref.as_ref() {
-                Some(type_ref) if types.classify(type_ref) == Classification::DataStructure => {
-                    Verdict::allowed(
-                        &self.name,
-                        self.line,
-                        Reason::classified(Classification::DataStructure, type_ref.clone()),
-                    )
-                }
-                _ => Verdict::violation(&self.name, self.line, source.clone()),
-            },
+            Standing::Stranger(source) => {
+                self.stranger_verdict(types, receiver.type_ref.as_ref(), source)
+            }
+        }
+    }
+
+    fn stranger_verdict(
+        &self,
+        types: &Types,
+        type_ref: Option<&TypeRef>,
+        source: &Reason,
+    ) -> Verdict {
+        let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
+        match classified {
+            Some((
+                classification @ (Classification::DataStructure | Classification::Value),
+                type_ref,
+            )) => Verdict::allowed(
+                &self.name,
+                self.line,
+                Reason::classified(classification, type_ref.clone()),
+            ),
+            _ => Verdict::violation(&self.name, self.line, source.clone()),
         }
     }
 

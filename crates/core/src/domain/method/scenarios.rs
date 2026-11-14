@@ -100,3 +100,42 @@ fn reading_a_chain_through_data_structures_is_allowed() {
         ]
     );
 }
+
+#[test]
+fn operating_on_a_value_is_allowed() {
+    let instant = TypeRef::class("java.time.Instant");
+    let types = Types::new().with_shape(
+        class("java.time.Instant").with_method(
+            MethodShape::new("plus")
+                .with_parameters(vec![TypeRef::class("java.time.Duration")])
+                .returning(instant.clone()),
+        ),
+    );
+    let expiry = Method::new("Tokens", "expiry", 1).call(
+        Call::new(
+            Expression::parameter("issuedAt", instant.clone()),
+            "plus",
+            2,
+        )
+        .with(Expression::parameter(
+            "ttl",
+            TypeRef::class("java.time.Duration"),
+        ))
+        .then("truncatedTo", 2)
+        .with(Expression::literal()),
+    );
+
+    let verdicts = expiry.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("plus", 2, Reason::parameter("issuedAt")),
+            Verdict::allowed(
+                "truncatedTo",
+                2,
+                Reason::classified(Classification::Value, instant)
+            ),
+        ]
+    );
+}
