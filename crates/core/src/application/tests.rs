@@ -299,3 +299,26 @@ fn a_call_on_a_type_no_source_declares_is_a_library_call() {
         )
     );
 }
+
+#[test]
+fn a_violation_whose_standing_traces_back_to_an_unresolved_name_counts_as_unresolved() {
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/Reports.java"),
+        vec!["Reports".to_owned(), "Customer".to_owned()],
+        vec![
+            Method::new("Reports", "rename", 1)
+                .assign(
+                    "customer",
+                    TypeRef::class("Customer"),
+                    Expression::unresolved("loaded"),
+                )
+                .call(Call::new(Expression::local("customer"), "rename", 3)),
+        ],
+    ))]);
+
+    let counts = CheckProject::new(&sources, &shop_types())
+        .execute()
+        .counts();
+
+    assert_eq!((counts.violations, counts.unresolved), (0, 1));
+}

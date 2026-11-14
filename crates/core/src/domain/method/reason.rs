@@ -53,6 +53,16 @@ impl Reason {
         }
     }
 
+    pub fn is_unresolved(&self) -> bool {
+        match self {
+            Self::UnresolvedType { .. } | Self::UnresolvedName(_) => true,
+            Self::Local { origin: inner, .. }
+            | Self::LambdaParameter { feed: inner, .. }
+            | Self::LoopVariable { feed: inner, .. } => inner.is_unresolved(),
+            _ => false,
+        }
+    }
+
     pub fn field(name: &str) -> Self {
         Self::Field(name.to_owned())
     }

@@ -55,7 +55,7 @@ impl Finding {
     }
 
     pub fn is_unresolved(&self) -> bool {
-        self.is_violation() && matches!(self.reason(), Reason::UnresolvedType { .. })
+        self.is_violation() && self.reason().is_unresolved()
     }
 
     pub fn reason(&self) -> &Reason {

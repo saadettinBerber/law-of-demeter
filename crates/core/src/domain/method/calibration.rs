@@ -420,3 +420,35 @@ fn a_bare_name_that_no_superclass_declares_stays_unresolved() {
         )]
     );
 }
+
+#[test]
+fn a_lambda_parameter_fed_by_an_unresolved_name_is_unresolved() {
+    let reason = Reason::lambda_parameter("item", Reason::unresolved_name("items"));
+
+    assert!(reason.is_unresolved());
+}
+
+#[test]
+fn a_loop_variable_fed_by_an_unresolved_type_is_unresolved() {
+    let feed = Reason::unresolved_type(None, Reason::return_of("find"));
+    let reason = Reason::loop_variable("item", feed);
+
+    assert!(reason.is_unresolved());
+}
+
+#[test]
+fn a_local_nested_in_a_lambda_parameter_fed_by_an_unresolved_name_is_unresolved() {
+    let reason = Reason::local(
+        "total",
+        Reason::lambda_parameter("item", Reason::unresolved_name("items")),
+    );
+
+    assert!(reason.is_unresolved());
+}
+
+#[test]
+fn a_local_taken_from_a_returned_value_is_not_unresolved() {
+    let reason = Reason::local("customer", Reason::return_of("getCustomer"));
+
+    assert!(!reason.is_unresolved());
+}
