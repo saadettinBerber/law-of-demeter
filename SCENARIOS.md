@@ -41,6 +41,10 @@
 | Uygun | 7. Yabancıyı yalnızca başka bir metoda iletmek | Raporlanmaz | ✅ |
 | Uygun | 8. Kendi nesnesi ve alanları | Raporlanmaz | ✅ |
 | Uygun | 9. Depo sorgusunun döndürdüğü nesneyle konuşmak | Raporlanmaz | ✅ |
+| Uygun | 10. Arkadaşın koleksiyonundan alınan elemanla konuşmak | Raporlanmaz | ✅ |
+| Uygun | 11. Kütüphane nesnesiyle konuşmak | Raporlanmaz | ✅ |
+| Uygun | 12. Değişmez değer nesnesiyle konuşmak | Raporlanmaz | ✅ |
+| Uygun | 13. Üst sınıftan gelen alanla konuşmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ✅ |
 
@@ -124,6 +128,8 @@ class Account {
 - **Neden:** Bütün alanlar dışarıdan değiştirilebiliyor. `setBalance()` ile `withdraw()` içindeki kontrol atlanabilir.
 
 - **Not:** Getter ve setter'lar Lombok yerine elle yazılsa da durum aynı.
+
+- **Kütüphane üst sınıfı:** Setter'lar kütüphanedeki bir üst sınıftan geliyorsa sınıf hibrit sayılmaz. Karar yalnızca projenin kendi metotlarına bakar.
 
 </details>
 
@@ -323,7 +329,65 @@ void dispatch(OrderId id) {
 
 - **Neden:** Depo sorgusu, factory gibi f'ye kullanması için bir nesne verir. Dönen sipariş f'nin arkadaşı sayılır.
 
-- **Not:** `orders` C'nin bir alanı. Hangi metotların depo sorgusu sayılacağı, örneğin `find` ve `load` ile başlayanlar, tip sınıflandırmasıyla birlikte netleşecek.
+- **Not:** `orders` C'nin bir alanı. Adı `find`, `load` ya da `fetch` ile başlayan metot depo sorgusu sayılır; alıcı bir alan ya da parametre olmalı.
+
+</details>
+
+<details>
+<summary><strong>10. Arkadaşın koleksiyonundan alınan elemanla konuşmak</strong></summary>
+
+```java
+void checkout(String id) {
+    carts.get(id).checkout();
+}
+```
+
+- **Neden:** `carts` C'nin bir alanı. Koleksiyondan alınan eleman koleksiyonun durumunu korur; arkadaşın koleksiyonundaki eleman da arkadaştır.
+
+- **Not:** Döndürülen bir koleksiyondan alınan eleman yabancı kalır. `order.getLines().get(0).applyDiscount(rate)` raporlanır.
+
+</details>
+
+<details>
+<summary><strong>11. Kütüphane nesnesiyle konuşmak</strong></summary>
+
+```java
+void update() {
+    lock.writeLock().lock();
+}
+```
+
+- **Neden:** `writeLock()`'un döndürdüğü nesne projenin değil, JDK'nın tipi. Kural projenin kendi tasarımına bakar; kütüphane tiplerinin yapısı projede değiştirilemez.
+
+- **Not:** Proje tipi, denetlenen kaynaklarda tanımlanan tiptir. Çok modüllü projede bütün modüllerin kaynakları verilmeli; yoksa diğer modüllerin tipleri kütüphane sayılır.
+
+</details>
+
+<details>
+<summary><strong>12. Değişmez değer nesnesiyle konuşmak</strong></summary>
+
+```java
+boolean compatible(Order order, Version required) {
+    return order.getVersion().isCompatibleWith(required);
+}
+```
+
+- **Neden:** `Version`'ın bütün alanları final, setter'ı yok, `equals` ve `hashCode`'u tanımlı; bir değer nesnesi. Bir karşılaştırma metodu taşıması onu nesne yapmaz.
+
+</details>
+
+<details>
+<summary><strong>13. Üst sınıftan gelen alanla konuşmak</strong></summary>
+
+```java
+class PaymentService extends BaseService {
+    void pay(int amount) {
+        wallet.withdraw(amount);
+    }
+}
+```
+
+- **Neden:** `wallet`, `BaseService`'te tanımlı bir alan. C'nin üst sınıfından gelen alan, C'nin kendi alanı gibi arkadaştır.
 
 </details>
 
