@@ -29,6 +29,52 @@ impl Types {
         self
     }
 
+    pub fn shape(&self, name: &str) -> Option<&TypeShape> {
+        self.shapes.get(name)
+    }
+
+    pub fn return_type(
+        &self,
+        type_name: &str,
+        method: &str,
+        parameter_count: usize,
+    ) -> Option<&TypeRef> {
+        let overloads = self.overloads(type_name, method, parameter_count);
+        let (first, rest) = overloads.split_first()?;
+        rest.iter()
+            .all(|overload| overload.returns() == first.returns())
+            .then(|| first.returns())
+            .flatten()
+    }
+
+    fn overloads(
+        &self,
+        type_name: &str,
+        method: &str,
+        parameter_count: usize,
+    ) -> Vec<&MethodShape> {
+        let Some(shape) = self.shape(type_name) else {
+            return Vec::new();
+        };
+        let declared: Vec<_> = shape
+            .methods()
+            .iter()
+            .filter(|candidate| {
+                candidate.name() == method && candidate.parameters().len() == parameter_count
+            })
+            .collect();
+        if !declared.is_empty() {
+            return declared;
+        }
+        shape
+            .supertypes()
+            .iter()
+            .filter_map(class_name)
+            .map(|supertype| self.overloads(supertype, method, parameter_count))
+            .find(|inherited| !inherited.is_empty())
+            .unwrap_or_default()
+    }
+
     pub fn classify(&self, type_ref: &TypeRef) -> Classification {
         match type_ref {
             TypeRef::Class { name, .. } => self.classify_named(name),
@@ -82,6 +128,13 @@ fn classify_class(shape: &TypeShape) -> Classification {
         (true, true) => Classification::Hybrid,
         (true, false) => Classification::Object,
         (false, _) => Classification::DataStructure,
+    }
+}
+
+fn class_name(type_ref: &TypeRef) -> Option<&str> {
+    match type_ref {
+        TypeRef::Class { name, .. } => Some(name),
+        TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => None,
     }
 }
 

@@ -345,3 +345,133 @@ fn a_supertype_that_is_neither_value_nor_container_does_not_decide_the_classific
 
     assert_eq!(classification, Classification::DataStructure);
 }
+
+#[test]
+fn the_catalog_returns_the_shape_registered_under_a_name() {
+    let types = Types::new().with_shape(TypeShape::new("Order", TypeKind::Class));
+
+    let shape = types.shape("Order").map(TypeShape::name);
+
+    assert_eq!(shape, Some("Order"));
+}
+
+#[test]
+fn the_catalog_has_no_shape_for_an_unregistered_name() {
+    let types = Types::new();
+
+    let shape = types.shape("Order");
+
+    assert_eq!(shape, None);
+}
+
+fn order_with_customer_lookups() -> Types {
+    Types::new().with_shape(
+        TypeShape::new("Order", TypeKind::Class)
+            .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
+            .with_method(
+                MethodShape::new("line")
+                    .with_parameters(vec![int()])
+                    .returning(TypeRef::class("OrderLine")),
+            )
+            .with_method(
+                MethodShape::new("line")
+                    .with_parameters(vec![int(), int()])
+                    .returning(TypeRef::class("OrderLineGroup")),
+            ),
+    )
+}
+
+#[test]
+fn a_return_type_is_found_by_method_name() {
+    let types = order_with_customer_lookups();
+
+    let returned = types.return_type("Order", "getCustomer", 0);
+
+    assert_eq!(returned, Some(&TypeRef::class("Customer")));
+}
+
+#[test]
+fn overloads_are_told_apart_by_parameter_count() {
+    let types = order_with_customer_lookups();
+
+    let returned = (
+        types.return_type("Order", "line", 1),
+        types.return_type("Order", "line", 2),
+    );
+
+    assert_eq!(
+        returned,
+        (
+            Some(&TypeRef::class("OrderLine")),
+            Some(&TypeRef::class("OrderLineGroup"))
+        )
+    );
+}
+
+#[test]
+fn overloads_with_the_same_parameter_count_and_different_returns_are_ambiguous() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Order", TypeKind::Class)
+            .with_method(
+                MethodShape::new("find")
+                    .with_parameters(vec![int()])
+                    .returning(TypeRef::class("OrderLine")),
+            )
+            .with_method(
+                MethodShape::new("find")
+                    .with_parameters(vec![string()])
+                    .returning(TypeRef::class("Customer")),
+            ),
+    );
+
+    let returned = types.return_type("Order", "find", 1);
+
+    assert_eq!(returned, None);
+}
+
+#[test]
+fn a_return_type_is_unknown_for_a_missing_type_or_method() {
+    let types = order_with_customer_lookups();
+
+    let returned = (
+        types.return_type("Mystery", "getCustomer", 0),
+        types.return_type("Order", "getMystery", 0),
+        types.return_type("Order", "getCustomer", 1),
+    );
+
+    assert_eq!(returned, (None, None, None));
+}
+
+#[test]
+fn a_return_type_is_found_on_a_supertype() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("BaseEntity", TypeKind::Class)
+                .with_method(MethodShape::new("getId").returning(TypeRef::class("EntityId"))),
+        )
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class).extending(TypeRef::class("BaseEntity")),
+        );
+
+    let returned = types.return_type("Order", "getId", 0);
+
+    assert_eq!(returned, Some(&TypeRef::class("EntityId")));
+}
+
+#[test]
+fn a_return_type_declared_on_the_type_wins_over_the_supertype() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("BaseEntity", TypeKind::Class)
+                .with_method(MethodShape::new("copy").returning(TypeRef::class("BaseEntity"))),
+        )
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class)
+                .extending(TypeRef::class("BaseEntity"))
+                .with_method(MethodShape::new("copy").returning(TypeRef::class("Order"))),
+        );
+
+    let returned = types.return_type("Order", "copy", 0);
+
+    assert_eq!(returned, Some(&TypeRef::class("Order")));
+}
