@@ -138,6 +138,11 @@ impl Lambda {
         self
     }
 
+    pub fn assign(mut self, local: &str, value: Expression) -> Self {
+        self.body = self.body.assign(local, value);
+        self
+    }
+
     fn verdicts(&self, scope: &Scope, feed: &Standing) -> Vec<Verdict> {
         let mut scope = scope.clone();
         for parameter in &self.parameters {

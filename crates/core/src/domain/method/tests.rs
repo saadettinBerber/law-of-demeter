@@ -275,3 +275,34 @@ fn calling_a_static_method_on_a_type_is_allowed() {
         [Verdict::allowed("builder", Reason::static_type("Order"))]
     );
 }
+
+#[test]
+fn a_lambda_body_can_assign_a_local_and_call_it() {
+    let inspect_all = Method::new().call(
+        Call::new(Expression::field("orders"), "forEach").with(
+            Lambda::new(&["order"])
+                .assign(
+                    "customer",
+                    Expression::return_of(Call::new(Expression::local("order"), "getCustomer")),
+                )
+                .call(Call::new(Expression::local("customer"), "getWallet")),
+        ),
+    );
+
+    let verdicts = inspect_all.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "getCustomer",
+                Reason::lambda_parameter("order", Reason::field("orders"))
+            ),
+            Verdict::violation(
+                "getWallet",
+                Reason::local("customer", Reason::return_of("getCustomer"))
+            ),
+            Verdict::allowed("forEach", Reason::field("orders")),
+        ]
+    );
+}
