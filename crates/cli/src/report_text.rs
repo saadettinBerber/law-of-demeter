@@ -3,7 +3,6 @@ use law_of_demeter_core::application::{Finding, Report};
 use crate::reason_text::describe;
 
 pub fn render(report: &Report, show_allowed: bool) -> String {
-    let _ = show_allowed;
     let findings = report.findings();
     let mut text = String::new();
     section(
@@ -20,6 +19,14 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
         "Belirsiz",
         findings.iter().filter(|finding| finding.is_unresolved()),
     );
+    if show_allowed {
+        section(
+            &mut text,
+            "Uygun çağrılar",
+            "Uygun",
+            findings.iter().filter(|finding| !finding.is_violation()),
+        );
+    }
     text
 }
 

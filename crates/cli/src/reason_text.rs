@@ -1,3 +1,4 @@
+use law_of_demeter_core::domain::classification::Classification;
 use law_of_demeter_core::domain::method::Reason;
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
@@ -28,7 +29,48 @@ pub fn describe(reason: &Reason) -> String {
             ),
             None => format!("tip çözülemedi: {}", describe(source)),
         },
-        _ => String::new(),
+        Reason::This => "f'nin kendi nesnesi".to_owned(),
+        Reason::Field(name) => format!("{name} sınıfın alanı"),
+        Reason::Parameter(name) => format!("{name} f'ye argüman olarak verildi"),
+        Reason::Created(type_ref) => {
+            format!("f'nin içinde oluşturulan nesne ({})", type_name(type_ref))
+        }
+        Reason::StaticType(type_ref) => {
+            format!("{} tipi üzerinde statik çağrı", type_name(type_ref))
+        }
+        Reason::Literal => "sabit değer".to_owned(),
+        Reason::UnassignedLocal(name) => format!("{name} değişkenine değer atanmamış"),
+        Reason::Classified {
+            classification,
+            type_ref,
+        } => format!(
+            "{} {}",
+            type_name(type_ref),
+            classification_text(*classification)
+        ),
+        Reason::Fluent(type_ref) => {
+            format!("{} üzerinde akıcı (fluent) çağrı", type_name(type_ref))
+        }
+        Reason::StaticResult(call) => {
+            format!("{call}() statik çağrısının döndürdüğü nesne f'nin arkadaşı")
+        }
+        Reason::FactoryResult(call) => {
+            format!("{call}() factory çağrısının döndürdüğü nesne f'nin arkadaşı")
+        }
+        Reason::QueryResult(call) => {
+            format!("{call}() depo sorgusunun döndürdüğü nesne f'nin arkadaşı")
+        }
+    }
+}
+
+fn classification_text(classification: Classification) -> &'static str {
+    match classification {
+        Classification::DataStructure => "bir veri yapısı",
+        Classification::Object => "bir nesne",
+        Classification::Hybrid => "bir hibrit sınıf",
+        Classification::Value => "bir değer",
+        Classification::Container => "bir konteyner",
+        Classification::Unknown => "çözülemeyen bir tip",
     }
 }
 

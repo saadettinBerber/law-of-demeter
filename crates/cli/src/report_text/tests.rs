@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use law_of_demeter_core::application::{Finding, Report};
+use law_of_demeter_core::domain::classification::Classification;
 use law_of_demeter_core::domain::method::{Reason, Verdict};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
@@ -134,5 +135,99 @@ fn unresolved_types_are_listed_apart_from_the_real_violations() {
                 "src/OrderService.java:5  OrderService.pay  trim()  Belirsiz: tip çözülemedi: getName() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
             ]
         )
+    );
+}
+
+fn allowed(line: usize, reason: Reason) -> Finding {
+    finding(Verdict::allowed("call", line, reason))
+}
+
+fn allowed_lines(findings: Vec<Finding>) -> Vec<String> {
+    let text = render(&report_of(findings), true);
+    section(&text, "Uygun çağrılar")
+        .into_iter()
+        .map(|line| {
+            line.split_once("  call()  Uygun: ")
+                .map_or(line, |(_, reason)| reason)
+                .to_owned()
+        })
+        .collect()
+}
+
+#[test]
+fn allowed_calls_are_listed_with_their_reason_when_asked() {
+    let report = report_of(vec![allowed(9, Reason::parameter("order"))]);
+
+    let text = render(&report, true);
+
+    assert_eq!(
+        section(&text, "Uygun çağrılar"),
+        [
+            "src/OrderService.java:9  OrderService.pay  call()  Uygun: order f'ye argüman olarak verildi"
+        ]
+    );
+}
+
+#[test]
+fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
+    let lines = allowed_lines(vec![
+        allowed(1, Reason::This),
+        allowed(2, Reason::field("wallet")),
+        allowed(
+            3,
+            Reason::created(TypeRef::class("java.lang.StringBuilder")),
+        ),
+        allowed(4, Reason::static_type(TypeRef::class("Order"))),
+        allowed(5, Reason::Literal),
+        allowed(6, Reason::local("current", Reason::parameter("order"))),
+        allowed(7, Reason::lambda_parameter("o", Reason::field("orders"))),
+        allowed(8, Reason::loop_variable("o", Reason::field("orders"))),
+        allowed(9, Reason::static_result("builder")),
+        allowed(10, Reason::factory_result("create")),
+        allowed(11, Reason::query_result("findById")),
+    ]);
+
+    assert_eq!(
+        lines,
+        [
+            "f'nin kendi nesnesi",
+            "wallet sınıfın alanı",
+            "f'nin içinde oluşturulan nesne (java.lang.StringBuilder)",
+            "Order tipi üzerinde statik çağrı",
+            "sabit değer",
+            "current yerel değişkeni: order f'ye argüman olarak verildi",
+            "o lambda parametresi: orders sınıfın alanı",
+            "o döngü değişkeni: orders sınıfın alanı",
+            "builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı",
+            "create() factory çağrısının döndürdüğü nesne f'nin arkadaşı",
+            "findById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı",
+        ]
+    );
+}
+
+#[test]
+fn the_reasons_that_make_a_stranger_allowed_read_in_turkish() {
+    let server = TypeRef::class("Server");
+    let lines = allowed_lines(vec![
+        allowed(
+            1,
+            Reason::classified(Classification::DataStructure, server.clone()),
+        ),
+        allowed(2, Reason::classified(Classification::Value, server.clone())),
+        allowed(
+            3,
+            Reason::classified(Classification::Container, server.clone()),
+        ),
+        allowed(4, Reason::fluent(server)),
+    ]);
+
+    assert_eq!(
+        lines,
+        [
+            "Server bir veri yapısı",
+            "Server bir değer",
+            "Server bir konteyner",
+            "Server üzerinde akıcı (fluent) çağrı",
+        ]
     );
 }
