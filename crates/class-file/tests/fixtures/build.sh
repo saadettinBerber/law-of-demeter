@@ -30,6 +30,7 @@ put() {
 put 8 sample.base legacy sample/util/Box
 put 9AB sample.base current sample/util/Box
 put 89AB sample.base current sample/util/Pair
+put 89AB sample.base current sample/util/Tagged
 put B sample.base current sample/util/Fresh
 put 8 sample.desktop current sample/awt/Canvas
 printf 'garbage' > "$stage/B/sample.base/sample/util/Corrupt.sig"

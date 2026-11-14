@@ -167,7 +167,12 @@ fn a_release_lists_the_types_whose_release_directory_names_it() {
 
     assert_eq!(
         names(&reading),
-        ["sample.awt.Canvas", "sample.util.Box", "sample.util.Pair"]
+        [
+            "sample.awt.Canvas",
+            "sample.util.Box",
+            "sample.util.Pair",
+            "sample.util.Tagged"
+        ]
     );
 }
 
@@ -188,10 +193,18 @@ fn a_type_added_in_a_release_is_missing_from_earlier_ones() {
     let ten = reading_of(10);
     let eleven = reading_of(11);
 
-    assert_eq!(names(&ten), ["sample.util.Box", "sample.util.Pair"]);
+    assert_eq!(
+        names(&ten),
+        ["sample.util.Box", "sample.util.Pair", "sample.util.Tagged"]
+    );
     assert_eq!(
         names(&eleven),
-        ["sample.util.Box", "sample.util.Fresh", "sample.util.Pair"]
+        [
+            "sample.util.Box",
+            "sample.util.Fresh",
+            "sample.util.Pair",
+            "sample.util.Tagged"
+        ]
     );
     assert_eq!(
         shape(&eleven, "sample.util.Fresh").kind(),
@@ -215,6 +228,25 @@ fn jdk_types_keep_their_generic_signatures() {
 }
 
 #[test]
+fn jdk_types_list_their_type_parameters_and_their_generic_superclass() {
+    let reading = reading_of(11);
+
+    let pair = shape(&reading, "sample.util.Pair");
+    let tagged = shape(&reading, "sample.util.Tagged");
+
+    assert_eq!(pair.type_parameters(), ["A", "B"]);
+    assert_eq!(pair.superclass(), None);
+    assert_eq!(tagged.type_parameters(), ["K", "V"]);
+    assert_eq!(
+        tagged.superclass(),
+        Some(&TypeRef::generic(
+            "sample.util.Pair",
+            vec![TypeRef::variable("K"), TypeRef::variable("V")]
+        ))
+    );
+}
+
+#[test]
 fn an_unreadable_sig_file_is_reported_and_the_other_types_still_read() {
     let reading = reading_of(11);
 
@@ -222,7 +254,7 @@ fn an_unreadable_sig_file_is_reported_and_the_other_types_still_read() {
 
     assert_eq!(paths, [fixture_jdk().join("lib/ct.sym")]);
     assert!(reading.errors[0].to_string().contains("Corrupt.sig"));
-    assert_eq!(reading.shapes.len(), 3);
+    assert_eq!(reading.shapes.len(), 4);
 }
 
 #[test]
@@ -321,4 +353,37 @@ fn the_real_jdk_lists_an_earlier_release_from_ct_sym() {
     assert!(reading.errors.is_empty(), "{:?}", reading.errors);
     assert!(names(&reading).contains(&"java.lang.String"));
     assert!(reading.shapes.len() > 4_000);
+}
+
+fn assert_hash_map_is_generic(reading: &Reading) {
+    let hash_map = shape(reading, "java.util.HashMap");
+    assert_eq!(hash_map.type_parameters(), ["K", "V"]);
+    assert_eq!(
+        hash_map.superclass(),
+        Some(&TypeRef::generic(
+            "java.util.AbstractMap",
+            vec![TypeRef::variable("K"), TypeRef::variable("V")]
+        ))
+    );
+    assert_eq!(shape(reading, "java.util.List").type_parameters(), ["E"]);
+}
+
+#[test]
+fn the_real_jdk_runtime_image_types_carry_type_parameters_and_superclass() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap();
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_hash_map_is_generic(&reading);
+}
+
+#[test]
+fn the_real_jdk_ct_sym_types_carry_type_parameters_and_superclass() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap() - 1;
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_hash_map_is_generic(&reading);
 }

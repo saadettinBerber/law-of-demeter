@@ -9,7 +9,7 @@ pub(crate) fn field_type(text: &str) -> Result<TypeRef, String> {
 
 pub(crate) fn method_types(text: &str) -> Result<(Vec<TypeRef>, Option<TypeRef>), String> {
     let mut parser = Parser::new(text);
-    parser.skip_type_parameters()?;
+    parser.type_parameters()?;
     parser.expect('(')?;
     let mut parameters = Vec::new();
     while !parser.consume(')') {
@@ -27,14 +27,25 @@ pub(crate) fn method_types(text: &str) -> Result<(Vec<TypeRef>, Option<TypeRef>)
     Ok((parameters, returns))
 }
 
-pub(crate) fn class_supertypes(text: &str) -> Result<Vec<TypeRef>, String> {
+pub(crate) struct ClassSignature {
+    pub(crate) type_parameters: Vec<String>,
+    pub(crate) superclass: TypeRef,
+    pub(crate) interfaces: Vec<TypeRef>,
+}
+
+pub(crate) fn class_signature(text: &str) -> Result<ClassSignature, String> {
     let mut parser = Parser::new(text);
-    parser.skip_type_parameters()?;
-    let mut supertypes = Vec::new();
+    let type_parameters = parser.type_parameters()?;
+    let superclass = parser.type_ref()?;
+    let mut interfaces = Vec::new();
     while parser.peek().is_some() {
-        supertypes.push(parser.type_ref()?);
+        interfaces.push(parser.type_ref()?);
     }
-    Ok(supertypes)
+    Ok(ClassSignature {
+        type_parameters,
+        superclass,
+        interfaces,
+    })
 }
 
 struct Parser<'a> {
@@ -152,10 +163,11 @@ impl<'a> Parser<'a> {
         self.type_ref()
     }
 
-    fn skip_type_parameters(&mut self) -> Result<(), String> {
+    fn type_parameters(&mut self) -> Result<Vec<String>, String> {
+        let mut names = Vec::new();
         if self.consume('<') {
             while !self.consume('>') {
-                self.identifier(&[':'])?;
+                names.push(self.identifier(&[':'])?.to_owned());
                 while self.consume(':') {
                     if self.peek() != Some(':') {
                         self.type_ref()?;
@@ -163,6 +175,6 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        Ok(())
+        Ok(names)
     }
 }

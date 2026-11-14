@@ -63,6 +63,7 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
             "shop.Address",
             "shop.Catalog",
             "shop.Catalog$Node",
+            "shop.Container",
             "shop.Customer",
             "shop.Entity",
             "shop.Invoice",
@@ -71,6 +72,7 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
             "shop.Order$Tag",
             "shop.OrderLine",
             "shop.Product",
+            "shop.Registry",
             "shop.Repository",
             "shop.Status",
         ]
@@ -755,4 +757,91 @@ fn module_descriptors_are_skipped_without_being_read() {
 
     assert!(reading.shapes.is_empty());
     assert!(reading.errors.is_empty(), "{:?}", reading.errors);
+}
+
+#[test]
+fn reads_the_names_of_the_type_parameters_in_order() {
+    let repository = shape("shop.Repository");
+    let container = shape("shop.Container");
+    let catalog = shape("shop.Catalog");
+    let order = shape("shop.Order");
+
+    assert_eq!(repository.type_parameters(), ["T", "ID"]);
+    assert_eq!(container.type_parameters(), ["K", "V"]);
+    assert_eq!(catalog.type_parameters(), ["T"]);
+    assert!(order.type_parameters().is_empty());
+}
+
+#[test]
+fn an_inner_class_lists_only_the_type_parameters_of_its_own_signature() {
+    let node = shape("shop.Catalog$Node");
+
+    let parameters = node.type_parameters();
+
+    assert_eq!(parameters, ["U"]);
+}
+
+#[test]
+fn reads_the_superclass_with_its_generic_arguments() {
+    let registry = shape("shop.Registry");
+    let product = shape("shop.Product");
+
+    assert_eq!(
+        registry.superclass(),
+        Some(&TypeRef::generic(
+            "shop.Container",
+            vec![TypeRef::class("java.lang.String"), TypeRef::variable("V")]
+        ))
+    );
+    assert_eq!(product.superclass(), Some(&TypeRef::class("shop.Entity")));
+}
+
+#[test]
+fn the_superclass_of_enums_and_records_is_their_base_class() {
+    let status = shape("shop.Status");
+    let address = shape("shop.Address");
+
+    assert_eq!(
+        status.superclass(),
+        Some(&TypeRef::generic(
+            "java.lang.Enum",
+            vec![TypeRef::class("shop.Status")]
+        ))
+    );
+    assert_eq!(
+        address.superclass(),
+        Some(&TypeRef::class("java.lang.Record"))
+    );
+}
+
+#[test]
+fn a_type_extending_only_object_or_only_interfaces_has_no_superclass() {
+    let customer = shape("shop.Customer");
+    let order = shape("shop.Order");
+    let repository = shape("shop.Repository");
+
+    assert_eq!(customer.superclass(), None);
+    assert_eq!(order.superclass(), None);
+    assert_eq!(repository.superclass(), None);
+}
+
+#[test]
+fn the_superclass_stays_first_among_the_supertypes() {
+    let registry = shape("shop.Registry");
+
+    let supertypes = registry.supertypes();
+
+    assert_eq!(
+        supertypes,
+        [
+            TypeRef::generic(
+                "shop.Container",
+                vec![TypeRef::class("java.lang.String"), TypeRef::variable("V")]
+            ),
+            TypeRef::generic(
+                "shop.Repository",
+                vec![TypeRef::variable("V"), TypeRef::class("java.lang.String")]
+            ),
+        ]
+    );
 }

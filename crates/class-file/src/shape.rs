@@ -31,8 +31,19 @@ pub(crate) fn from_bytes(bytes: &[u8], scope: Scope) -> Result<Option<TypeShape>
         return Ok(None);
     }
     let mut shape = TypeShape::new(&binary_name(&class.this_class), kind_of(&class));
-    for supertype in supertypes_of(&class)? {
-        shape = shape.extending(supertype);
+    let Hierarchy {
+        type_parameters,
+        superclass,
+        interfaces,
+    } = hierarchy_of(&class)?;
+    for name in type_parameters {
+        shape = shape.with_type_parameter(&name);
+    }
+    if let Some(superclass) = superclass {
+        shape = shape.with_superclass(superclass);
+    }
+    for interface in interfaces {
+        shape = shape.extending(interface);
     }
     for field in &class.fields {
         if let Some(field) = field_of(field)? {
@@ -63,21 +74,41 @@ fn kind_of(class: &ClassFile) -> TypeKind {
     }
 }
 
-fn supertypes_of(class: &ClassFile) -> Result<Vec<TypeRef>, String> {
-    let supertypes = match signature_of(&class.attributes) {
-        Some(text) => signature::class_supertypes(text)?,
-        None => class
-            .super_class
-            .iter()
-            .chain(&class.interfaces)
-            .map(|name| TypeRef::class(&binary_name(name)))
-            .collect(),
+struct Hierarchy {
+    type_parameters: Vec<String>,
+    superclass: Option<TypeRef>,
+    interfaces: Vec<TypeRef>,
+}
+
+fn hierarchy_of(class: &ClassFile) -> Result<Hierarchy, String> {
+    let (type_parameters, superclass, interfaces) = match signature_of(&class.attributes) {
+        Some(text) => {
+            let signature = signature::class_signature(text)?;
+            (
+                signature.type_parameters,
+                Some(signature.superclass),
+                signature.interfaces,
+            )
+        }
+        None => (
+            Vec::new(),
+            class
+                .super_class
+                .as_ref()
+                .map(|name| TypeRef::class(&binary_name(name))),
+            class
+                .interfaces
+                .iter()
+                .map(|name| TypeRef::class(&binary_name(name)))
+                .collect(),
+        ),
     };
     let object = TypeRef::class("java.lang.Object");
-    Ok(supertypes
-        .into_iter()
-        .filter(|supertype| *supertype != object)
-        .collect())
+    Ok(Hierarchy {
+        type_parameters,
+        superclass: superclass.filter(|superclass| *superclass != object),
+        interfaces,
+    })
 }
 
 fn field_of(field: &FieldInfo) -> Result<Option<FieldShape>, String> {
