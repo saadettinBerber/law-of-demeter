@@ -56,12 +56,71 @@ Sonuç: f yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ula
 
 ## Veri yapıları
 
-Kural nesneler içindir. Nesne verisini gizler ve davranışını açar. Veri yapısı ise verisini açar ve davranış taşımaz. Veri yapısında zincirle okumak kuralı çiğnemez, çünkü gizlenecek bir iç yapı yoktur. `config` ve `server` yalnızca veri taşıyorsa şu satır sorun değildir:
+Kural nesneler içindir. Nesne verisini gizler ve davranışını açar. Veri yapısı ise verisini açar ve davranış taşımaz.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+Hem verisini açan hem davranış taşıyan sınıfa hibrit denir. Örnekte C `PaymentService` sınıfı, f de `pay` metodu.
 
 ```java
-config.server().port();
+class Account {
+    private int balance;
+
+    int getBalance() {
+        return balance;
+    }
+
+    void setBalance(int balance) {
+        this.balance = balance;
+    }
+
+    void withdraw(int amount) {
+        if (amount > balance) {
+            throw new IllegalStateException("Insufficient balance");
+        }
+        balance -= amount;
+    }
+}
+
+class PaymentService {
+    void pay(Account account, int amount) {
+        account.setBalance(account.getBalance() - amount);
+    }
+}
 ```
 
-Hem verisini dışarı açan hem davranış taşıyan hibrit sınıflar iki tarafın kötü yanını alır. Alanları dışarıdan değiştirilebildiği için kendi kurallarını koruyamazlar.
+1. `Account` verisini `getBalance()` ve `setBalance()` ile açıyor, bir yandan da `withdraw()` davranışını taşıyor.
+2. `account.setBalance(account.getBalance() - amount)`: `withdraw()` içindeki bakiye kontrolünü atlıyor. Bakiye eksiye düşebilir.
+
+Sonuç: Alanları dışarıdan değiştirilebildiği için hibrit sınıf kendi kuralını koruyamaz.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+Veri yapısında zincirle okumak kuralı çiğnemez, çünkü gizlenecek bir iç yapı yoktur. Örnekte C `Connector` sınıfı, f de `portOf` metodu.
+
+```java
+record Server(String host, int port) {
+}
+
+record Config(Server server) {
+}
+
+class Connector {
+    int portOf(Config config) {
+        return config.server().port();
+    }
+}
+```
+
+1. `config.server()`: Serbest. `config`, f'ye argüman olarak verildi.
+2. `.port()`: Serbest. `server()`'ın döndürdüğü `Server` bir veri yapısı; yalnızca veri taşıyor.
+
+Sonuç: `Config` ve `Server` davranış taşımadığı için yapılarını açmaları beklenen bir durum.
+
+</details>
 
 Kaynak: Robert C. Martin, *Clean Code*, 6. bölüm.
