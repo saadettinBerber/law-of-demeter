@@ -86,6 +86,18 @@ impl Types {
             })
     }
 
+    pub fn hybrid_class(&self, name: &str) -> Option<HybridClass> {
+        let shape = self.shape(name)?;
+        (self.classify_named(name) == Classification::Hybrid).then(|| {
+            let methods = self.class_members(shape).methods;
+            HybridClass::new(
+                name,
+                distinct_names(methods.iter().filter(|method| is_behavior(method))),
+                distinct_names(methods.iter().filter(|method| is_setter(method))),
+            )
+        })
+    }
+
     pub fn classify(&self, type_ref: &TypeRef) -> Classification {
         match type_ref {
             TypeRef::Class { name, .. } => self.classify_named(name),
@@ -152,10 +164,7 @@ impl Types {
     fn classify_class(&self, shape: &TypeShape) -> Classification {
         let members = self.class_members(shape);
         let has_setter = members.methods.iter().any(|method| is_setter(method));
-        let has_behavior = members
-            .methods
-            .iter()
-            .any(|method| !is_getter(method) && !is_setter(method));
+        let has_behavior = members.methods.iter().any(|method| is_behavior(method));
         match (has_behavior, has_setter, members.complete) {
             (true, true, _) => Classification::Hybrid,
             (true, false, _) => Classification::Object,
@@ -175,6 +184,35 @@ impl Types {
                     Classification::Value | Classification::Container
                 )
             })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HybridClass {
+    class: String,
+    behavior_methods: Vec<String>,
+    setters: Vec<String>,
+}
+
+impl HybridClass {
+    fn new(class: &str, behavior_methods: Vec<String>, setters: Vec<String>) -> Self {
+        Self {
+            class: class.to_owned(),
+            behavior_methods,
+            setters,
+        }
+    }
+
+    pub fn class(&self) -> &str {
+        &self.class
+    }
+
+    pub fn behavior_methods(&self) -> &[String] {
+        &self.behavior_methods
+    }
+
+    pub fn setters(&self) -> &[String] {
+        &self.setters
     }
 }
 
@@ -212,6 +250,20 @@ fn is_exposed(method: &MethodShape) -> bool {
 
 fn signature(method: &MethodShape) -> (&str, usize) {
     (method.name(), method.parameters().len())
+}
+
+fn is_behavior(method: &MethodShape) -> bool {
+    !is_getter(method) && !is_setter(method)
+}
+
+fn distinct_names<'a>(methods: impl Iterator<Item = &'a &'a MethodShape>) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for method in methods {
+        if !names.iter().any(|name| name == method.name()) {
+            names.push(method.name().to_owned());
+        }
+    }
+    names
 }
 
 fn is_getter(method: &MethodShape) -> bool {

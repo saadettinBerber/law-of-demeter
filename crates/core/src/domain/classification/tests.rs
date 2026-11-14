@@ -1,4 +1,6 @@
-use super::{Classification, Types, element_type, is_factory_method, is_repository_query};
+use super::{
+    Classification, HybridClass, Types, element_type, is_factory_method, is_repository_query,
+};
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
@@ -814,4 +816,146 @@ fn a_record_stays_a_data_structure_with_a_missing_supertype() {
     let classification = classify(server);
 
     assert_eq!(classification, Classification::DataStructure);
+}
+
+fn account(generated: bool) -> TypeShape {
+    let accessor = |method: MethodShape| {
+        if generated {
+            method.generated()
+        } else {
+            method
+        }
+    };
+    TypeShape::new("Account", TypeKind::Class)
+        .with_field(FieldShape::new("balance", int()))
+        .with_method(accessor(
+            MethodShape::new("getBalance")
+                .returning(int())
+                .reading("balance"),
+        ))
+        .with_method(accessor(
+            MethodShape::new("setBalance")
+                .with_parameters(vec![int()])
+                .writing("balance"),
+        ))
+        .with_method(MethodShape::new("withdraw").with_parameters(vec![int()]))
+}
+
+#[test]
+fn a_hybrid_class_is_reported_with_its_behavior_methods_and_setters() {
+    let types = Types::new().with_shape(account(true));
+
+    let hybrid = types.hybrid_class("Account");
+
+    assert_eq!(
+        hybrid,
+        Some(HybridClass::new(
+            "Account",
+            vec!["withdraw".to_owned()],
+            vec!["setBalance".to_owned()]
+        ))
+    );
+}
+
+#[test]
+fn generated_and_hand_written_accessors_give_the_same_hybrid_finding() {
+    let generated = Types::new().with_shape(account(true));
+    let hand_written = Types::new().with_shape(account(false));
+
+    let findings = (
+        generated.hybrid_class("Account"),
+        hand_written.hybrid_class("Account"),
+    );
+
+    assert_eq!(findings.0, findings.1);
+    assert!(findings.0.is_some());
+}
+
+#[test]
+fn the_hybrid_finding_names_every_behavior_method_and_setter_once() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Account", TypeKind::Class)
+            .with_method(getter("getOwner", "owner"))
+            .with_method(setter("setOwner", "owner"))
+            .with_method(setter("setBranch", "branch"))
+            .with_method(behavior("withdraw"))
+            .with_method(behavior("withdraw").with_parameters(vec![int()]))
+            .with_method(behavior("close")),
+    );
+
+    let hybrid = types.hybrid_class("Account");
+
+    assert_eq!(
+        hybrid
+            .as_ref()
+            .map(|finding| (finding.behavior_methods(), finding.setters())),
+        Some((
+            &["withdraw".to_owned(), "close".to_owned()][..],
+            &["setOwner".to_owned(), "setBranch".to_owned()][..]
+        ))
+    );
+}
+
+#[test]
+fn a_hybrid_finding_includes_methods_inherited_from_a_superclass() {
+    let types = Types::new()
+        .with_shape(root("Base", vec![setter("setName", "name")]))
+        .with_shape(class("Account", "Base", vec![behavior("withdraw")]));
+
+    let hybrid = types.hybrid_class("Account");
+
+    assert_eq!(
+        hybrid,
+        Some(HybridClass::new(
+            "Account",
+            vec!["withdraw".to_owned()],
+            vec!["setName".to_owned()]
+        ))
+    );
+}
+
+#[test]
+fn a_hybrid_finding_names_its_class() {
+    let types = Types::new().with_shape(account(true));
+
+    let hybrid = types.hybrid_class("Account");
+
+    assert_eq!(hybrid.as_ref().map(HybridClass::class), Some("Account"));
+}
+
+#[test]
+fn types_that_are_not_hybrid_classes_have_no_hybrid_finding() {
+    let types = Types::new()
+        .with_shape(root(
+            "Order",
+            vec![behavior("charge"), getter("getId", "id")],
+        ))
+        .with_shape(root(
+            "Address",
+            vec![getter("getCity", "city"), setter("setCity", "city")],
+        ))
+        .with_shape(TypeShape::new("Server", TypeKind::Record))
+        .with_shape(TypeShape::new("Status", TypeKind::Enum))
+        .with_shape(TypeShape::new("Wallet", TypeKind::Interface).with_method(behavior("pay")))
+        .with_shape(class(
+            "Unresolved",
+            "com.example.LibraryBase",
+            vec![setter("setCity", "city")],
+        ));
+
+    let findings: Vec<_> = [
+        "Order",
+        "Address",
+        "Server",
+        "Status",
+        "Wallet",
+        "Unresolved",
+        "Mystery",
+        "java.lang.String",
+    ]
+    .iter()
+    .map(|name| types.hybrid_class(name))
+    .collect();
+
+    assert_eq!(findings, vec![None; 8]);
 }
