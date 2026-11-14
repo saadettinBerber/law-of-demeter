@@ -125,6 +125,25 @@ Sonuç: `Config` ve `Server` davranış taşımadığı için yapılarını açm
 
 Kaynak: Robert C. Martin, *Clean Code*, 6. bölüm.
 
+## Kullanım
+
+Araç, Java kaynağını ve derlenmiş sınıfları birlikte okur. Lombok'un ürettiği metotlar yalnızca derlenmiş sınıflarda göründüğü için proje önce derlenir.
+
+```bash
+mvn -q compile dependency:build-classpath -Dmdep.outputFile=classpath.txt
+```
+
+```bash
+law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/classes"
+```
+
+- **`--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
+- **`--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; `:` ile ayrılmış liste de olur.
+- **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
+- **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
+
+Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım ya da okuma hatası vardır.
+
 ## Mimari
 
 Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de durur. Java'yı, dosyaları ve ayrıştırıcıyı yalnızca adapter'lar bilir.
@@ -146,7 +165,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
 
-Her katman ayrı bir crate'tir: `core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır. Bağımlılık yönünü derleyici korur.
+Her katman ayrı bir crate'tir: `core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır; `cli` hepsini bağlar. Bağımlılık yönünü derleyici korur.
 
 <details>
 <summary><strong>Örnek: bir çağrının yolu</strong></summary>
