@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use law_of_demeter_class_file::read_types;
-use law_of_demeter_core::domain::type_shape::{FieldShape, TypeKind, TypeRef, TypeShape};
+use law_of_demeter_core::domain::type_shape::{
+    FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
+};
 
 fn fixtures() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -16,6 +18,19 @@ fn shape(name: &str) -> TypeShape {
         .into_iter()
         .find(|shape| shape.name() == name)
         .unwrap_or_else(|| panic!("no type named {name}"))
+}
+
+fn method(shape: &TypeShape, name: &str) -> MethodShape {
+    shape
+        .methods()
+        .iter()
+        .find(|method| method.name() == name)
+        .cloned()
+        .unwrap_or_else(|| panic!("no method named {name}"))
+}
+
+fn method_names(shape: &TypeShape) -> Vec<&str> {
+    shape.methods().iter().map(MethodShape::name).collect()
 }
 
 #[test]
@@ -131,4 +146,76 @@ fn leaves_out_synthetic_fields() {
 
     assert_eq!(status_fields, ["OPEN", "PAID"]);
     assert!(receipt.fields().is_empty());
+}
+
+#[test]
+fn reads_static_methods_with_parameter_and_return_types() {
+    let order = shape("shop.Order");
+
+    let of = method(&order, "of");
+
+    assert_eq!(
+        of,
+        MethodShape::new("of")
+            .as_static()
+            .with_parameters(vec![TypeRef::class("shop.Customer")])
+            .returning(TypeRef::class("shop.Order"))
+    );
+}
+
+#[test]
+fn reads_void_methods_and_non_public_methods() {
+    let order = shape("shop.Order");
+
+    let add_line = method(&order, "addLine");
+    let audit = method(&order, "audit");
+
+    assert_eq!(
+        add_line,
+        MethodShape::new("addLine").with_parameters(vec![TypeRef::class("shop.OrderLine")])
+    );
+    assert_eq!(audit, MethodShape::new("audit").not_public());
+}
+
+#[test]
+fn reads_generic_signatures_of_interface_methods() {
+    let repository = shape("shop.Repository");
+
+    let find = method(&repository, "find");
+    let find_all = method(&repository, "findAll");
+
+    assert_eq!(
+        find,
+        MethodShape::new("find")
+            .with_parameters(vec![TypeRef::variable("ID")])
+            .returning(TypeRef::variable("T"))
+    );
+    assert_eq!(
+        find_all,
+        MethodShape::new("findAll").returning(TypeRef::generic(
+            "java.util.List",
+            vec![TypeRef::variable("T")]
+        ))
+    );
+}
+
+#[test]
+fn leaves_out_constructors_initializers_bridges_and_synthetic_methods() {
+    let order = shape("shop.Order");
+    let status = shape("shop.Status");
+
+    assert_eq!(
+        method_names(&order),
+        [
+            "of",
+            "getCustomer",
+            "getLines",
+            "customerOf",
+            "total",
+            "addLine",
+            "audit",
+            "compareTo"
+        ]
+    );
+    assert_eq!(method_names(&status), ["values", "valueOf"]);
 }

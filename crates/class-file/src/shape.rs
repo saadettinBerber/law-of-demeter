@@ -1,6 +1,11 @@
 use cafebabe::attributes::{AttributeData, AttributeInfo};
-use cafebabe::{ClassAccessFlags, ClassFile, FieldAccessFlags, FieldInfo, parse_class};
-use law_of_demeter_core::domain::type_shape::{FieldShape, TypeKind, TypeRef, TypeShape};
+use cafebabe::{
+    ClassAccessFlags, ClassFile, FieldAccessFlags, FieldInfo, MethodAccessFlags, MethodInfo,
+    parse_class,
+};
+use law_of_demeter_core::domain::type_shape::{
+    FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
+};
 
 use crate::signature;
 
@@ -19,6 +24,11 @@ pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Option<TypeShape>, String> {
     for field in &class.fields {
         if let Some(field) = field_of(field)? {
             shape = shape.with_field(field);
+        }
+    }
+    for method in &class.methods {
+        if let Some(method) = method_of(method)? {
+            shape = shape.with_method(method);
         }
     }
     Ok(Some(shape))
@@ -73,6 +83,28 @@ fn field_of(field: &FieldInfo) -> Result<Option<FieldShape>, String> {
             shape
         },
     ))
+}
+
+fn method_of(method: &MethodInfo) -> Result<Option<MethodShape>, String> {
+    let skipped = MethodAccessFlags::SYNTHETIC | MethodAccessFlags::BRIDGE;
+    if method.access_flags.intersects(skipped) || ["<init>", "<clinit>"].contains(&&*method.name) {
+        return Ok(None);
+    }
+    let descriptor = method.descriptor.to_string();
+    let text = signature_of(&method.attributes).unwrap_or(&descriptor);
+    let (parameters, returns) = signature::method_types(text)
+        .map_err(|error| format!("method {}: {error}", method.name))?;
+    let mut shape = MethodShape::new(&method.name).with_parameters(parameters);
+    if let Some(returns) = returns {
+        shape = shape.returning(returns);
+    }
+    if method.access_flags.contains(MethodAccessFlags::STATIC) {
+        shape = shape.as_static();
+    }
+    if !method.access_flags.contains(MethodAccessFlags::PUBLIC) {
+        shape = shape.not_public();
+    }
+    Ok(Some(shape))
 }
 
 fn signature_of<'a>(attributes: &'a [AttributeInfo]) -> Option<&'a str> {

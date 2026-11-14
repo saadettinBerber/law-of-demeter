@@ -7,6 +7,26 @@ pub(crate) fn field_type(text: &str) -> Result<TypeRef, String> {
     Ok(type_ref)
 }
 
+pub(crate) fn method_types(text: &str) -> Result<(Vec<TypeRef>, Option<TypeRef>), String> {
+    let mut parser = Parser::new(text);
+    parser.skip_type_parameters()?;
+    parser.expect('(')?;
+    let mut parameters = Vec::new();
+    while !parser.consume(')') {
+        parameters.push(parser.type_ref()?);
+    }
+    let returns = if parser.consume('V') {
+        None
+    } else {
+        Some(parser.type_ref()?)
+    };
+    while parser.consume('^') {
+        parser.type_ref()?;
+    }
+    parser.finish()?;
+    Ok((parameters, returns))
+}
+
 pub(crate) fn class_supertypes(text: &str) -> Result<Vec<TypeRef>, String> {
     let mut parser = Parser::new(text);
     parser.skip_type_parameters()?;
