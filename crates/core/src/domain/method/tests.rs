@@ -73,3 +73,22 @@ fn calling_a_setter_on_a_returned_object_is_a_violation() {
         ]
     );
 }
+
+#[test]
+fn calling_a_mutator_on_a_returned_collection_is_a_violation() {
+    let add_line = Method::new().call(
+        Call::new(Expression::parameter("order"), "getLines")
+            .then("add")
+            .with(Expression::parameter("line")),
+    );
+
+    let verdicts = add_line.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", Reason::parameter("order")),
+            Verdict::violation("add", Reason::return_of("getLines")),
+        ]
+    );
+}
