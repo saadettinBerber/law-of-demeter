@@ -1,4 +1,4 @@
-use super::{Call, Expression, Method, Reason, Verdict};
+use super::{Call, Expression, Lambda, Method, Reason, Verdict};
 
 #[test]
 fn calling_a_method_on_a_returned_object_is_a_violation() {
@@ -176,5 +176,33 @@ fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
             "charge",
             Reason::local("current", Reason::parameter("order"))
         )]
+    );
+}
+
+#[test]
+fn calling_a_method_on_a_lambda_parameter_fed_by_a_returned_collection_is_a_violation() {
+    let discount = Method::new().call(
+        Call::new(Expression::parameter("order"), "getLines")
+            .then("forEach")
+            .with(
+                Lambda::new(&["line"]).call(
+                    Call::new(Expression::local("line"), "applyDiscount")
+                        .with(Expression::parameter("rate")),
+                ),
+            ),
+    );
+
+    let verdicts = discount.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", Reason::parameter("order")),
+            Verdict::violation(
+                "applyDiscount",
+                Reason::lambda_parameter("line", Reason::return_of("getLines"))
+            ),
+            Verdict::violation("forEach", Reason::return_of("getLines")),
+        ]
     );
 }

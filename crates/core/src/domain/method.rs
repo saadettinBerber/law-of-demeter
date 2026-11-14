@@ -48,10 +48,68 @@ impl Expression {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Argument {
+    Value(Expression),
+    Lambda(Lambda),
+}
+
+impl From<Expression> for Argument {
+    fn from(value: Expression) -> Self {
+        Self::Value(value)
+    }
+}
+
+impl From<Lambda> for Argument {
+    fn from(lambda: Lambda) -> Self {
+        Self::Lambda(lambda)
+    }
+}
+
+impl Argument {
+    fn verdicts(&self, scope: &Scope, feed: &Standing) -> Vec<Verdict> {
+        match self {
+            Self::Value(value) => value.verdicts(scope),
+            Self::Lambda(lambda) => lambda.verdicts(scope, feed),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Lambda {
+    parameters: Vec<String>,
+    body: Method,
+}
+
+impl Lambda {
+    pub fn new(parameters: &[&str]) -> Self {
+        Self {
+            parameters: parameters.iter().map(|name| (*name).to_owned()).collect(),
+            body: Method::new(),
+        }
+    }
+
+    pub fn call(mut self, call: Call) -> Self {
+        self.body = self.body.call(call);
+        self
+    }
+
+    fn verdicts(&self, scope: &Scope, feed: &Standing) -> Vec<Verdict> {
+        let mut scope = scope.clone();
+        for parameter in &self.parameters {
+            let standing = feed
+                .clone()
+                .through(|feed| Reason::lambda_parameter(parameter, feed));
+            scope.insert(parameter.clone(), standing);
+        }
+        self.body.verdicts_in(&mut scope)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Call {
     receiver: Expression,
     name: String,
-    arguments: Vec<Expression>,
+    arguments: Vec<Argument>,
 }
 
 impl Call {
@@ -63,8 +121,8 @@ impl Call {
         }
     }
 
-    pub fn with(mut self, argument: Expression) -> Self {
-        self.arguments.push(argument);
+    pub fn with(mut self, argument: impl Into<Argument>) -> Self {
+        self.arguments.push(argument.into());
         self
     }
 
@@ -73,18 +131,15 @@ impl Call {
     }
 
     fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
+        let receiver = self.receiver.standing(scope);
         let mut verdicts = self.receiver.verdicts(scope);
         verdicts.extend(
             self.arguments
                 .iter()
-                .flat_map(|argument| argument.verdicts(scope)),
+                .flat_map(|argument| argument.verdicts(scope, &receiver)),
         );
-        verdicts.push(self.verdict(scope));
+        verdicts.push(receiver.verdict(&self.name));
         verdicts
-    }
-
-    fn verdict(&self, scope: &Scope) -> Verdict {
-        self.receiver.standing(scope).verdict(&self.name)
     }
 }
 
@@ -120,6 +175,7 @@ pub enum Reason {
     ReturnOf(String),
     UnassignedLocal(String),
     Local { name: String, origin: Box<Reason> },
+    LambdaParameter { name: String, feed: Box<Reason> },
 }
 
 impl Reason {
@@ -139,6 +195,13 @@ impl Reason {
         Self::Local {
             name: name.to_owned(),
             origin: Box::new(origin),
+        }
+    }
+
+    pub fn lambda_parameter(name: &str, feed: Reason) -> Self {
+        Self::LambdaParameter {
+            name: name.to_owned(),
+            feed: Box::new(feed),
         }
     }
 
@@ -215,10 +278,13 @@ impl Method {
     }
 
     pub fn verdicts(&self) -> Vec<Verdict> {
-        let mut scope = Scope::new();
+        self.verdicts_in(&mut Scope::new())
+    }
+
+    fn verdicts_in(&self, scope: &mut Scope) -> Vec<Verdict> {
         self.steps
             .iter()
-            .flat_map(|step| step.verdicts(&mut scope))
+            .flat_map(|step| step.verdicts(scope))
             .collect()
     }
 }
