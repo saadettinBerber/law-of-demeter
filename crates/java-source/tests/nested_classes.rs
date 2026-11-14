@@ -375,14 +375,14 @@ fn an_anonymous_class_inside_an_anonymous_class_sees_both_enclosing_methods() {
 
 #[test]
 fn an_unqualified_call_to_a_method_the_anonymous_class_declares_is_its_own_method() {
-    let source = "class Outer {\n Object o = new Object() {\n  void a() { b(); c(); }\n  void b() {}\n };\n void c() {}\n}";
+    let source = "import static java.lang.Math.max; class Outer {\n Object o = new Object() {\n  void a() { max(); c(); }\n  void max() {}\n };\n void c() {}\n}";
 
     let classes = classes_of(source);
 
     let own = Expression::Call(Call {
         receiver: None,
         implicit_target: Some(ImplicitTarget::OwnMethod),
-        name: "b".to_owned(),
+        name: "max".to_owned(),
         arguments: vec![],
         line: 3,
     });
