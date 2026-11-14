@@ -463,3 +463,16 @@ fn a_method_knows_its_class_its_name_and_its_line() {
         ("com.shop.OrderService$Payments", "pay", 42)
     );
 }
+
+#[test]
+fn calling_a_method_on_a_literal_is_allowed() {
+    let shout =
+        Method::new("Greeter", "shout", 1).call(Call::new(Expression::literal(), "toUpperCase", 2));
+
+    let verdicts = shout.verdicts(&Types::new());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("toUpperCase", 2, Reason::Literal)]
+    );
+}

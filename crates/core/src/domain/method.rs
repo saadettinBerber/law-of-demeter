@@ -12,6 +12,7 @@ pub enum Expression {
     Local(String),
     New(Creation),
     StaticType(TypeRef),
+    Literal,
 }
 
 impl Expression {
@@ -41,6 +42,10 @@ impl Expression {
         Self::Local(name.to_owned())
     }
 
+    pub fn literal() -> Self {
+        Self::Literal
+    }
+
     pub fn return_of(call: Call) -> Self {
         Self::ReturnOf(Box::new(call))
     }
@@ -61,6 +66,10 @@ impl Expression {
                 Reason::static_type(type_ref.clone()),
                 type_ref.clone(),
             )),
+            Self::Literal => Judged::quiet(Subject {
+                standing: Standing::Friend(Reason::Literal),
+                type_ref: None,
+            }),
         }
     }
 }
@@ -322,6 +331,7 @@ impl<'a> Context<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reason {
     This,
+    Literal,
     Field(String),
     Parameter(String),
     ReturnOf(String),
