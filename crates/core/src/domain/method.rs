@@ -26,9 +26,8 @@ impl Expression {
     fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
         match self {
             Self::ReturnOf(call) => call.verdicts(scope),
-            Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) | Self::New(_) => {
-                Vec::new()
-            }
+            Self::New(creation) => creation.verdicts(scope),
+            Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) => Vec::new(),
         }
     }
 
@@ -58,13 +57,28 @@ impl Expression {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Creation {
     type_name: String,
+    arguments: Vec<Argument>,
 }
 
 impl Creation {
     pub fn new(type_name: &str) -> Self {
         Self {
             type_name: type_name.to_owned(),
+            arguments: Vec::new(),
         }
+    }
+
+    pub fn with(mut self, argument: impl Into<Argument>) -> Self {
+        self.arguments.push(argument.into());
+        self
+    }
+
+    fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
+        let feed = Standing::Friend(Reason::created(&self.type_name));
+        self.arguments
+            .iter()
+            .flat_map(|argument| argument.verdicts(scope, &feed))
+            .collect()
     }
 }
 

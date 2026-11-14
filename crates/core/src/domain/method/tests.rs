@@ -242,3 +242,24 @@ fn calling_a_method_on_an_object_created_in_the_method_is_allowed() {
         [Verdict::allowed("append", Reason::created("StringBuilder"))]
     );
 }
+
+#[test]
+fn calls_inside_constructor_arguments_are_judged() {
+    let print = Method::new().call(Call::new(
+        Expression::created(Creation::new("Receipt").with(Expression::return_of(
+            Call::new(Expression::parameter("order"), "getCustomer").then("getName"),
+        ))),
+        "print",
+    ));
+
+    let verdicts = print.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", Reason::parameter("order")),
+            Verdict::violation("getName", Reason::return_of("getCustomer")),
+            Verdict::allowed("print", Reason::created("Receipt")),
+        ]
+    );
+}
