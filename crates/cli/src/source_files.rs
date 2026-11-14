@@ -13,21 +13,33 @@ pub type Mapper = dyn Fn(&Path, &str, &dyn Fn(&str) -> bool) -> Result<Declarati
 
 pub struct SourceFiles<'a> {
     files: Vec<PathBuf>,
+    errors: Vec<ReadError>,
     mapper: &'a Mapper,
 }
 
 impl<'a> SourceFiles<'a> {
     pub fn new(files: Vec<PathBuf>, mapper: &'a Mapper) -> Self {
-        Self { files, mapper }
+        Self {
+            files,
+            errors: Vec::new(),
+            mapper,
+        }
+    }
+
+    pub fn with_errors(mut self, errors: Vec<ReadError>) -> Self {
+        self.errors = errors;
+        self
     }
 }
 
 impl SourceReader for SourceFiles<'_> {
     fn read(&self, type_exists: &dyn Fn(&str) -> bool) -> Vec<Result<SourceFile, ReadError>> {
-        self.files
+        let errors = self.errors.iter().cloned().map(Err);
+        let files = self
+            .files
             .iter()
-            .map(|path| self.read_file(path, type_exists))
-            .collect()
+            .map(|path| self.read_file(path, type_exists));
+        errors.chain(files).collect()
     }
 }
 

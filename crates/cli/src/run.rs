@@ -73,7 +73,8 @@ fn check(
     let Some(mapper) = mapper else {
         return fail("kaynak ayrıştırıcı bağlı değil".to_owned());
     };
-    let sources = SourceFiles::new(java_files(&arguments.sources).files, mapper);
+    let walked = java_files(&arguments.sources);
+    let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);
     let types = ClassFileTypes::new(arguments.classpath.clone(), Some((jdk, release)));
     let report = CheckProject::new(&sources, &types).execute();
     write!(out, "{}", render(&report, arguments.show_allowed)).ok();

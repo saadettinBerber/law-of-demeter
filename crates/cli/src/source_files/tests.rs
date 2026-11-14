@@ -85,3 +85,28 @@ fn a_file_that_cannot_be_read_and_a_file_the_mapper_rejects_are_reported_in_plac
         )
     );
 }
+
+#[test]
+fn errors_found_while_walking_are_yielded_before_the_files() {
+    let root = TempDir::new().expect("temp dir");
+    let good = write(&root, "Good.java", "class Good {}");
+    let mapper: &Mapper = &|_, _, _| {
+        Ok(Declarations {
+            classes: Vec::new(),
+            methods: Vec::new(),
+        })
+    };
+    let walk_error = ReadError::new(Path::new("src/locked"), "izin reddedildi");
+    let sources =
+        SourceFiles::new(vec![good.clone()], mapper).with_errors(vec![walk_error.clone()]);
+
+    let files = sources.read(&|_| false);
+
+    assert_eq!(
+        files,
+        [
+            Err(walk_error),
+            Ok(SourceFile::new(&good, Vec::new(), Vec::new()))
+        ]
+    );
+}
