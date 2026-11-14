@@ -535,6 +535,78 @@ fn allowed_9_talking_to_the_object_a_repository_query_returned() {
     );
 }
 
+fn interface(name: &str, parameters: &[&str]) -> TypeShape {
+    parameters.iter().fold(
+        TypeShape::new(name, TypeKind::Interface),
+        |shape, parameter| shape.with_type_parameter(parameter),
+    )
+}
+
+fn returning(name: &str, parameters: usize, returns: TypeRef) -> MethodShape {
+    MethodShape::new(name)
+        .with_parameters(vec![TypeRef::class("java.lang.Object"); parameters])
+        .returning(returns)
+}
+
+fn containers() -> Types {
+    let element = TypeRef::variable("E");
+    Types::new()
+        .with_shape(
+            interface("java.util.Map", &["K", "V"]).with_method(returning(
+                "get",
+                1,
+                TypeRef::variable("V"),
+            )),
+        )
+        .with_shape(interface("java.util.List", &["E"]).with_method(returning("get", 1, element)))
+        .with_shape(class("Cart").with_method(MethodShape::new("checkout")))
+}
+
+#[test]
+fn allowed_10_an_element_taken_from_a_container_field() {
+    let snippet = "void checkout(String id) {\n    carts.get(id).checkout();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.Map;",
+        "Map<String, Cart> carts;",
+        snippet,
+        "checkout",
+        &containers(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("get", 3, Reason::field("carts")),
+            Verdict::allowed("checkout", 3, Reason::field("carts")),
+        ]
+    );
+}
+
+#[test]
+fn allowed_10_counter_case_an_element_of_a_returned_container_stays_a_stranger() {
+    let lines = order_lines();
+    let types = containers()
+        .with_shape(order_with_lines(&lines))
+        .with_shape(class("OrderLine").with_method(MethodShape::new("applyDiscount")));
+    let snippet = "void discount(Order order, int rate) {\n    order.getLines().get(0).applyDiscount(rate);\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "discount", &types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", 3, Reason::parameter("order")),
+            Verdict::allowed(
+                "get",
+                3,
+                Reason::classified(Classification::Container, lines)
+            ),
+            Verdict::violation("applyDiscount", 3, Reason::return_of("getLines")),
+        ]
+    );
+}
+
 #[test]
 fn out_of_scope_1_computing_outside_an_object_on_friend_values() {
     let snippet =
