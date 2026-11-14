@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::io::Write;
 
-use crate::arguments::{Command, parse, usage};
+use crate::arguments::{Command, UsageError, parse, usage};
 use crate::source_files::Mapper;
 
 pub const CLEAN: u8 = 0;
@@ -29,13 +29,17 @@ pub fn run<I: IntoIterator<Item = OsString>>(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
-    let _ = (environment, mapper, err);
+    let _ = (environment, mapper);
     match parse(arguments) {
         Ok(Command::Help) => {
             write!(out, "{}", usage()).ok();
             CLEAN
         }
-        _ => FAILURE,
+        Ok(Command::Check(_)) => FAILURE,
+        Err(UsageError(message)) => {
+            write!(err, "Hata: {message}\n\n{}", usage()).ok();
+            FAILURE
+        }
     }
 }
 

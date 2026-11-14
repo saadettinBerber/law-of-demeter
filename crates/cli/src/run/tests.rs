@@ -1,6 +1,6 @@
 use std::ffi::OsString;
 
-use super::{CLEAN, Environment, run};
+use super::{CLEAN, Environment, FAILURE, run};
 use crate::arguments::usage;
 
 fn nothing() -> Environment {
@@ -40,5 +40,19 @@ fn help_prints_the_usage_and_succeeds() {
     assert_eq!(
         (outcome.code, outcome.out, outcome.err),
         (CLEAN, usage().to_owned(), String::new())
+    );
+}
+
+#[test]
+fn a_usage_error_is_explained_with_the_usage_and_fails() {
+    let outcome = execute(&["--verbose"]);
+
+    assert_eq!(
+        (outcome.code, outcome.out, outcome.err),
+        (
+            FAILURE,
+            String::new(),
+            format!("Hata: bilinmeyen seçenek: --verbose\n\n{}", usage())
+        )
     );
 }
