@@ -677,3 +677,41 @@ fn a_fluent_call_on_a_returned_object_is_allowed() {
         ]
     );
 }
+
+fn settings_with_behavior() -> Types {
+    Types::new().with_shape(
+        TypeShape::new("Settings", TypeKind::Class)
+            .with_method(
+                MethodShape::new("current")
+                    .as_static()
+                    .returning(TypeRef::class("Settings")),
+            )
+            .with_method(MethodShape::new("refresh")),
+    )
+}
+
+#[test]
+fn the_result_of_a_static_call_is_a_friend() {
+    let reload = Method::new("Reloader", "reload", 1).call(
+        Call::new(
+            Expression::static_type(TypeRef::class("Settings")),
+            "current",
+            2,
+        )
+        .then("refresh", 2),
+    );
+
+    let verdicts = reload.verdicts(&settings_with_behavior());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "current",
+                2,
+                Reason::static_type(TypeRef::class("Settings"))
+            ),
+            Verdict::allowed("refresh", 2, Reason::static_result("current")),
+        ]
+    );
+}

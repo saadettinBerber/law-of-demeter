@@ -270,8 +270,16 @@ impl Call {
             .and_then(|name| types.return_type(name, &self.name, self.arguments.len()))
             .cloned();
         Subject {
-            standing: Standing::Stranger(Reason::return_of(&self.name)),
+            standing: self.result_standing(),
             type_ref,
+        }
+    }
+
+    fn result_standing(&self) -> Standing {
+        if matches!(self.receiver, Expression::StaticType(_)) {
+            Standing::Friend(Reason::static_result(&self.name))
+        } else {
+            Standing::Stranger(Reason::return_of(&self.name))
         }
     }
 }
@@ -396,6 +404,7 @@ pub enum Reason {
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
+    StaticResult(String),
     Fluent(TypeRef),
     ContainerMutation {
         type_ref: TypeRef,
@@ -453,6 +462,10 @@ impl Reason {
             name: name.to_owned(),
             feed: Box::new(feed),
         }
+    }
+
+    pub fn static_result(call: &str) -> Self {
+        Self::StaticResult(call.to_owned())
     }
 
     pub fn container_mutation(type_ref: TypeRef, source: Reason) -> Self {
