@@ -228,6 +228,7 @@ pub enum Reason {
     StaticType(String),
     Local { name: String, origin: Box<Reason> },
     LambdaParameter { name: String, feed: Box<Reason> },
+    LoopVariable { name: String, feed: Box<Reason> },
 }
 
 impl Reason {
@@ -252,6 +253,13 @@ impl Reason {
 
     pub fn lambda_parameter(name: &str, feed: Reason) -> Self {
         Self::LambdaParameter {
+            name: name.to_owned(),
+            feed: Box::new(feed),
+        }
+    }
+
+    pub fn loop_variable(name: &str, feed: Reason) -> Self {
+        Self::LoopVariable {
             name: name.to_owned(),
             feed: Box::new(feed),
         }
@@ -295,7 +303,14 @@ impl Verdict {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Step {
     Call(Call),
-    Assign { local: String, value: Expression },
+    Assign {
+        local: String,
+        value: Expression,
+    },
+    ForEach {
+        variable: String,
+        iterable: Expression,
+    },
 }
 
 impl Step {
@@ -308,6 +323,14 @@ impl Step {
                     .standing(scope)
                     .through(|origin| Reason::local(local, origin));
                 scope.insert(local.clone(), standing);
+                verdicts
+            }
+            Self::ForEach { variable, iterable } => {
+                let verdicts = iterable.verdicts(scope);
+                let standing = iterable
+                    .standing(scope)
+                    .through(|feed| Reason::loop_variable(variable, feed));
+                scope.insert(variable.clone(), standing);
                 verdicts
             }
         }
@@ -333,6 +356,14 @@ impl Method {
         self.steps.push(Step::Assign {
             local: local.to_owned(),
             value,
+        });
+        self
+    }
+
+    pub fn for_each(mut self, variable: &str, iterable: Expression) -> Self {
+        self.steps.push(Step::ForEach {
+            variable: variable.to_owned(),
+            iterable,
         });
         self
     }

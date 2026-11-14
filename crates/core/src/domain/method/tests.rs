@@ -306,3 +306,29 @@ fn a_lambda_body_can_assign_a_local_and_call_it() {
         ]
     );
 }
+
+#[test]
+fn a_loop_variable_takes_the_standing_of_the_iterable_and_judges_it_once() {
+    let discount = Method::new()
+        .for_each(
+            "line",
+            Expression::return_of(Call::new(Expression::parameter("order"), "getLines")),
+        )
+        .call(
+            Call::new(Expression::local("line"), "applyDiscount")
+                .with(Expression::parameter("rate")),
+        );
+
+    let verdicts = discount.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", Reason::parameter("order")),
+            Verdict::violation(
+                "applyDiscount",
+                Reason::loop_variable("line", Reason::return_of("getLines"))
+            ),
+        ]
+    );
+}
