@@ -142,7 +142,7 @@ fn calling_a_method_on_an_unassigned_local_is_a_violation() {
 #[test]
 fn calling_a_method_on_a_local_holding_a_returned_object_is_a_violation() {
     let pay = Method::new("OrderService", "pay", 1)
-        .assign(
+        .assign_var(
             "customer",
             Expression::return_of(Call::new(
                 Expression::parameter("order", TypeRef::class("Order")),
@@ -171,7 +171,7 @@ fn calling_a_method_on_a_local_holding_a_returned_object_is_a_violation() {
 #[test]
 fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_used() {
     let inspect = Method::new("OrderService", "pay", 1)
-        .assign(
+        .assign_var(
             "customer",
             Expression::return_of(Call::new(
                 Expression::parameter("order", TypeRef::class("Order")),
@@ -205,7 +205,7 @@ fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_use
 #[test]
 fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
     let pay = Method::new("OrderService", "pay", 1)
-        .assign(
+        .assign_var(
             "current",
             Expression::parameter("order", TypeRef::class("Order")),
         )
@@ -368,7 +368,7 @@ fn a_lambda_body_can_assign_a_local_and_call_it() {
         )
         .with(
             Lambda::new(&["order"])
-                .assign(
+                .assign_var(
                     "customer",
                     Expression::return_of(Call::new(Expression::local("order"), "getCustomer", 1)),
                 )

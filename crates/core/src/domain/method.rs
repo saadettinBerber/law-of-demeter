@@ -156,8 +156,8 @@ impl Lambda {
         self
     }
 
-    pub fn assign(mut self, local: &str, value: Expression) -> Self {
-        self.body = self.body.assign(local, value);
+    pub fn assign_var(mut self, local: &str, value: Expression) -> Self {
+        self.body = self.body.assign_var(local, value);
         self
     }
 
@@ -515,7 +515,7 @@ impl Block {
         self
     }
 
-    fn assign(mut self, local: &str, value: Expression) -> Self {
+    fn assign_var(mut self, local: &str, value: Expression) -> Self {
         self.steps.push(Step::Assign {
             local: local.to_owned(),
             value,
@@ -574,8 +574,8 @@ impl Method {
         self
     }
 
-    pub fn assign(mut self, local: &str, value: Expression) -> Self {
-        self.body = self.body.assign(local, value);
+    pub fn assign_var(mut self, local: &str, value: Expression) -> Self {
+        self.body = self.body.assign_var(local, value);
         self
     }
 
