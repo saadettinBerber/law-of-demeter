@@ -490,3 +490,24 @@ fn every_kind_of_allowed_call_has_a_reason_group_in_the_summary() {
         ]
     );
 }
+
+#[test]
+fn a_library_type_reads_as_allowed_and_forms_its_own_reason_group() {
+    let lock = TypeRef::class("java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock");
+    let report = report_of(vec![allowed(3, Reason::library(lock))]);
+
+    let text = render(&report, true);
+
+    assert_eq!(
+        (
+            section(&text, "Uygun çağrılar"),
+            section(&text, "Uygun nedenleri")
+        ),
+        (
+            vec![
+                "src/OrderService.java:3  OrderService.pay  call()  Uygun: kütüphane tipi (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)"
+            ],
+            vec!["  1  Kütüphane tipi"]
+        )
+    );
+}

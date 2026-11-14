@@ -52,6 +52,7 @@ pub fn describe(reason: &Reason) -> String {
             type_name(type_ref),
             classification_text(*classification)
         ),
+        Reason::Library(type_ref) => format!("kütüphane tipi ({})", type_name(type_ref)),
         Reason::Fluent(type_ref) => {
             format!("{} üzerinde akıcı (fluent) çağrı", type_name(type_ref))
         }
@@ -91,6 +92,7 @@ pub fn category(reason: &Reason) -> &'static str {
             Classification::Hybrid => "Hibrit sınıf",
             Classification::Unknown => "Tip çözülemedi",
         },
+        Reason::Library(_) => "Kütüphane tipi",
         Reason::Fluent(_) => "Akıcı çağrı",
         Reason::StaticResult(_) => "Statik çağrının sonucu",
         Reason::FactoryResult(_) => "Factory'nin sonucu",

@@ -15,6 +15,7 @@ pub enum Reason {
     FactoryResult(String),
     QueryResult(String),
     Fluent(TypeRef),
+    Library(TypeRef),
     ContainerMutation {
         type_ref: TypeRef,
         source: Box<Reason>,
@@ -99,6 +100,10 @@ impl Reason {
 
     pub fn query_result(call: &str) -> Self {
         Self::QueryResult(call.to_owned())
+    }
+
+    pub fn library(type_ref: TypeRef) -> Self {
+        Self::Library(type_ref)
     }
 
     pub fn container_mutation(type_ref: TypeRef, source: Reason) -> Self {
