@@ -1489,3 +1489,15 @@ fn the_element_of_a_type_in_a_cyclic_hierarchy_terminates() {
 
     assert_eq!(element, None);
 }
+
+#[test]
+fn only_types_declared_in_the_analysed_sources_are_project_types() {
+    let types = Types::new().with_project_types(["shop.Order".to_owned()]);
+
+    let answers = (
+        types.is_project_type("shop.Order"),
+        types.is_project_type("java.lang.String"),
+    );
+
+    assert_eq!(answers, (true, false));
+}

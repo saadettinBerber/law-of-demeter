@@ -20,6 +20,7 @@ pub enum Classification {
 #[derive(Debug, Clone, Default)]
 pub struct Types {
     shapes: HashMap<String, TypeShape>,
+    project_types: HashSet<String>,
 }
 
 impl Types {
@@ -34,6 +35,15 @@ impl Types {
 
     pub fn shape(&self, name: &str) -> Option<&TypeShape> {
         self.shapes.get(name)
+    }
+
+    pub fn with_project_types(mut self, names: impl IntoIterator<Item = String>) -> Self {
+        self.project_types.extend(names);
+        self
+    }
+
+    pub fn is_project_type(&self, name: &str) -> bool {
+        self.project_types.contains(name)
     }
 
     pub fn return_type(
