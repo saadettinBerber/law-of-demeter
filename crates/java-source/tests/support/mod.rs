@@ -4,22 +4,40 @@ use law_of_demeter_java_source::{
     Call, DeclaredType, Expression, Method, New, Statement, TypeName, parse_with,
 };
 
-pub const KNOWN_TYPES: [&str; 11] = [
+pub const KNOWN_TYPES: &[&str] = &[
     "shop.Order",
     "shop.Order$Line",
+    "shop.Order$Builder",
     "shop.Customer",
+    "shop.CustomerId",
     "shop.Wallet",
-    "shop.Status",
+    "shop.Address",
+    "shop.OrderLine",
     "shop.OrderId",
+    "shop.OrderShippedEvent",
+    "shop.Session",
+    "shop.Status",
     "shop.Config",
+    "shop.Server",
+    "shop.ShippingRequest",
+    "shop.ReportFactory",
+    "shop.Notifier",
+    "shop.Orders",
     "java.lang.String",
     "java.lang.StringBuilder",
+    "java.lang.IllegalStateException",
     "java.util.List",
     "java.time.Instant",
+    "java.time.Duration",
+    "java.time.temporal.ChronoUnit",
 ];
 
 pub fn method_named(members: &str, name: &str) -> Method {
-    let source = format!("package shop; class OrderService {{\n{members}\n}}");
+    method_in("", "", members, name)
+}
+
+pub fn method_in(imports: &str, fields: &str, members: &str, name: &str) -> Method {
+    let source = format!("package shop; {imports} class OrderService {{ {fields}\n{members}\n}}");
     let file = parse_with("OrderService.java", &source, &|candidate| {
         KNOWN_TYPES.contains(&candidate)
     })
