@@ -44,7 +44,154 @@ pub struct Class {
     pub name: String,
     pub kind: ClassKind,
     pub outer: Option<String>,
+    pub annotations: Vec<TypeName>,
+    pub supertypes: Vec<DeclaredType>,
     pub fields: Vec<Field>,
+    pub methods: Vec<Method>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Method {
+    pub name: String,
+    pub line: usize,
+    pub is_static: bool,
+    pub parameters: Vec<Parameter>,
+    pub returns: Option<DeclaredType>,
+    pub body: Option<Vec<Statement>>,
+}
+
+impl Method {
+    pub fn is_constructor(&self) -> bool {
+        self.returns.is_none()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Parameter {
+    pub name: String,
+    pub declared_type: DeclaredType,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalVariable {
+    pub name: String,
+    pub declared_type: DeclaredType,
+    pub initializer: Option<Expression>,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Statement {
+    Local(LocalVariable),
+    Expression(Expression),
+    Return(Option<Expression>),
+    Block(Vec<Statement>),
+    If {
+        condition: Expression,
+        then_branch: Vec<Statement>,
+        else_branch: Vec<Statement>,
+    },
+    For {
+        init: Vec<Statement>,
+        condition: Option<Expression>,
+        update: Vec<Expression>,
+        body: Vec<Statement>,
+    },
+    ForEach {
+        variable: LocalVariable,
+        iterable: Expression,
+        body: Vec<Statement>,
+    },
+    While {
+        condition: Expression,
+        body: Vec<Statement>,
+    },
+    Try {
+        resources: Vec<Statement>,
+        body: Vec<Statement>,
+        catches: Vec<Catch>,
+        finally: Vec<Statement>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Catch {
+    pub name: String,
+    pub types: Vec<DeclaredType>,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Expression {
+    This,
+    Super,
+    Parameter(String),
+    Local(String),
+    LambdaParameter(String),
+    Field(String),
+    OuterField {
+        owner: String,
+        name: String,
+    },
+    Type(TypeName),
+    Unresolved(String),
+    FieldAccess {
+        target: Box<Expression>,
+        name: String,
+    },
+    Call(Call),
+    New(New),
+    Lambda(Lambda),
+    MethodReference {
+        target: Box<Expression>,
+        name: String,
+    },
+    Cast {
+        target: DeclaredType,
+        operand: Box<Expression>,
+    },
+    Switch(Switch),
+    Literal,
+    Operation(Vec<Expression>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Call {
+    pub receiver: Option<Box<Expression>>,
+    pub name: String,
+    pub arguments: Vec<Expression>,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct New {
+    pub created: DeclaredType,
+    pub arguments: Vec<Expression>,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Lambda {
+    pub parameters: Vec<LambdaParameter>,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LambdaParameter {
+    pub name: String,
+    pub declared_type: Option<DeclaredType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Switch {
+    pub selector: Box<Expression>,
+    pub branches: Vec<SwitchBranch>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SwitchBranch {
+    pub guard: Option<Expression>,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

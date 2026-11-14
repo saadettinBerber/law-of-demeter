@@ -3,8 +3,10 @@ use std::collections::HashSet;
 use tree_sitter::Node;
 
 use crate::error::ParseError;
-use crate::model::{Class, ClassKind, DeclaredType, Field, Import, SourceFile};
+use crate::model::DeclaredType;
+use crate::model::{Class, ClassKind, Import, SourceFile, TypeName};
 use crate::resolver::TypeResolver;
+use crate::scope::Scope;
 use crate::tree::parse_tree;
 
 pub(crate) fn read_file(
@@ -41,12 +43,12 @@ pub(crate) fn read_file(
 }
 
 #[derive(Clone, Copy)]
-struct Text<'a> {
+pub(crate) struct Text<'a> {
     source: &'a str,
 }
 
 impl Text<'_> {
-    fn of(&self, node: Node) -> &str {
+    pub(crate) fn of(&self, node: Node) -> &str {
         self.source.get(node.byte_range()).unwrap_or_default()
     }
 
@@ -135,7 +137,7 @@ impl Text<'_> {
         }
     }
 
-    fn type_parameters(&self, declaration: Node) -> Vec<String> {
+    pub(crate) fn type_parameters(&self, declaration: Node) -> Vec<String> {
         let Some(parameters) = declaration.child_by_field_name("type_parameters") else {
             return Vec::new();
         };
@@ -149,12 +151,12 @@ impl Text<'_> {
     }
 }
 
-struct Declaration<'t> {
-    node: Node<'t>,
-    kind: ClassKind,
-    name: String,
-    outer: Option<String>,
-    type_variables: Vec<String>,
+pub(crate) struct Declaration<'t> {
+    pub(crate) node: Node<'t>,
+    pub(crate) kind: ClassKind,
+    pub(crate) name: String,
+    pub(crate) outer: Option<String>,
+    pub(crate) type_variables: Vec<String>,
 }
 
 fn class_kind(node_kind: &str) -> Option<ClassKind> {
@@ -168,194 +170,70 @@ fn class_kind(node_kind: &str) -> Option<ClassKind> {
     }
 }
 
-struct Reader<'a> {
-    text: Text<'a>,
-    resolver: TypeResolver<'a>,
+pub(crate) struct Reader<'a> {
+    pub(crate) text: Text<'a>,
+    pub(crate) resolver: TypeResolver<'a>,
 }
 
 impl Reader<'_> {
     fn class(&self, declaration: &Declaration) -> Class {
+        let scope = Scope::new(&declaration.name, &declaration.type_variables);
         Class {
             name: declaration.name.clone(),
             kind: declaration.kind,
             outer: declaration.outer.clone(),
+            annotations: self.annotations(declaration.node, &scope),
+            supertypes: self.supertypes(declaration.node, &scope),
             fields: self.fields(declaration),
+            methods: self.methods(declaration),
         }
     }
 
-    fn fields(&self, declaration: &Declaration) -> Vec<Field> {
-        let mut fields = self.record_components(declaration);
-        let Some(body) = declaration.node.child_by_field_name("body") else {
-            return fields;
-        };
-        for member in members(body) {
-            match member.kind() {
-                "field_declaration" | "constant_declaration" => {
-                    fields.extend(self.field_declaration(member, declaration))
-                }
-                "enum_constant" => fields.extend(self.enum_constant(member, declaration)),
-                _ => {}
-            }
-        }
-        fields
-    }
-
-    fn record_components(&self, declaration: &Declaration) -> Vec<Field> {
-        let Some(components) = declaration.node.child_by_field_name("parameters") else {
+    fn annotations(&self, declaration: Node, scope: &Scope) -> Vec<TypeName> {
+        let mut cursor = declaration.walk();
+        let Some(modifiers) = declaration
+            .children(&mut cursor)
+            .find(|child| child.kind() == "modifiers")
+        else {
             return Vec::new();
         };
-        let mut cursor = components.walk();
-        components
+        let mut cursor = modifiers.walk();
+        modifiers
             .named_children(&mut cursor)
-            .filter(|component| component.kind() == "formal_parameter")
-            .filter_map(|component| {
-                let name = component.child_by_field_name("name")?;
-                let declared = component.child_by_field_name("type")?;
-                Some(Field {
-                    name: self.text.of(name).to_owned(),
-                    declared_type: self.declared_type(declared, declaration),
-                    is_static: false,
-                })
-            })
+            .filter(|child| matches!(child.kind(), "marker_annotation" | "annotation"))
+            .filter_map(|annotation| annotation.child_by_field_name("name"))
+            .map(|name| self.resolver.resolve(self.text.of(name), &scope.class))
             .collect()
     }
 
-    fn field_declaration(&self, node: Node, declaration: &Declaration) -> Vec<Field> {
-        let Some(declared) = node.child_by_field_name("type") else {
-            return Vec::new();
-        };
-        let is_static = has_modifier(node, "static") || declaration.kind == ClassKind::Interface;
-        let mut cursor = node.walk();
-        node.children_by_field_name("declarator", &mut cursor)
-            .filter_map(|declarator| {
-                let name = declarator.child_by_field_name("name")?;
-                Some(Field {
-                    name: self.text.of(name).to_owned(),
-                    declared_type: self.with_dimensions(
-                        self.declared_type(declared, declaration),
-                        declarator.child_by_field_name("dimensions"),
-                    ),
-                    is_static,
-                })
+    fn supertypes(&self, declaration: Node, scope: &Scope) -> Vec<DeclaredType> {
+        let mut cursor = declaration.walk();
+        let clauses: Vec<Node> = declaration
+            .children(&mut cursor)
+            .filter(|child| {
+                matches!(
+                    child.kind(),
+                    "superclass" | "super_interfaces" | "extends_interfaces"
+                )
             })
-            .collect()
-    }
-
-    fn enum_constant(&self, node: Node, declaration: &Declaration) -> Option<Field> {
-        let name = node.child_by_field_name("name")?;
-        Some(Field {
-            name: self.text.of(name).to_owned(),
-            declared_type: DeclaredType::class(&declaration.name),
-            is_static: true,
-        })
-    }
-
-    fn declared_type(&self, node: Node, declaration: &Declaration) -> DeclaredType {
-        match node.kind() {
-            "integral_type" | "floating_point_type" | "boolean_type" | "void_type" => {
-                DeclaredType::primitive(self.text.of(node))
-            }
-            "type_identifier" => self.named_type(self.text.of(node), declaration),
-            "scoped_type_identifier" => {
-                let name: String = self.text.of(node).split_whitespace().collect();
-                self.named_type(&name, declaration)
-            }
-            "generic_type" => self.generic_type(node, declaration),
-            "array_type" => self.array_type(node, declaration),
-            "wildcard" => self.wildcard(node, declaration),
-            _ => DeclaredType::unresolved(self.text.of(node)),
-        }
-    }
-
-    fn named_type(&self, name: &str, declaration: &Declaration) -> DeclaredType {
-        if name == "var" {
-            DeclaredType::Var
-        } else if declaration
-            .type_variables
-            .iter()
-            .any(|variable| variable == name)
-        {
-            DeclaredType::variable(name)
-        } else {
-            DeclaredType::Class {
-                name: self.resolver.resolve(name, &declaration.name),
-                arguments: Vec::new(),
-            }
-        }
-    }
-
-    fn generic_type(&self, node: Node, declaration: &Declaration) -> DeclaredType {
-        let mut cursor = node.walk();
-        let children: Vec<Node> = node.named_children(&mut cursor).collect();
-        let base = children
-            .iter()
-            .find(|child| child.kind() != "type_arguments")
-            .map(|base| self.declared_type(*base, declaration));
-        let arguments = children
-            .iter()
-            .find(|child| child.kind() == "type_arguments")
-            .map(|arguments| {
-                let mut cursor = arguments.walk();
-                arguments
+            .collect();
+        clauses
+            .into_iter()
+            .flat_map(|clause| {
+                let mut cursor = clause.walk();
+                clause
                     .named_children(&mut cursor)
-                    .map(|argument| self.declared_type(argument, declaration))
-                    .collect()
+                    .flat_map(|child| {
+                        if child.kind() == "type_list" {
+                            let mut cursor = child.walk();
+                            child.named_children(&mut cursor).collect()
+                        } else {
+                            vec![child]
+                        }
+                    })
+                    .collect::<Vec<_>>()
             })
-            .unwrap_or_default();
-        match base {
-            Some(DeclaredType::Class { name, .. }) => DeclaredType::Class { name, arguments },
-            Some(other) => other,
-            None => DeclaredType::unresolved(self.text.of(node)),
-        }
+            .map(|supertype| self.declared_type(supertype, scope))
+            .collect()
     }
-
-    fn array_type(&self, node: Node, declaration: &Declaration) -> DeclaredType {
-        let element = node
-            .child_by_field_name("element")
-            .map(|element| self.declared_type(element, declaration))
-            .unwrap_or_else(|| DeclaredType::unresolved(self.text.of(node)));
-        self.with_dimensions(element, node.child_by_field_name("dimensions"))
-    }
-
-    fn with_dimensions(&self, element: DeclaredType, dimensions: Option<Node>) -> DeclaredType {
-        let count = dimensions.map_or(0, |node| self.text.of(node).matches('[').count());
-        (0..count).fold(element, |inner, _| DeclaredType::array(inner))
-    }
-
-    fn wildcard(&self, node: Node, declaration: &Declaration) -> DeclaredType {
-        let mut cursor = node.walk();
-        let children: Vec<Node> = node.named_children(&mut cursor).collect();
-        let is_lower_bound = children.iter().any(|child| child.kind() == "super");
-        let bound = children
-            .iter()
-            .rfind(|child| child.kind() != "super")
-            .filter(|_| !is_lower_bound)
-            .map(|bound| self.declared_type(*bound, declaration));
-        DeclaredType::wildcard(bound)
-    }
-}
-
-fn members(body: Node) -> Vec<Node> {
-    let mut cursor = body.walk();
-    body.named_children(&mut cursor)
-        .flat_map(|member| {
-            if member.kind() == "enum_body_declarations" {
-                self::members(member)
-            } else {
-                vec![member]
-            }
-        })
-        .collect()
-}
-
-fn has_modifier(node: Node, modifier: &str) -> bool {
-    let mut cursor = node.walk();
-    node.children(&mut cursor)
-        .filter(|child| child.kind() == "modifiers")
-        .any(|modifiers| {
-            let mut cursor = modifiers.walk();
-            modifiers
-                .children(&mut cursor)
-                .any(|child| child.kind() == modifier)
-        })
 }
