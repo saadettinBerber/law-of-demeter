@@ -496,7 +496,7 @@ impl Step {
                     variable,
                     judged
                         .subject
-                        .through(|feed| Reason::loop_variable(variable, feed)),
+                        .element(|feed| Reason::loop_variable(variable, feed)),
                 );
                 judged.verdicts
             }

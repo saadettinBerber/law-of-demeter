@@ -477,16 +477,13 @@ fn calling_a_method_on_a_literal_is_allowed() {
     );
 }
 
-#[test]
-fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
-    let line = TypeRef::class("OrderLine");
-    let lines = TypeRef::generic("java.util.List", vec![line.clone()]);
-    let types = Types::new()
+fn order_with_lines() -> Types {
+    Types::new()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class).with_method(
                 MethodShape::new("getLines")
                     .reading("lines")
-                    .returning(lines.clone()),
+                    .returning(order_lines()),
             ),
         )
         .with_shape(
@@ -495,7 +492,15 @@ fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
                     .reading("sku")
                     .returning(TypeRef::class("java.lang.String")),
             ),
-        );
+        )
+}
+
+fn order_lines() -> TypeRef {
+    TypeRef::generic("java.util.List", vec![TypeRef::class("OrderLine")])
+}
+
+#[test]
+fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
     let list_skus = Method::new("OrderService", "listSkus", 1).call(
         Call::new(
             Expression::parameter("order", TypeRef::class("Order")),
@@ -510,7 +515,7 @@ fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
         ))),
     );
 
-    let verdicts = list_skus.verdicts(&types);
+    let verdicts = list_skus.verdicts(&order_with_lines());
 
     assert_eq!(
         verdicts,
@@ -519,12 +524,40 @@ fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
             Verdict::allowed(
                 "getSku",
                 2,
-                Reason::classified(Classification::DataStructure, line)
+                Reason::classified(Classification::DataStructure, TypeRef::class("OrderLine"))
             ),
             Verdict::allowed(
                 "forEach",
                 2,
-                Reason::classified(Classification::Container, lines)
+                Reason::classified(Classification::Container, order_lines())
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_loop_variable_takes_the_element_type_of_the_iterable() {
+    let list_skus = Method::new("OrderService", "listSkus", 1)
+        .for_each(
+            "line",
+            Expression::return_of(Call::new(
+                Expression::parameter("order", TypeRef::class("Order")),
+                "getLines",
+                2,
+            )),
+        )
+        .call(Call::new(Expression::local("line"), "getSku", 3));
+
+    let verdicts = list_skus.verdicts(&order_with_lines());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getLines", 2, Reason::parameter("order")),
+            Verdict::allowed(
+                "getSku",
+                3,
+                Reason::classified(Classification::DataStructure, TypeRef::class("OrderLine"))
             ),
         ]
     );
