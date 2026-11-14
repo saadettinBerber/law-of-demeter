@@ -475,3 +475,59 @@ fn a_return_type_declared_on_the_type_wins_over_the_supertype() {
 
     assert_eq!(returned, Some(&TypeRef::class("Order")));
 }
+
+fn order_builder() -> Types {
+    Types::new().with_shape(
+        TypeShape::new("Order$Builder", TypeKind::Class)
+            .with_method(
+                MethodShape::new("id")
+                    .with_parameters(vec![string()])
+                    .returning(TypeRef::class("Order$Builder")),
+            )
+            .with_method(MethodShape::new("build").returning(TypeRef::class("Order")))
+            .with_method(
+                MethodShape::new("of")
+                    .returning(TypeRef::class("Order$Builder"))
+                    .as_static(),
+            ),
+    )
+}
+
+#[test]
+fn a_method_returning_its_receivers_type_is_fluent() {
+    let types = order_builder();
+
+    let fluent = types.is_fluent("Order$Builder", "id", 1);
+
+    assert!(fluent);
+}
+
+#[test]
+fn a_method_returning_another_type_is_not_fluent() {
+    let types = order_builder();
+
+    let fluent = types.is_fluent("Order$Builder", "build", 0);
+
+    assert!(!fluent);
+}
+
+#[test]
+fn a_static_method_returning_its_own_type_is_not_fluent() {
+    let types = order_builder();
+
+    let fluent = types.is_fluent("Order$Builder", "of", 0);
+
+    assert!(!fluent);
+}
+
+#[test]
+fn a_method_that_cannot_be_found_is_not_fluent() {
+    let types = order_builder();
+
+    let fluent = (
+        types.is_fluent("Order$Builder", "id", 2),
+        types.is_fluent("Mystery", "id", 1),
+    );
+
+    assert_eq!(fluent, (false, false));
+}

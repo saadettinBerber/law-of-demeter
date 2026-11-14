@@ -75,6 +75,14 @@ impl Types {
             .unwrap_or_default()
     }
 
+    pub fn is_fluent(&self, type_name: &str, method: &str, parameter_count: usize) -> bool {
+        let overloads = self.overloads(type_name, method, parameter_count);
+        !overloads.is_empty()
+            && overloads.iter().all(|overload| {
+                !overload.is_static() && overload.returns().and_then(class_name) == Some(type_name)
+            })
+    }
+
     pub fn classify(&self, type_ref: &TypeRef) -> Classification {
         match type_ref {
             TypeRef::Class { name, .. } => self.classify_named(name),
