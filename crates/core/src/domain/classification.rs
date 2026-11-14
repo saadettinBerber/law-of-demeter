@@ -85,17 +85,39 @@ impl Types {
         method: &str,
         parameter_count: usize,
     ) -> Option<(TypeRef, Vec<&MethodShape>)> {
-        self.ancestors(receiver).into_iter().find_map(|ancestor| {
-            let shape = self.shape(class_name(&ancestor)?)?;
-            let declared: Vec<_> = shape
-                .methods()
-                .iter()
-                .filter(|candidate| {
-                    candidate.name() == method && candidate.parameters().len() == parameter_count
-                })
-                .collect();
-            (!declared.is_empty()).then_some((ancestor, declared))
-        })
+        let roots = self.root_types(receiver);
+        self.ancestors(receiver)
+            .into_iter()
+            .chain(roots)
+            .find_map(|ancestor| {
+                let shape = self.shape(class_name(&ancestor)?)?;
+                let declared: Vec<_> = shape
+                    .methods()
+                    .iter()
+                    .filter(|candidate| {
+                        candidate.name() == method
+                            && candidate.parameters().len() == parameter_count
+                    })
+                    .collect();
+                (!declared.is_empty()).then_some((ancestor, declared))
+            })
+    }
+
+    fn root_types(&self, receiver: &TypeRef) -> Vec<TypeRef> {
+        let Some(name) = class_name(receiver) else {
+            return Vec::new();
+        };
+        let specific = match self.shape(name).map(TypeShape::kind) {
+            Some(TypeKind::Enum) => {
+                Some(TypeRef::generic("java.lang.Enum", vec![receiver.clone()]))
+            }
+            Some(TypeKind::Record) => Some(TypeRef::class("java.lang.Record")),
+            _ => None,
+        };
+        specific
+            .into_iter()
+            .chain([TypeRef::class("java.lang.Object")])
+            .collect()
     }
 
     fn ancestors(&self, receiver: &TypeRef) -> Vec<TypeRef> {

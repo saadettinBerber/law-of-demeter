@@ -1519,3 +1519,147 @@ fn java_lang_class_is_a_value_with_or_without_a_shape() {
         (Classification::Value, Classification::Value)
     );
 }
+
+fn root_shapes() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("java.lang.Object", TypeKind::Class)
+                .with_method(
+                    MethodShape::new("getClass").returning(TypeRef::class("java.lang.Class")),
+                )
+                .with_method(MethodShape::new("toString").returning(string()))
+                .with_method(MethodShape::new("fluent").returning(TypeRef::class("Order"))),
+        )
+        .with_shape(
+            TypeShape::new("java.lang.Enum", TypeKind::Class)
+                .with_type_parameter("E")
+                .with_method(MethodShape::new("name").returning(string()))
+                .with_method(MethodShape::new("ordinal").returning(int()))
+                .with_method(
+                    MethodShape::new("getDeclaringClass")
+                        .returning(generic_of("java.lang.Class", vec![variable("E")])),
+                ),
+        )
+        .with_shape(
+            TypeShape::new("java.lang.Record", TypeKind::Class)
+                .with_method(MethodShape::new("describe").returning(string())),
+        )
+}
+
+#[test]
+fn get_class_is_found_on_any_class_through_the_object_shape() {
+    let types = root_shapes()
+        .with_shape(TypeShape::new("Order", TypeKind::Class))
+        .with_shape(TypeShape::new("Wallet", TypeKind::Interface));
+    let class = TypeRef::class("java.lang.Class");
+
+    let returned = (
+        types.return_type("Order", "getClass", 0).cloned(),
+        types.return_type_on(&TypeRef::class("Order"), "getClass", 0),
+        types.return_type_on(&TypeRef::class("Wallet"), "getClass", 0),
+        types.return_type_on(&TypeRef::class("Mystery"), "getClass", 0),
+    );
+
+    assert_eq!(
+        returned,
+        (
+            Some(class.clone()),
+            Some(class.clone()),
+            Some(class.clone()),
+            Some(class)
+        )
+    );
+}
+
+#[test]
+fn name_and_ordinal_are_found_on_an_enum_through_the_enum_shape() {
+    let types = root_shapes().with_shape(TypeShape::new("Status", TypeKind::Enum));
+    let status = TypeRef::class("Status");
+
+    let returned = (
+        types.return_type_on(&status, "name", 0),
+        types.return_type_on(&status, "ordinal", 0),
+        types.return_type("Status", "name", 0).cloned(),
+    );
+
+    assert_eq!(returned, (Some(string()), Some(int()), Some(string())));
+}
+
+#[test]
+fn the_enum_shape_is_bound_to_the_enum_itself() {
+    let types = root_shapes().with_shape(TypeShape::new("Status", TypeKind::Enum));
+
+    let returned = types.return_type_on(&TypeRef::class("Status"), "getDeclaringClass", 0);
+
+    assert_eq!(
+        returned,
+        Some(generic_of(
+            "java.lang.Class",
+            vec![TypeRef::class("Status")]
+        ))
+    );
+}
+
+#[test]
+fn a_record_finds_methods_on_the_record_shape() {
+    let types = root_shapes().with_shape(TypeShape::new("Server", TypeKind::Record));
+
+    let returned = types.return_type_on(&TypeRef::class("Server"), "describe", 0);
+
+    assert_eq!(returned, Some(string()));
+}
+
+#[test]
+fn a_class_does_not_see_the_enum_or_record_methods() {
+    let types = root_shapes().with_shape(root("Order", vec![]));
+
+    let returned = (
+        types.return_type_on(&TypeRef::class("Order"), "name", 0),
+        types.return_type_on(&TypeRef::class("Order"), "describe", 0),
+    );
+
+    assert_eq!(returned, (None, None));
+}
+
+#[test]
+fn a_method_declared_on_the_type_wins_over_the_root_shapes() {
+    let types = root_shapes().with_shape(root(
+        "Order",
+        vec![MethodShape::new("toString").returning(TypeRef::class("Text"))],
+    ));
+
+    let returned = types.return_type_on(&TypeRef::class("Order"), "toString", 0);
+
+    assert_eq!(returned, Some(TypeRef::class("Text")));
+}
+
+#[test]
+fn fluency_also_consults_the_root_shapes() {
+    let types = root_shapes().with_shape(TypeShape::new("Order", TypeKind::Class));
+
+    let fluent = (
+        types.is_fluent("Order", "fluent", 0),
+        types.is_fluent("Order", "getClass", 0),
+    );
+
+    assert_eq!(fluent, (true, false));
+}
+
+#[test]
+fn the_root_shapes_in_the_catalog_do_not_change_what_counts_as_behavior() {
+    let types = root_shapes()
+        .with_shape(root("Address", vec![getter("getCity", "city")]))
+        .with_shape(TypeShape::new("Status", TypeKind::Enum))
+        .with_shape(TypeShape::new("Server", TypeKind::Record));
+
+    let classifications = classify_names(&types, &["Address", "Status", "Server"]);
+
+    assert_eq!(
+        classifications,
+        [
+            Classification::DataStructure,
+            Classification::Value,
+            Classification::DataStructure
+        ]
+    );
+}
