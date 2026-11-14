@@ -10,8 +10,8 @@ impl Reader<'_> {
             "integral_type" | "floating_point_type" | "boolean_type" | "void_type" => {
                 DeclaredType::primitive(self.text.of(node))
             }
-            "type_identifier" => self.named_type(self.text.of(node), scope),
-            "scoped_type_identifier" => {
+            "type_identifier" | "identifier" => self.named_type(self.text.of(node), scope),
+            "scoped_type_identifier" | "scoped_identifier" => {
                 let name: String = self.text.of(node).split_whitespace().collect();
                 self.named_type(&name, scope)
             }

@@ -154,6 +154,11 @@ pub enum Expression {
         target: DeclaredType,
         operand: Box<Expression>,
     },
+    InstanceOf {
+        operand: Box<Expression>,
+        tested: DeclaredType,
+        bindings: Vec<PatternBinding>,
+    },
     Switch(Switch),
     Literal,
     Operation(Vec<Expression>),
@@ -203,6 +208,7 @@ pub struct Switch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SwitchBranch {
+    pub bindings: Vec<PatternBinding>,
     pub guard: Option<Expression>,
     pub body: Vec<Statement>,
 }
@@ -276,4 +282,10 @@ pub enum ClassKind {
     Enum,
     Record,
     Annotation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PatternBinding {
+    pub name: String,
+    pub declared_type: DeclaredType,
 }

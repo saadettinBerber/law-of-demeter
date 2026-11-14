@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use tree_sitter::Node;
 
 use crate::model::{
-    Call, DeclaredType, Expression, ImplicitTarget, Lambda, LambdaParameter, New, Statement,
-    Switch, SwitchBranch, TypeName,
+    Call, DeclaredType, Expression, ImplicitTarget, Lambda, LambdaParameter, New, PatternBinding,
+    Statement, Switch, SwitchBranch, TypeName,
 };
 use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
@@ -276,26 +276,62 @@ impl Reader<'_> {
     }
 
     fn instance_of(&self, node: Node, scope: &mut Scope) -> Expression {
-        let tested = node
+        let operand = node
             .child_by_field_name("left")
-            .map(|left| self.expression(left, scope));
-        if let Some(binding) = node.child_by_field_name("name") {
-            scope.declare(self.text.of(binding), Binding::Local);
+            .map_or(Expression::Operation(Vec::new()), |left| {
+                self.expression(left, scope)
+            });
+        let (tested, bindings) = match node.child_by_field_name("pattern") {
+            Some(pattern) => (
+                named_children(pattern)
+                    .first()
+                    .map_or(DeclaredType::Var, |tested| {
+                        self.declared_type(*tested, scope)
+                    }),
+                self.pattern_bindings(pattern, scope),
+            ),
+            None => {
+                let tested = node
+                    .child_by_field_name("right")
+                    .map_or(DeclaredType::Var, |tested| {
+                        self.declared_type(tested, scope)
+                    });
+                let bindings = node
+                    .child_by_field_name("name")
+                    .map(|name| PatternBinding {
+                        name: self.text.of(name).to_owned(),
+                        declared_type: tested.clone(),
+                    })
+                    .into_iter()
+                    .collect();
+                (tested, bindings)
+            }
+        };
+        for binding in &bindings {
+            scope.declare(&binding.name, Binding::Local);
         }
-        self.declare_patterns(node, scope);
-        Expression::Operation(tested.into_iter().collect())
+        Expression::InstanceOf {
+            operand: Box::new(operand),
+            tested,
+            bindings,
+        }
     }
 
-    fn declare_patterns(&self, node: Node, scope: &mut Scope) {
-        for child in named_children(node) {
-            if child.kind() == "type_pattern" {
-                if let Some(binding) = named_children(child).last() {
-                    scope.declare(self.text.of(*binding), Binding::Local);
-                }
-            } else {
-                self.declare_patterns(child, scope);
-            }
+    fn pattern_bindings(&self, node: Node, scope: &Scope) -> Vec<PatternBinding> {
+        let children = named_children(node);
+        let is_binding = matches!(node.kind(), "type_pattern" | "record_pattern_component");
+        if let (true, [declared, name]) = (is_binding, children.as_slice())
+            && name.kind() == "identifier"
+        {
+            return vec![PatternBinding {
+                name: self.text.of(*name).to_owned(),
+                declared_type: self.declared_type(*declared, scope),
+            }];
         }
+        children
+            .into_iter()
+            .flat_map(|child| self.pattern_bindings(child, scope))
+            .collect()
     }
 
     pub(crate) fn switch(&self, node: Node, scope: &mut Scope) -> Switch {
@@ -322,27 +358,37 @@ impl Reader<'_> {
     fn switch_branch(&self, branch: Node, scope: &mut Scope) -> SwitchBranch {
         scope.open_frame();
         let children = named_children(branch);
-        let labels = children
+        let labels: Vec<Node> = children
             .iter()
-            .filter(|child| child.kind() == "switch_label");
-        let mut guard = None;
-        for label in labels {
-            self.declare_patterns(*label, scope);
-            guard = guard.or_else(|| {
-                named_children(*label)
-                    .into_iter()
-                    .find(|part| part.kind() == "guard")
-                    .and_then(|part| named_children(part).first().copied())
-                    .map(|condition| self.expression(condition, scope))
-            });
+            .filter(|child| child.kind() == "switch_label")
+            .copied()
+            .collect();
+        let bindings: Vec<PatternBinding> = labels
+            .iter()
+            .flat_map(|label| named_children(*label))
+            .filter(|part| part.kind() == "pattern")
+            .flat_map(|pattern| self.pattern_bindings(pattern, scope))
+            .collect();
+        for binding in &bindings {
+            scope.declare(&binding.name, Binding::Local);
         }
+        let guard = labels
+            .iter()
+            .flat_map(|label| named_children(*label))
+            .find(|part| part.kind() == "guard")
+            .and_then(|part| named_children(part).first().copied())
+            .map(|condition| self.expression(condition, scope));
         let body = children
             .iter()
             .filter(|child| child.kind() != "switch_label")
             .flat_map(|statement| self.branch_statements(*statement, scope))
             .collect();
         scope.close_frame();
-        SwitchBranch { guard, body }
+        SwitchBranch {
+            bindings,
+            guard,
+            body,
+        }
     }
 }
 
