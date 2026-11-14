@@ -1,4 +1,7 @@
 mod jdk;
+mod naming;
+
+pub use naming::{is_factory_method, is_repository_query};
 
 use std::collections::HashMap;
 

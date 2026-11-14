@@ -1,4 +1,4 @@
-use super::{Classification, Types, element_type};
+use super::{Classification, Types, element_type, is_factory_method, is_repository_query};
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
@@ -572,4 +572,58 @@ fn a_generic_type_that_is_not_a_container_has_no_element() {
     let element = element_type(&page);
 
     assert_eq!(element, None);
+}
+
+#[test]
+fn names_that_create_a_new_object_are_factory_methods() {
+    let names = [
+        "create",
+        "createOrder",
+        "of",
+        "ofNullable",
+        "from",
+        "fromJson",
+        "build",
+        "newInstance",
+    ];
+
+    let factories: Vec<_> = names.iter().map(|name| is_factory_method(name)).collect();
+
+    assert_eq!(factories, vec![true; names.len()]);
+}
+
+#[test]
+fn names_that_only_start_with_a_factory_word_are_not_factory_methods() {
+    let names = [
+        "offer", "creator", "created", "rebuild", "fromage", "getId", "newest",
+    ];
+
+    let factories: Vec<_> = names.iter().map(|name| is_factory_method(name)).collect();
+
+    assert_eq!(factories, vec![false; names.len()]);
+}
+
+#[test]
+fn names_that_look_an_object_up_are_repository_queries() {
+    let names = [
+        "find",
+        "findById",
+        "findAll",
+        "load",
+        "loadAll",
+        "fetchOrder",
+    ];
+
+    let queries: Vec<_> = names.iter().map(|name| is_repository_query(name)).collect();
+
+    assert_eq!(queries, vec![true; names.len()]);
+}
+
+#[test]
+fn names_that_only_start_with_a_query_word_are_not_repository_queries() {
+    let names = ["finder", "loader", "fetched", "getById", "create"];
+
+    let queries: Vec<_> = names.iter().map(|name| is_repository_query(name)).collect();
+
+    assert_eq!(queries, vec![false; names.len()]);
 }
