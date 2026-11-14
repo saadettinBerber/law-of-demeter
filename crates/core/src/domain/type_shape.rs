@@ -47,6 +47,7 @@ pub struct FieldShape {
     name: String,
     type_ref: TypeRef,
     is_static: bool,
+    is_final: bool,
 }
 
 impl FieldShape {
@@ -55,11 +56,17 @@ impl FieldShape {
             name: name.to_owned(),
             type_ref,
             is_static: false,
+            is_final: false,
         }
     }
 
     pub fn as_static(mut self) -> Self {
         self.is_static = true;
+        self
+    }
+
+    pub fn as_final(mut self) -> Self {
+        self.is_final = true;
         self
     }
 
@@ -73,6 +80,10 @@ impl FieldShape {
 
     pub fn is_static(&self) -> bool {
         self.is_static
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.is_final
     }
 }
 
