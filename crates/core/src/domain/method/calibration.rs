@@ -1,6 +1,6 @@
 use super::{Call, Expression, Lambda, Method, Reason, Verdict};
 use crate::domain::classification::{Classification, Types};
-use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 fn class(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -370,5 +370,53 @@ fn library_knowledge_stays_off_when_the_catalog_knows_no_project_types() {
     assert_eq!(
         verdicts[1],
         Verdict::violation("lock", 2, Reason::return_of("writeLock"))
+    );
+}
+
+fn inheritance() -> Types {
+    Types::new()
+        .with_shape(class("Base").with_field(FieldShape::new("wallet", TypeRef::class("Wallet"))))
+        .with_shape(class("Child").with_superclass(TypeRef::class("Base")))
+        .with_shape(class("Wallet").with_method(returning(
+            "getOwner",
+            0,
+            TypeRef::class("Customer"),
+        )))
+        .with_shape(class("Customer").with_method(MethodShape::new("rename")))
+}
+
+#[test]
+fn a_bare_name_of_a_field_declared_in_a_superclass_is_a_friend() {
+    let audit = Method::new("Child", "audit", 1)
+        .call(Call::new(Expression::unresolved("wallet"), "getOwner", 2).then("rename", 2));
+
+    let verdicts = audit.verdicts(&inheritance());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getOwner", 2, Reason::field("wallet")),
+            Verdict::violation("rename", 2, Reason::return_of("getOwner")),
+        ]
+    );
+}
+
+#[test]
+fn a_bare_name_that_no_superclass_declares_stays_unresolved() {
+    let audit = Method::new("Child", "audit", 1).call(Call::new(
+        Expression::unresolved("ledger"),
+        "getOwner",
+        2,
+    ));
+
+    let verdicts = audit.verdicts(&inheritance());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "getOwner",
+            2,
+            Reason::unresolved_type(None, Reason::unresolved_name("ledger"))
+        )]
     );
 }

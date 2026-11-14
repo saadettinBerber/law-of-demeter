@@ -122,10 +122,17 @@ impl Expression {
                     type_ref: None,
                 },
             },
-            Self::Unresolved(name) => Judged::quiet(Subject {
-                standing: Standing::Stranger(Reason::unresolved_name(name)),
-                type_ref: None,
-            }),
+            Self::Unresolved(name) => Judged::quiet(
+                class_name(&context.this_type)
+                    .and_then(|owner| field_type(context.types, owner, name))
+                    .map_or_else(
+                        || Subject {
+                            standing: Standing::Stranger(Reason::unresolved_name(name)),
+                            type_ref: None,
+                        },
+                        |type_ref| Subject::friend(Reason::field(name), type_ref),
+                    ),
+            ),
             Self::FieldOf { target, name } => {
                 let judged = target.judge(context);
                 let standing = if matches!(**target, Self::StaticType(_)) {
