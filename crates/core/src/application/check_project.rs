@@ -14,13 +14,18 @@ impl<'a> CheckProject<'a> {
 
     pub fn execute(&self) -> Report {
         let TypeReading { shapes, errors } = self.types.read();
-        let catalog = shapes.into_iter().fold(Types::new(), Types::with_shape);
-        let type_exists = |name: &str| catalog.shape(name).is_some();
+        let shapes = shapes.into_iter().fold(Types::new(), Types::with_shape);
+        let files = self.sources.read(&|name| shapes.shape(name).is_some());
+        let declared = files
+            .iter()
+            .flatten()
+            .flat_map(|file| file.classes().iter().cloned());
+        let catalog = shapes.with_project_types(declared);
         let mut report = Report {
             type_errors: errors,
             ..Report::default()
         };
-        for file in self.sources.read(&type_exists) {
+        for file in files {
             match file {
                 Ok(file) => judge(&file, &catalog, &mut report),
                 Err(error) => report.source_errors.push(error),

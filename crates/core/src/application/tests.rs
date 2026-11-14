@@ -85,7 +85,11 @@ fn every_call_of_every_method_becomes_a_finding_with_its_location() {
     let path = Path::new("src/OrderService.java");
     let sources = FakeSources(vec![Ok(SourceFile::new(
         path,
-        vec!["OrderService".to_owned()],
+        vec![
+            "OrderService".to_owned(),
+            "Order".to_owned(),
+            "Customer".to_owned(),
+        ],
         vec![pay_method()],
     ))]);
 
@@ -186,7 +190,11 @@ fn the_counts_separate_real_violations_from_unresolved_types() {
     let sources = FakeSources(vec![
         Ok(SourceFile::new(
             Path::new("src/OrderService.java"),
-            vec!["OrderService".to_owned()],
+            vec![
+                "OrderService".to_owned(),
+                "Order".to_owned(),
+                "Customer".to_owned(),
+            ],
             vec![pay_method()],
         )),
         Ok(SourceFile::new(
@@ -267,5 +275,27 @@ fn a_report_built_from_its_parts_counts_them() {
             source_errors: 1,
             ..Counts::default()
         }
+    );
+}
+
+#[test]
+fn a_call_on_a_type_no_source_declares_is_a_library_call() {
+    let path = Path::new("src/OrderService.java");
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        path,
+        vec!["OrderService".to_owned(), "Order".to_owned()],
+        vec![pay_method()],
+    ))]);
+
+    let report = CheckProject::new(&sources, &shop_types()).execute();
+
+    assert_eq!(
+        report.findings()[1],
+        Finding::new(
+            path,
+            "OrderService",
+            "pay",
+            Verdict::allowed("getWallet", 11, Reason::library(TypeRef::class("Customer")))
+        )
     );
 }
