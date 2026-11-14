@@ -122,14 +122,14 @@ impl Argument {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lambda {
     parameters: Vec<String>,
-    body: Method,
+    body: Block,
 }
 
 impl Lambda {
     pub fn new(parameters: &[&str]) -> Self {
         Self {
             parameters: parameters.iter().map(|name| (*name).to_owned()).collect(),
-            body: Method::new(),
+            body: Block::default(),
         }
     }
 
@@ -151,7 +151,7 @@ impl Lambda {
                 .through(|feed| Reason::lambda_parameter(parameter, feed));
             scope.insert(parameter.clone(), standing);
         }
-        self.body.verdicts_in(&mut scope)
+        self.body.verdicts(&mut scope)
     }
 }
 
@@ -338,8 +338,43 @@ impl Step {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Method {
+struct Block {
     steps: Vec<Step>,
+}
+
+impl Block {
+    fn call(mut self, call: Call) -> Self {
+        self.steps.push(Step::Call(call));
+        self
+    }
+
+    fn assign(mut self, local: &str, value: Expression) -> Self {
+        self.steps.push(Step::Assign {
+            local: local.to_owned(),
+            value,
+        });
+        self
+    }
+
+    fn for_each(mut self, variable: &str, iterable: Expression) -> Self {
+        self.steps.push(Step::ForEach {
+            variable: variable.to_owned(),
+            iterable,
+        });
+        self
+    }
+
+    fn verdicts(&self, scope: &mut Scope) -> Vec<Verdict> {
+        self.steps
+            .iter()
+            .flat_map(|step| step.verdicts(scope))
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Method {
+    body: Block,
 }
 
 impl Method {
@@ -348,35 +383,22 @@ impl Method {
     }
 
     pub fn call(mut self, call: Call) -> Self {
-        self.steps.push(Step::Call(call));
+        self.body = self.body.call(call);
         self
     }
 
     pub fn assign(mut self, local: &str, value: Expression) -> Self {
-        self.steps.push(Step::Assign {
-            local: local.to_owned(),
-            value,
-        });
+        self.body = self.body.assign(local, value);
         self
     }
 
     pub fn for_each(mut self, variable: &str, iterable: Expression) -> Self {
-        self.steps.push(Step::ForEach {
-            variable: variable.to_owned(),
-            iterable,
-        });
+        self.body = self.body.for_each(variable, iterable);
         self
     }
 
     pub fn verdicts(&self) -> Vec<Verdict> {
-        self.verdicts_in(&mut Scope::new())
-    }
-
-    fn verdicts_in(&self, scope: &mut Scope) -> Vec<Verdict> {
-        self.steps
-            .iter()
-            .flat_map(|step| step.verdicts(scope))
-            .collect()
+        self.body.verdicts(&mut Scope::new())
     }
 }
 
