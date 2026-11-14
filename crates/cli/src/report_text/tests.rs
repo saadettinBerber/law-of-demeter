@@ -390,3 +390,55 @@ fn a_report_without_violations_says_so() {
 
     assert_eq!(text.lines().next(), Some("İhlal bulunamadı."));
 }
+
+#[test]
+fn allowed_calls_stay_out_of_the_default_report() {
+    let text = render(&mixed_report(), false);
+
+    assert_eq!(
+        (
+            text.contains("Uygun çağrılar"),
+            text.contains("Uygun nedenleri"),
+            text.contains("  Uygun: ")
+        ),
+        (false, false, false)
+    );
+}
+
+#[test]
+fn the_whole_default_report_reads_top_to_bottom() {
+    let text = render(&mixed_report(), false);
+
+    assert_eq!(
+        text,
+        "İhlaller (3):
+src/OrderService.java:4  OrderService.pay  a()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/OrderService.java:5  OrderService.pay  b()  İhlal: customer yerel değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/OrderService.java:6  OrderService.pay  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+
+Çözülemeyen tipler (1):
+src/OrderService.java:7  OrderService.pay  c()  Belirsiz: tip çözülemedi: getName() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+
+Hibrit sınıflar (1):
+src/Account.java  Account  Hibrit sınıf: davranış: withdraw, deposit; setter: setBalance
+
+Kaynak hataları (1):
+src/Broken.java  Hata: hata
+
+Tip okuma hataları (1):
+lib/broken.jar  Hata: bozuk arşiv
+
+Özet:
+  Dosya: 2
+  Metot: 3
+  Çağrı: 7 (uygun 3, ihlal 3, belirsiz 1)
+  Hibrit sınıf: 1
+  Kaynak hatası: 1
+  Tip okuma hatası: 1
+
+İhlal nedenleri:
+  2  Döndürülen nesne f'nin arkadaşı değil
+  1  Döndürülen koleksiyon değiştiriliyor
+"
+    );
+}
