@@ -63,6 +63,35 @@ pub fn describe(reason: &Reason) -> String {
     }
 }
 
+pub fn category(reason: &Reason) -> &'static str {
+    match reason {
+        Reason::Local { origin, .. } => category(origin),
+        Reason::LambdaParameter { feed, .. } | Reason::LoopVariable { feed, .. } => category(feed),
+        Reason::ReturnOf(_) => "Döndürülen nesne f'nin arkadaşı değil",
+        Reason::ContainerMutation { .. } => "Döndürülen koleksiyon değiştiriliyor",
+        Reason::UnresolvedType { .. } => "Tip çözülemedi",
+        Reason::UnassignedLocal(_) => "Değişkene değer atanmamış",
+        Reason::This => "Kendi nesnesi",
+        Reason::Field(_) => "Sınıfın alanı",
+        Reason::Parameter(_) => "Argüman",
+        Reason::Created(_) => "Metotta oluşturulan nesne",
+        Reason::StaticType(_) => "Statik çağrı",
+        Reason::Literal => "Sabit değer",
+        Reason::Classified { classification, .. } => match classification {
+            Classification::DataStructure => "Veri yapısı",
+            Classification::Value => "Değer",
+            Classification::Container => "Konteyner",
+            Classification::Object => "Nesne",
+            Classification::Hybrid => "Hibrit sınıf",
+            Classification::Unknown => "Tip çözülemedi",
+        },
+        Reason::Fluent(_) => "Akıcı çağrı",
+        Reason::StaticResult(_) => "Statik çağrının sonucu",
+        Reason::FactoryResult(_) => "Factory'nin sonucu",
+        Reason::QueryResult(_) => "Depo sorgusunun sonucu",
+    }
+}
+
 fn classification_text(classification: Classification) -> &'static str {
     match classification {
         Classification::DataStructure => "bir veri yapısı",

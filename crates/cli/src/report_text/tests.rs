@@ -304,3 +304,70 @@ fn read_errors_are_listed_with_their_line_when_they_have_one() {
         )
     );
 }
+
+fn mixed_report() -> Report {
+    Report::new(
+        2,
+        3,
+        vec![
+            allowed(1, Reason::parameter("order")),
+            allowed(2, Reason::parameter("order")),
+            allowed(
+                3,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Server")),
+            ),
+            finding(Verdict::violation("a", 4, Reason::return_of("getCustomer"))),
+            finding(Verdict::violation(
+                "b",
+                5,
+                Reason::local("customer", Reason::return_of("getCustomer")),
+            )),
+            finding(Verdict::violation(
+                "add",
+                6,
+                Reason::container_mutation(
+                    TypeRef::class("java.util.List"),
+                    Reason::return_of("getLines"),
+                ),
+            )),
+            finding(Verdict::violation(
+                "c",
+                7,
+                Reason::unresolved_type(None, Reason::return_of("getName")),
+            )),
+        ],
+        vec![account_hybrid()],
+        vec![ReadError::new(Path::new("src/Broken.java"), "hata")],
+        vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+    )
+}
+
+#[test]
+fn the_summary_counts_files_methods_calls_and_findings() {
+    let text = render(&mixed_report(), false);
+
+    assert_eq!(
+        section(&text, "Özet"),
+        [
+            "  Dosya: 2",
+            "  Metot: 3",
+            "  Çağrı: 7 (uygun 3, ihlal 3, belirsiz 1)",
+            "  Hibrit sınıf: 1",
+            "  Kaynak hatası: 1",
+            "  Tip okuma hatası: 1",
+        ]
+    );
+}
+
+#[test]
+fn violations_are_counted_per_reason_and_unresolved_types_are_left_out() {
+    let text = render(&mixed_report(), false);
+
+    assert_eq!(
+        section(&text, "İhlal nedenleri"),
+        [
+            "  2  Döndürülen nesne f'nin arkadaşı değil",
+            "  1  Döndürülen koleksiyon değiştiriliyor",
+        ]
+    );
+}
