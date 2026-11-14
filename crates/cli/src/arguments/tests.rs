@@ -63,3 +63,17 @@ fn the_jdk_home_and_the_release_are_read() {
         })
     );
 }
+
+#[test]
+fn show_allowed_is_a_flag() {
+    let command = parsed(&["-s", "src", "--show-allowed"]);
+
+    assert_eq!(
+        command,
+        Command::Check(Arguments {
+            sources: vec![PathBuf::from("src")],
+            show_allowed: true,
+            ..Arguments::default()
+        })
+    );
+}
