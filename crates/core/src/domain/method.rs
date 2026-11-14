@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::classification::Types;
+use super::classification::{Classification, Types};
 use super::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,30 +45,22 @@ impl Expression {
         Self::ReturnOf(Box::new(call))
     }
 
-    fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
+    fn judge(&self, context: &Context) -> Judged {
         match self {
-            Self::ReturnOf(call) => call.verdicts(scope),
-            Self::New(creation) => creation.verdicts(scope),
-            Self::This
-            | Self::Field { .. }
-            | Self::Parameter { .. }
-            | Self::Local(_)
-            | Self::StaticType(_) => Vec::new(),
-        }
-    }
-
-    fn standing(&self, scope: &Scope) -> Standing {
-        match self {
-            Self::This => Standing::Friend(Reason::This),
-            Self::Field { name, .. } => Standing::Friend(Reason::field(name)),
-            Self::Parameter { name, .. } => Standing::Friend(Reason::parameter(name)),
-            Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
-            Self::New(creation) => Standing::Friend(Reason::created(creation.type_ref.clone())),
-            Self::StaticType(type_ref) => Standing::Friend(Reason::static_type(type_ref.clone())),
-            Self::Local(name) => scope
-                .get(name)
-                .cloned()
-                .unwrap_or_else(|| Standing::Stranger(Reason::unassigned_local(name))),
+            Self::This => Judged::quiet(Subject::friend(Reason::This, context.this_type.clone())),
+            Self::Field { name, type_ref } => {
+                Judged::quiet(Subject::friend(Reason::field(name), type_ref.clone()))
+            }
+            Self::Parameter { name, type_ref } => {
+                Judged::quiet(Subject::friend(Reason::parameter(name), type_ref.clone()))
+            }
+            Self::ReturnOf(call) => call.judge(context),
+            Self::Local(name) => Judged::quiet(context.local(name)),
+            Self::New(creation) => creation.judge(context),
+            Self::StaticType(type_ref) => Judged::quiet(Subject::friend(
+                Reason::static_type(type_ref.clone()),
+                type_ref.clone(),
+            )),
         }
     }
 }
@@ -92,12 +84,20 @@ impl Creation {
         self
     }
 
-    fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
-        let feed = Standing::Friend(Reason::created(self.type_ref.clone()));
-        self.arguments
+    fn judge(&self, context: &Context) -> Judged {
+        let created = Subject::friend(
+            Reason::created(self.type_ref.clone()),
+            self.type_ref.clone(),
+        );
+        let verdicts = self
+            .arguments
             .iter()
-            .flat_map(|argument| argument.verdicts(scope, &feed))
-            .collect()
+            .flat_map(|argument| argument.judge(context, &created))
+            .collect();
+        Judged {
+            verdicts,
+            subject: created,
+        }
     }
 }
 
@@ -120,10 +120,10 @@ impl From<Lambda> for Argument {
 }
 
 impl Argument {
-    fn verdicts(&self, scope: &Scope, feed: &Standing) -> Vec<Verdict> {
+    fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
         match self {
-            Self::Value(value) => value.verdicts(scope),
-            Self::Lambda(lambda) => lambda.verdicts(scope, feed),
+            Self::Value(value) => value.judge(context).verdicts,
+            Self::Lambda(lambda) => lambda.judge(context, feed),
         }
     }
 }
@@ -152,15 +152,16 @@ impl Lambda {
         self
     }
 
-    fn verdicts(&self, scope: &Scope, feed: &Standing) -> Vec<Verdict> {
-        let mut scope = scope.clone();
+    fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
+        let mut inner = context.clone();
         for parameter in &self.parameters {
-            let standing = feed
-                .clone()
-                .through(|feed| Reason::lambda_parameter(parameter, feed));
-            scope.insert(parameter.clone(), standing);
+            inner.bind(
+                parameter,
+                feed.clone()
+                    .through(|feed| Reason::lambda_parameter(parameter, feed)),
+            );
         }
-        self.body.verdicts(&mut scope)
+        self.body.judge(&mut inner)
     }
 }
 
@@ -191,20 +192,53 @@ impl Call {
         Self::new(Expression::return_of(self), name, line)
     }
 
-    fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
-        let receiver = self.receiver.standing(scope);
-        let mut verdicts = self.receiver.verdicts(scope);
-        verdicts.extend(
-            self.arguments
-                .iter()
-                .flat_map(|argument| argument.verdicts(scope, &receiver)),
-        );
-        verdicts.push(receiver.verdict(&self.name, self.line));
-        verdicts
+    fn judge(&self, context: &Context) -> Judged {
+        let receiver = self.receiver.judge(context);
+        let mut verdicts = receiver.verdicts;
+        for argument in &self.arguments {
+            verdicts.extend(argument.judge(context, &receiver.subject));
+        }
+        verdicts.push(self.verdict(context.types, &receiver.subject));
+        let subject = self.result(context.types, &receiver.subject);
+        Judged { verdicts, subject }
+    }
+
+    fn verdict(&self, types: &Types, receiver: &Subject) -> Verdict {
+        match &receiver.standing {
+            Standing::Friend(reason) => Verdict::allowed(&self.name, self.line, reason.clone()),
+            Standing::Stranger(source) => match receiver.type_ref.as_ref() {
+                Some(type_ref) if types.classify(type_ref) == Classification::DataStructure => {
+                    Verdict::allowed(
+                        &self.name,
+                        self.line,
+                        Reason::classified(Classification::DataStructure, type_ref.clone()),
+                    )
+                }
+                _ => Verdict::violation(&self.name, self.line, source.clone()),
+            },
+        }
+    }
+
+    fn result(&self, types: &Types, receiver: &Subject) -> Subject {
+        let type_ref = receiver
+            .type_ref
+            .as_ref()
+            .and_then(class_name)
+            .and_then(|name| types.return_type(name, &self.name, self.arguments.len()))
+            .cloned();
+        Subject {
+            standing: Standing::Stranger(Reason::return_of(&self.name)),
+            type_ref,
+        }
     }
 }
 
-type Scope = HashMap<String, Standing>;
+fn class_name(type_ref: &TypeRef) -> Option<&str> {
+    match type_ref {
+        TypeRef::Class { name, .. } => Some(name),
+        TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => None,
+    }
+}
 
 #[derive(Debug, Clone)]
 enum Standing {
@@ -213,18 +247,75 @@ enum Standing {
 }
 
 impl Standing {
-    fn verdict(self, call: &str, line: usize) -> Verdict {
-        match self {
-            Self::Friend(reason) => Verdict::allowed(call, line, reason),
-            Self::Stranger(reason) => Verdict::violation(call, line, reason),
-        }
-    }
-
     fn through(self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
         match self {
             Self::Friend(reason) => Self::Friend(wrap(reason)),
             Self::Stranger(reason) => Self::Stranger(wrap(reason)),
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Subject {
+    standing: Standing,
+    type_ref: Option<TypeRef>,
+}
+
+impl Subject {
+    fn friend(reason: Reason, type_ref: TypeRef) -> Self {
+        Self {
+            standing: Standing::Friend(reason),
+            type_ref: Some(type_ref),
+        }
+    }
+
+    fn through(self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
+        Self {
+            standing: self.standing.through(wrap),
+            type_ref: None,
+        }
+    }
+}
+
+struct Judged {
+    verdicts: Vec<Verdict>,
+    subject: Subject,
+}
+
+impl Judged {
+    fn quiet(subject: Subject) -> Self {
+        Self {
+            verdicts: Vec::new(),
+            subject,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct Context<'a> {
+    types: &'a Types,
+    this_type: TypeRef,
+    locals: HashMap<String, Subject>,
+}
+
+impl<'a> Context<'a> {
+    fn new(types: &'a Types, class_name: &str) -> Self {
+        Self {
+            types,
+            this_type: TypeRef::class(class_name),
+            locals: HashMap::new(),
+        }
+    }
+
+    fn bind(&mut self, name: &str, subject: Subject) {
+        self.locals.insert(name.to_owned(), subject);
+    }
+
+    fn local(&self, name: &str) -> Subject {
+        self.locals.get(name).cloned().unwrap_or_else(|| Subject {
+            standing: Standing::Stranger(Reason::unassigned_local(name)),
+            type_ref: None,
+        })
     }
 }
 
@@ -237,9 +328,22 @@ pub enum Reason {
     UnassignedLocal(String),
     Created(TypeRef),
     StaticType(TypeRef),
-    Local { name: String, origin: Box<Reason> },
-    LambdaParameter { name: String, feed: Box<Reason> },
-    LoopVariable { name: String, feed: Box<Reason> },
+    Local {
+        name: String,
+        origin: Box<Reason>,
+    },
+    LambdaParameter {
+        name: String,
+        feed: Box<Reason>,
+    },
+    LoopVariable {
+        name: String,
+        feed: Box<Reason>,
+    },
+    Classified {
+        classification: Classification,
+        type_ref: TypeRef,
+    },
 }
 
 impl Reason {
@@ -273,6 +377,13 @@ impl Reason {
         Self::LoopVariable {
             name: name.to_owned(),
             feed: Box::new(feed),
+        }
+    }
+
+    pub fn classified(classification: Classification, type_ref: TypeRef) -> Self {
+        Self::Classified {
+            classification,
+            type_ref,
         }
     }
 
@@ -335,24 +446,28 @@ enum Step {
 }
 
 impl Step {
-    fn verdicts(&self, scope: &mut Scope) -> Vec<Verdict> {
+    fn judge(&self, context: &mut Context) -> Vec<Verdict> {
         match self {
-            Self::Call(call) => call.verdicts(scope),
+            Self::Call(call) => call.judge(context).verdicts,
             Self::Assign { local, value } => {
-                let verdicts = value.verdicts(scope);
-                let standing = value
-                    .standing(scope)
-                    .through(|origin| Reason::local(local, origin));
-                scope.insert(local.clone(), standing);
-                verdicts
+                let judged = value.judge(context);
+                context.bind(
+                    local,
+                    judged
+                        .subject
+                        .through(|origin| Reason::local(local, origin)),
+                );
+                judged.verdicts
             }
             Self::ForEach { variable, iterable } => {
-                let verdicts = iterable.verdicts(scope);
-                let standing = iterable
-                    .standing(scope)
-                    .through(|feed| Reason::loop_variable(variable, feed));
-                scope.insert(variable.clone(), standing);
-                verdicts
+                let judged = iterable.judge(context);
+                context.bind(
+                    variable,
+                    judged
+                        .subject
+                        .through(|feed| Reason::loop_variable(variable, feed)),
+                );
+                judged.verdicts
             }
         }
     }
@@ -385,10 +500,10 @@ impl Block {
         self
     }
 
-    fn verdicts(&self, scope: &mut Scope) -> Vec<Verdict> {
+    fn judge(&self, context: &mut Context) -> Vec<Verdict> {
         self.steps
             .iter()
-            .flat_map(|step| step.verdicts(scope))
+            .flat_map(|step| step.judge(context))
             .collect()
     }
 }
@@ -438,10 +553,12 @@ impl Method {
         self
     }
 
-    pub fn verdicts(&self, _types: &Types) -> Vec<Verdict> {
-        self.body.verdicts(&mut Scope::new())
+    pub fn verdicts(&self, types: &Types) -> Vec<Verdict> {
+        self.body.judge(&mut Context::new(types, &self.class_name))
     }
 }
 
+#[cfg(test)]
+mod scenarios;
 #[cfg(test)]
 mod tests;
