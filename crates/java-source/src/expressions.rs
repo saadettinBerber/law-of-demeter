@@ -21,6 +21,7 @@ impl Reader<'_> {
                 .map_or(Expression::Operation(Vec::new()), |inner| {
                     self.expression(*inner, scope)
                 }),
+            "assignment_expression" => self.assignment(node, scope),
             "field_access" => self.field_access(node, scope),
             "method_invocation" => self.call(node, scope),
             "object_creation_expression" => self.creation(node, scope),
@@ -109,6 +110,28 @@ impl Reader<'_> {
             ImplicitTarget::OwnMethod
         } else {
             ImplicitTarget::OnDemandStaticImport { candidates }
+        }
+    }
+
+    fn assignment(&self, node: Node, scope: &mut Scope) -> Expression {
+        let (Some(left), Some(right)) = (
+            node.child_by_field_name("left"),
+            node.child_by_field_name("right"),
+        ) else {
+            return Expression::Operation(Vec::new());
+        };
+        let is_plain = node
+            .child_by_field_name("operator")
+            .is_some_and(|operator| self.text.of(operator) == "=");
+        let target = self.expression(left, scope);
+        let value = self.expression(right, scope);
+        if is_plain {
+            Expression::Assignment {
+                target: Box::new(target),
+                value: Box::new(value),
+            }
+        } else {
+            Expression::Operation(vec![target, value])
         }
     }
 

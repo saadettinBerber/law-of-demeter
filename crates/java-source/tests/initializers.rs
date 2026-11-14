@@ -23,7 +23,10 @@ fn method<'a>(class: &'a Class, name: &str) -> &'a Method {
 }
 
 fn initialization(field_name: &str, value: Expression) -> Statement {
-    Statement::Expression(Expression::Operation(vec![field(field_name), value]))
+    Statement::Expression(Expression::Assignment {
+        target: Box::new(field(field_name)),
+        value: Box::new(value),
+    })
 }
 
 #[test]
@@ -135,11 +138,11 @@ fn a_lambda_in_a_field_initializer_keeps_its_calls() {
     let Some(body) = &method(&class, INSTANCE_INITIALIZER).body else {
         panic!("expected a body");
     };
-    let Statement::Expression(Expression::Operation(operands)) = &body[0] else {
+    let Statement::Expression(Expression::Assignment { value, .. }) = &body[0] else {
         panic!("expected an initialization, got {body:?}");
     };
-    let Expression::Lambda(lambda) = &operands[1] else {
-        panic!("expected a lambda, got {operands:?}");
+    let Expression::Lambda(lambda) = &**value else {
+        panic!("expected a lambda, got {value:?}");
     };
     assert_eq!(lambda.parameters.len(), 2);
     assert_eq!(lambda.body.len(), 1);

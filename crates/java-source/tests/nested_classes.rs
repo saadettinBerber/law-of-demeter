@@ -315,15 +315,15 @@ fn enum_constant_bodies_are_anonymous_subclasses_of_the_enum() {
     );
     let constants = body(&classes[0], STATIC_INITIALIZER);
     let initialized = |name: &str, arguments: Vec<Expression>, anonymous: &str, line: usize| {
-        run(Expression::Operation(vec![
-            field(name),
-            Expression::New(New {
+        run(Expression::Assignment {
+            target: Box::new(field(name)),
+            value: Box::new(Expression::New(New {
                 created: DeclaredType::class("shop.Color"),
                 arguments,
                 anonymous_class: Some(anonymous.to_owned()),
                 line,
-            }),
-        ]))
+            })),
+        })
     };
     assert_eq!(
         constants,

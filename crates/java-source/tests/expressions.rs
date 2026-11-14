@@ -210,10 +210,10 @@ fn an_assignment_keeps_both_sides() {
 
     assert_eq!(
         body,
-        [Statement::Expression(Expression::Operation(vec![
-            field("count"),
-            call(parameter("a"), "size", vec![], 4)
-        ]))]
+        [Statement::Expression(Expression::Assignment {
+            target: Box::new(field("count")),
+            value: Box::new(call(parameter("a"), "size", vec![], 4)),
+        })]
     );
 }
 

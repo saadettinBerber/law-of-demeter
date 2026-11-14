@@ -435,14 +435,14 @@ fn allowed_4_a_builder_chain_and_a_constructor_reading_the_builder() {
     assert_eq!(
         constructor.body,
         Some(vec![
-            run(Expression::Operation(vec![
-                field("id"),
-                read_field(parameter("builder"), "id")
-            ])),
-            run(Expression::Operation(vec![
-                field("total"),
-                read_field(parameter("builder"), "total")
-            ])),
+            run(Expression::Assignment {
+                target: Box::new(field("id")),
+                value: Box::new(read_field(parameter("builder"), "id")),
+            }),
+            run(Expression::Assignment {
+                target: Box::new(field("total")),
+                value: Box::new(read_field(parameter("builder"), "total")),
+            }),
         ])
     );
 }
@@ -632,9 +632,9 @@ fn readme_the_hybrid_account_and_its_payment_service() {
     let set_balance = &file.classes[0].methods[1];
     assert_eq!(
         set_balance.body,
-        Some(vec![run(Expression::Operation(vec![
-            field("balance"),
-            parameter("balance")
-        ]))])
+        Some(vec![run(Expression::Assignment {
+            target: Box::new(field("balance")),
+            value: Box::new(parameter("balance")),
+        })])
     );
 }

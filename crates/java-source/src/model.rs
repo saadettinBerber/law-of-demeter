@@ -152,6 +152,10 @@ pub enum Expression {
         target: Box<Expression>,
         name: String,
     },
+    Assignment {
+        target: Box<Expression>,
+        value: Box<Expression>,
+    },
     Call(Call),
     New(New),
     Lambda(Lambda),

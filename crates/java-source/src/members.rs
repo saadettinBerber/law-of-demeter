@@ -148,10 +148,10 @@ impl Reader<'_> {
     }
 
     fn initialization_of(&self, field: &str, value: Expression) -> Statement {
-        Statement::Expression(Expression::Operation(vec![
-            Expression::Field(field.to_owned()),
-            value,
-        ]))
+        Statement::Expression(Expression::Assignment {
+            target: Box::new(Expression::Field(field.to_owned())),
+            value: Box::new(value),
+        })
     }
 
     fn record_components(&self, declaration: &Declaration, scope: &Scope) -> Vec<Field> {
