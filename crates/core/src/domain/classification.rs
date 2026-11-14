@@ -180,7 +180,7 @@ impl Types {
     pub fn hybrid_class(&self, name: &str) -> Option<HybridClass> {
         let shape = self.shape(name)?;
         (self.classify_named(name) == Classification::Hybrid).then(|| {
-            let methods = self.class_members(shape).methods;
+            let methods = self.class_members(shape).project_methods;
             HybridClass::new(
                 name,
                 distinct_names(methods.iter().filter(|method| is_behavior(method))),
@@ -238,23 +238,29 @@ impl Types {
             }
         }
         let mut methods: Vec<&MethodShape> = Vec::new();
+        let mut project_methods: Vec<&MethodShape> = Vec::new();
         let mut hidden: HashSet<(&str, usize)> = HashSet::new();
-        for class in &chain {
+        for (index, class) in chain.iter().enumerate() {
             let declared: Vec<_> = class
                 .methods()
                 .iter()
                 .filter(|method| is_exposed(method) && !is_to_builder(class, method))
                 .collect();
-            methods.extend(
-                declared
-                    .iter()
-                    .filter(|method| !hidden.contains(&signature(method))),
-            );
+            let visible: Vec<_> = declared
+                .iter()
+                .filter(|method| !hidden.contains(&signature(method)))
+                .copied()
+                .collect();
             hidden.extend(declared.iter().map(|method| signature(method)));
+            if index == 0 || self.is_project_type(class.name()) {
+                project_methods.extend(&visible);
+            }
+            methods.extend(visible);
         }
         Members {
             chain,
             methods,
+            project_methods,
             complete,
         }
     }
@@ -264,13 +270,12 @@ impl Types {
         if members.is_value_object() {
             return Classification::Value;
         }
-        let has_setter = members.methods.iter().any(|method| is_setter(method));
         let has_behavior = members.methods.iter().any(|method| is_behavior(method));
-        match (has_behavior, has_setter, members.complete) {
-            (true, true, _) => Classification::Hybrid,
-            (true, false, _) => Classification::Object,
-            (false, _, true) => Classification::DataStructure,
-            (false, _, false) => Classification::Unknown,
+        match (members.is_hybrid(), has_behavior, members.complete) {
+            (true, _, _) => Classification::Hybrid,
+            (false, true, _) => Classification::Object,
+            (false, false, true) => Classification::DataStructure,
+            (false, false, false) => Classification::Unknown,
         }
     }
 
@@ -321,10 +326,18 @@ impl HybridClass {
 struct Members<'a> {
     chain: Vec<&'a TypeShape>,
     methods: Vec<&'a MethodShape>,
+    project_methods: Vec<&'a MethodShape>,
     complete: bool,
 }
 
 impl Members<'_> {
+    fn is_hybrid(&self) -> bool {
+        self.project_methods
+            .iter()
+            .any(|method| is_behavior(method))
+            && self.project_methods.iter().any(|method| is_setter(method))
+    }
+
     fn is_value_object(&self) -> bool {
         let mut fields = self
             .chain

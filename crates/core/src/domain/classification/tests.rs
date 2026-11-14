@@ -677,6 +677,7 @@ fn behavior_inherited_through_several_superclasses_counts() {
 #[test]
 fn an_inherited_setter_together_with_own_behavior_makes_a_hybrid() {
     let types = Types::new()
+        .with_project_types(["Base".to_owned()])
         .with_shape(root("Base", vec![setter("setName", "name")]))
         .with_shape(class("Account", "Base", vec![behavior("withdraw")]));
 
@@ -923,6 +924,7 @@ fn the_hybrid_finding_names_every_behavior_method_and_setter_once() {
 #[test]
 fn a_hybrid_finding_includes_methods_inherited_from_a_superclass() {
     let types = Types::new()
+        .with_project_types(["Base".to_owned()])
         .with_shape(root("Base", vec![setter("setName", "name")]))
         .with_shape(class("Account", "Base", vec![behavior("withdraw")]));
 
@@ -1975,4 +1977,125 @@ fn a_hybrid_finding_leaves_out_a_to_builder() {
             vec!["setBalance".to_owned()]
         ))
     );
+}
+
+fn library_base() -> TypeShape {
+    root(
+        "LibraryBase",
+        vec![
+            setter("setName", "name"),
+            setter("setTitle", "title"),
+            behavior("audit"),
+        ],
+    )
+}
+
+#[test]
+fn setters_inherited_from_a_library_class_do_not_make_a_project_class_a_hybrid() {
+    let types = Types::new()
+        .with_project_types(["Order".to_owned()])
+        .with_shape(library_base())
+        .with_shape(class("Order", "LibraryBase", vec![behavior("charge")]));
+
+    let classification = (
+        types.classify(&TypeRef::class("Order")),
+        types.hybrid_class("Order"),
+    );
+
+    assert_eq!(classification, (Classification::Object, None));
+}
+
+#[test]
+fn behavior_inherited_from_a_library_class_does_not_make_a_project_class_a_hybrid() {
+    let types = Types::new()
+        .with_project_types(["Address".to_owned()])
+        .with_shape(library_base())
+        .with_shape(class(
+            "Address",
+            "LibraryBase",
+            vec![setter("setCity", "city")],
+        ));
+
+    let classification = (
+        types.classify(&TypeRef::class("Address")),
+        types.hybrid_class("Address"),
+    );
+
+    assert_eq!(classification, (Classification::Object, None));
+}
+
+#[test]
+fn a_library_base_class_with_only_setters_leaves_a_project_data_structure_alone() {
+    let types = Types::new()
+        .with_project_types(["Address".to_owned()])
+        .with_shape(root("LibraryBase", vec![setter("setName", "name")]))
+        .with_shape(class(
+            "Address",
+            "LibraryBase",
+            vec![getter("getCity", "city")],
+        ));
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn setters_of_a_project_superclass_still_count_below_a_library_class() {
+    let types = Types::new()
+        .with_project_types(["Account".to_owned(), "Middle".to_owned()])
+        .with_shape(library_base())
+        .with_shape(class(
+            "Middle",
+            "LibraryBase",
+            vec![setter("setBalance", "balance")],
+        ))
+        .with_shape(class("Account", "Middle", vec![behavior("withdraw")]));
+
+    let finding = types.hybrid_class("Account");
+
+    assert_eq!(
+        finding,
+        Some(HybridClass::new(
+            "Account",
+            vec!["withdraw".to_owned()],
+            vec!["setBalance".to_owned()]
+        ))
+    );
+}
+
+#[test]
+fn a_hybrid_finding_names_only_project_methods() {
+    let types = Types::new()
+        .with_project_types(["Account".to_owned()])
+        .with_shape(library_base())
+        .with_shape(class(
+            "Account",
+            "LibraryBase",
+            vec![behavior("withdraw"), setter("setBalance", "balance")],
+        ));
+
+    let finding = types.hybrid_class("Account");
+
+    assert_eq!(
+        finding,
+        Some(HybridClass::new(
+            "Account",
+            vec!["withdraw".to_owned()],
+            vec!["setBalance".to_owned()]
+        ))
+    );
+}
+
+#[test]
+fn a_class_that_is_not_marked_as_a_project_type_still_counts_its_own_methods() {
+    let types = Types::new().with_shape(library_base()).with_shape(class(
+        "Account",
+        "LibraryBase",
+        vec![behavior("withdraw"), setter("setBalance", "balance")],
+    ));
+
+    let classification = types.classify(&TypeRef::class("Account"));
+
+    assert_eq!(classification, Classification::Hybrid);
 }
