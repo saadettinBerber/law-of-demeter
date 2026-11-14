@@ -16,5 +16,5 @@
 | [Generic tip argümanlarını çöz; eksik bir arayüz, davranışsız sınıfı bilinmeyen yapmasın.](README.md#veri-yapıları) | Yapıldı |
 | ["Projeyi denetle" kullanım senaryosunu, port'ları ve ayrıştırıcı modelinin domain'e çevrilmesini yaz; sahte adapter'larla sına.](README.md#mimari) | Yapıldı |
 | [CLI'yi ve metin raporunu bağla; uygun çağrıları kullanıcı isterse uydukları kuralla göster.](README.md#mimari) | Yapıldı |
-| [Gerçek projede çıkan yanlış alarmları kapat: konteyner sonucu, kütüphane tipi, değer nesnesi, miras alınan alan.](SCENARIOS.md) | Yapılmadı |
+| [Gerçek projede çıkan yanlış alarmları kapat: konteyner sonucu, kütüphane tipi, değer nesnesi, miras alınan alan.](SCENARIOS.md) | Yapıldı |
 | Gerçek bir Java projesinde dene; her yanlış alarmı yeni bir senaryoya dönüştür. | Yapılmadı |
