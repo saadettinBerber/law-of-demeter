@@ -104,11 +104,11 @@ impl Types {
     }
 
     fn classify_shape(&self, shape: &TypeShape) -> Classification {
-        self.inherited_jdk_classification(shape)
+        self.inherited_value_or_container(shape)
             .unwrap_or_else(|| classify_kind(shape))
     }
 
-    fn inherited_jdk_classification(&self, shape: &TypeShape) -> Option<Classification> {
+    fn inherited_value_or_container(&self, shape: &TypeShape) -> Option<Classification> {
         shape
             .supertypes()
             .iter()
