@@ -65,8 +65,16 @@ const CONTAINERS: [&str; 38] = [
     "java.util.concurrent.ConcurrentLinkedQueue",
 ];
 
+const DATA_STRUCTURES: [&str; 3] = [
+    "java.util.Map$Entry",
+    "java.util.AbstractMap$SimpleEntry",
+    "java.util.AbstractMap$SimpleImmutableEntry",
+];
+
 pub(super) fn classify(name: &str) -> Option<Classification> {
-    if is_listed(name, &VALUES, &VALUE_PACKAGES) {
+    if DATA_STRUCTURES.contains(&name) {
+        Some(Classification::DataStructure)
+    } else if is_listed(name, &VALUES, &VALUE_PACKAGES) {
         Some(Classification::Value)
     } else if is_listed(name, &CONTAINERS, &CONTAINER_PACKAGES) {
         Some(Classification::Container)

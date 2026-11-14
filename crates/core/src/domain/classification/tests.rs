@@ -627,3 +627,19 @@ fn names_that_only_start_with_a_query_word_are_not_repository_queries() {
 
     assert_eq!(queries, vec![false; names.len()]);
 }
+
+#[test]
+fn a_map_entry_is_a_data_structure_without_a_shape() {
+    let names = [
+        "java.util.Map$Entry",
+        "java.util.AbstractMap$SimpleEntry",
+        "java.util.AbstractMap$SimpleImmutableEntry",
+    ];
+
+    let classifications = classify_names(&Types::new(), &names);
+
+    assert_eq!(
+        classifications,
+        vec![Classification::DataStructure; names.len()]
+    );
+}
