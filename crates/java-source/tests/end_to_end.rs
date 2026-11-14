@@ -2,7 +2,9 @@ use std::path::Path;
 
 use law_of_demeter_core::domain::classification::{Classification, Types};
 use law_of_demeter_core::domain::method::{Reason, Verdict};
-use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use law_of_demeter_core::domain::type_shape::{
+    FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
+};
 use law_of_demeter_java_source::map_source;
 
 const JDK_TYPES: &[&str] = &[
@@ -630,6 +632,49 @@ fn allowed_11_a_call_on_a_library_object() {
         [
             Verdict::allowed("writeLock", 3, Reason::field("lock")),
             Verdict::allowed("lock", 3, Reason::library(TypeRef::class(write_lock))),
+        ]
+    );
+}
+
+#[test]
+fn allowed_12_a_call_on_an_immutable_value_object() {
+    let version = TypeRef::class("Version");
+    let types = Types::new()
+        .with_shape(class("Order").with_method(getter("getVersion", "version", "Version")))
+        .with_shape(
+            class("Version")
+                .with_superclass(TypeRef::class("java.lang.Object"))
+                .with_field(FieldShape::new("major", TypeRef::primitive("int")).as_final())
+                .with_method(
+                    MethodShape::new("getMajor")
+                        .reading("major")
+                        .returning(TypeRef::primitive("int")),
+                )
+                .with_method(
+                    MethodShape::new("equals")
+                        .with_parameters(vec![TypeRef::class("java.lang.Object")]),
+                )
+                .with_method(MethodShape::new("hashCode").returning(TypeRef::primitive("int")))
+                .with_method(
+                    MethodShape::new("isCompatibleWith")
+                        .with_parameters(vec![version.clone()])
+                        .returning(TypeRef::primitive("boolean")),
+                ),
+        )
+        .with_project_types(["C".to_owned(), "Order".to_owned(), "Version".to_owned()]);
+    let snippet = "boolean compatible(Order order, Version required) {\n    return order.getVersion().isCompatibleWith(required);\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "compatible", &types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getVersion", 3, Reason::parameter("order")),
+            Verdict::allowed(
+                "isCompatibleWith",
+                3,
+                Reason::classified(Classification::Value, version)
+            ),
         ]
     );
 }
