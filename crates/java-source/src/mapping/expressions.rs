@@ -55,8 +55,11 @@ impl MethodMapper<'_> {
                     Expression::operation(vec![target])
                 }
             }
+            model::Expression::InstanceOf {
+                operand, bindings, ..
+            } => self.instance_of(operand, bindings),
+            model::Expression::Switch(switch) => self.switch(switch),
             model::Expression::Literal => Expression::literal(),
-            _ => Expression::literal(),
         }
     }
 

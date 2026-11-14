@@ -80,7 +80,7 @@ impl MethodMapper<'_> {
         }
     }
 
-    fn evaluate(&mut self, expression: &Expression) {
+    pub(super) fn evaluate(&mut self, expression: &Expression) {
         let value = self.expression(expression);
         self.steps.evaluate(value);
     }

@@ -1,4 +1,5 @@
 mod expressions;
+mod patterns;
 mod statements;
 mod steps;
 mod types;
