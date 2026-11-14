@@ -1,6 +1,10 @@
 use std::path::Path;
 
-use super::{CheckProject, Finding, ReadError, SourceFile, SourceReader, TypeReading, TypeSource};
+use super::{
+    CheckProject, Finding, HybridFinding, ReadError, SourceFile, SourceReader, TypeReading,
+    TypeSource,
+};
+use crate::domain::classification::Types;
 use crate::domain::method::{Call, Expression, Method, Reason, Verdict};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -80,4 +84,37 @@ fn every_call_of_every_method_becomes_a_finding_with_its_location() {
             ),
         ]
     );
+}
+
+fn account_shape() -> TypeShape {
+    TypeShape::new("Account", TypeKind::Class)
+        .with_method(
+            MethodShape::new("getBalance")
+                .reading("balance")
+                .returning(TypeRef::primitive("int")),
+        )
+        .with_method(
+            MethodShape::new("setBalance")
+                .writing("balance")
+                .with_parameters(vec![TypeRef::primitive("int")]),
+        )
+        .with_method(MethodShape::new("withdraw"))
+}
+
+#[test]
+fn a_declared_class_that_is_a_hybrid_becomes_a_hybrid_finding() {
+    let path = Path::new("src/Account.java");
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        path,
+        vec!["Account".to_owned(), "Unknown".to_owned()],
+        Vec::new(),
+    ))]);
+    let hybrid = Types::new()
+        .with_shape(account_shape())
+        .hybrid_class("Account")
+        .expect("Account is a hybrid");
+
+    let report = CheckProject::new(&sources, &FakeTypes(vec![account_shape()])).execute();
+
+    assert_eq!(report.hybrid_classes(), [HybridFinding::new(path, hybrid)]);
 }
