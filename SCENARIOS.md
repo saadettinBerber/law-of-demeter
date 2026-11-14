@@ -18,8 +18,6 @@
 
 - ❌ Henüz davranmıyor. Kural henüz yazılmadığı için şimdilik bütün senaryolar ❌.
 
-- — Karar verilmeden beklenen davranış belli değil.
-
 | Bölüm | Senaryo | Beklenen | Durum |
 |---|---|---|---|
 | Uygun değil | 1. Getter'ın döndürdüğü nesnenin metodunu çağırmak | Raporlanır | ❌ |
@@ -28,6 +26,8 @@
 | Uygun değil | 4. Getter'ın döndürdüğü koleksiyonu değiştirmek | Raporlanır | ❌ |
 | Uygun değil | 5. Hibrit sınıf | Raporlanır | ❌ |
 | Uygun değil | 6. İç koleksiyonun elemanlarını dışarıdan değiştirmek | Raporlanır | ❌ |
+| Uygun değil | 7. Veri yapısının taşıdığı nesneye uzanmak | Raporlanır | ❌ |
+| Uygun değil | 8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak | Raporlanır | ❌ |
 | Uygun | 1. Parametreden değer okumak | Raporlanmaz | ❌ |
 | Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ❌ |
 | Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ❌ |
@@ -36,10 +36,9 @@
 | Uygun | 6. Factory'ler ve yeni nesneler | Raporlanmaz | ❌ |
 | Uygun | 7. Yabancıyı yalnızca başka bir metoda iletmek | Raporlanmaz | ❌ |
 | Uygun | 8. Kendi nesnesi ve alanları | Raporlanmaz | ❌ |
-| Karar bekleyen | 1. Davranışı olan bir nesneyi taşıyan olay | Karara bağlı | — |
-| Karar bekleyen | 2. Bir nesneyi tutan sınıf: depo mu, sahip mi | Karara bağlı | — |
-| Karar bekleyen | 3. Durumu okuyup kararı dışarıda vermek | Karara bağlı | — |
+| Uygun | 9. Depo sorgusunun döndürdüğü nesneyle konuşmak | Raporlanmaz | ❌ |
 | Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ❌ |
+| Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ❌ |
 
 ## Uygun değil
 
@@ -134,6 +133,36 @@ void discount(Order order, int rate) {
 ```
 
 - **Neden:** f, `Order`'ın iç nesnelerine tek tek uzanıyor. İndirim kuralı `Order`'ın dışına dağılıyor.
+
+</details>
+
+<details>
+<summary><strong>7. Veri yapısının taşıdığı nesneye uzanmak</strong></summary>
+
+```java
+void onShipped(OrderShippedEvent event) {
+    log(event.getOrder().getTotal());
+}
+```
+
+- **Neden:** `OrderShippedEvent` bir veri yapısı, ama taşıdığı `Order` davranışı olan bir nesne. Veri yapısı yalnızca kendi alanlarını açar; içindeki nesneye uzanmak 1. senaryoyla aynı ihlal.
+
+- **Not:** Olay değeri kendisi taşırsa sorun kalmaz: `event.getTotal()`.
+
+</details>
+
+<details>
+<summary><strong>8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak</strong></summary>
+
+```java
+void checkout(Session session) {
+    session.getCart().clear();
+}
+```
+
+- **Neden:** `getCart()` ile alınan sepet `Session`'ın bir parçası. f sepete doğrudan uzanıyor; `Session`'ın sepet üzerindeki kuralları atlanabilir.
+
+- **Not:** Kural, `Session`'ın sepeti yalnızca saklayıp saklamadığını bilemez. Getter ile ulaşılan nesneyi her zaman yabancı sayar. f bunu sahibine söylemeli: `session.checkout()`. Depo sorgusu ayrı bir durum: Uygun 9.
 
 </details>
 
@@ -279,58 +308,18 @@ void pay(int amount) {
 
 </details>
 
-## Karar bekleyen
-
----
-
-**Bu durumların sonucu tasarıma bağlı.**
-
 <details>
-<summary><strong>1. Davranışı olan bir nesneyi taşıyan olay</strong></summary>
+<summary><strong>9. Depo sorgusunun döndürdüğü nesneyle konuşmak</strong></summary>
 
 ```java
-void onShipped(OrderShippedEvent event) {
-    log(event.getOrder().getTotal());
+void dispatch(OrderId id) {
+    orders.findById(id).ship();
 }
 ```
 
-- **Olay `Order`'ı taşırsa:** `Order` davranışı olan bir nesne olduğu için bu okuma kuralı çiğner.
+- **Neden:** Depo sorgusu, factory gibi f'ye kullanması için bir nesne verir. Dönen sipariş f'nin arkadaşı sayılır.
 
-- **Olay değerleri kopyalarsa:** `event.getTotal()` yeterli olur. Olay bir veri yapısına dönüşür ve sorun kalmaz.
-
-</details>
-
-<details>
-<summary><strong>2. Bir nesneyi tutan sınıf: depo mu, sahip mi</strong></summary>
-
-```java
-void checkout(Session session) {
-    session.getCart().clear();
-}
-```
-
-- **`Session` yalnızca saklıyorsa:** `getCart()` bir depodan okuma gibidir. Sepeti alıp onunla konuşmak serbest.
-
-- **`Session` sepetin sahibiyse:** Sepetin kuralları `Session`'a aittir. f bunu sahibine söylemeli: `session.checkout()`.
-
-</details>
-
-<details>
-<summary><strong>3. Durumu okuyup kararı dışarıda vermek</strong></summary>
-
-```java
-void ship(Order order) {
-    if (order.getStatus() == Status.PAID) {
-        order.markShipped();
-    }
-}
-```
-
-- **Law of Demeter açısından:** Uygun. `order` f'nin arkadaşı ve durum bir değer.
-
-- **Tell-Don't-Ask açısından:** Karar `Order`'ın içinde olmalı: `order.ship()`.
-
-- **Karar:** Kural yalnızca Law of Demeter'e mi bakacak, Tell-Don't-Ask ihlallerini de mi raporlayacak?
+- **Not:** `orders` C'nin bir alanı. Hangi metotların depo sorgusu sayılacağı, örneğin `find` ve `load` ile başlayanlar, tip sınıflandırmasıyla birlikte netleşecek.
 
 </details>
 
@@ -352,5 +341,22 @@ int totalOf(Order order) {
 - **Neden:** f yalnızca arkadaşının değerlerini okuyor; Law of Demeter çiğnenmiyor.
 
 - **Asıl sorun:** Hesap `Order`'a ait: `order.total()`. Bu durumun adı feature envy.
+
+</details>
+
+<details>
+<summary><strong>2. Durumu okuyup kararı dışarıda vermek</strong></summary>
+
+```java
+void ship(Order order) {
+    if (order.getStatus() == Status.PAID) {
+        order.markShipped();
+    }
+}
+```
+
+- **Neden:** `order` f'nin arkadaşı ve durum bir değer; Law of Demeter çiğnenmiyor.
+
+- **Asıl sorun:** Karar `Order`'ın içinde olmalı: `order.ship()`. Bu durumun adı Tell-Don't-Ask. Bulmak tahmine dayandığı ve çok yanlış alarm ürettiği için bu kural raporlamaz.
 
 </details>
