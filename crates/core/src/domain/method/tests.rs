@@ -828,3 +828,46 @@ fn calling_a_method_on_a_returned_value_is_allowed() {
         ]
     );
 }
+
+#[test]
+fn a_lambda_body_can_assign_a_local_with_a_declared_type() {
+    let types = Types::new().with_shape(TypeShape::new("Server", TypeKind::Record));
+    let read_ports = Method::new("Connector", "readPorts", 1).call(
+        Call::new(
+            Expression::field(
+                "jobs",
+                TypeRef::generic("java.util.List", vec![TypeRef::class("Job")]),
+            ),
+            "forEach",
+            2,
+        )
+        .with(
+            Lambda::new(&["job"])
+                .assign(
+                    "server",
+                    TypeRef::class("Server"),
+                    Expression::return_of(Call::new(Expression::local("job"), "server", 3)),
+                )
+                .call(Call::new(Expression::local("server"), "port", 4)),
+        ),
+    );
+
+    let verdicts = read_ports.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "server",
+                3,
+                Reason::lambda_parameter("job", Reason::field("jobs"))
+            ),
+            Verdict::allowed(
+                "port",
+                4,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Server"))
+            ),
+            Verdict::allowed("forEach", 2, Reason::field("jobs")),
+        ]
+    );
+}
