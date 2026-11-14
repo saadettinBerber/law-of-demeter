@@ -17,6 +17,11 @@ pub(crate) fn read_into(path: &Path, reading: &mut Reading) {
     }
 }
 
+fn is_module_descriptor(name: &str) -> bool {
+    let file = name.rsplit('/').next().unwrap_or(name);
+    file == "module-info.class"
+}
+
 fn has_extension(path: &Path, extension: &str) -> bool {
     path.extension().is_some_and(|actual| actual == extension)
 }
@@ -29,7 +34,7 @@ fn read_directory(directory: &Path, reading: &mut Reading) {
     for path in paths {
         if path.is_dir() {
             read_directory(&path, reading);
-        } else if has_extension(&path, "class") {
+        } else if has_extension(&path, "class") && !is_module_descriptor(&path.to_string_lossy()) {
             reading.record(read_class_file(&path));
         }
     }
@@ -76,7 +81,7 @@ fn read_jar_entry(
         .name()
         .map_err(|error| Error::new(path, error))?
         .into_owned();
-    if !name.ends_with(".class") || name.starts_with("META-INF/") {
+    if !name.ends_with(".class") || name.starts_with("META-INF/") || is_module_descriptor(&name) {
         return Ok(None);
     }
     let mut bytes = Vec::new();

@@ -743,3 +743,16 @@ fn lenient_reading_of_clean_input_matches_strict_reading() {
     assert!(reading.errors.is_empty());
     assert_eq!(reading.shapes, read_types(&paths).unwrap());
 }
+
+#[test]
+fn module_descriptors_are_skipped_without_being_read() {
+    let directory = scratch_directory("module-descriptors");
+    fs::write(directory.join("module-info.class"), b"not a class").unwrap();
+    let jar = directory.join("modular.jar");
+    write_jar(&jar, &[("module-info.class", b"not a class")]);
+
+    let reading = read_types_lenient(&[&directory, &jar]);
+
+    assert!(reading.shapes.is_empty());
+    assert!(reading.errors.is_empty(), "{:?}", reading.errors);
+}
