@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     This,
@@ -16,20 +18,23 @@ impl Expression {
         Self::ReturnOf(Box::new(call))
     }
 
-    fn verdicts(&self) -> Vec<Verdict> {
+    fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
         match self {
-            Self::ReturnOf(call) => call.verdicts(),
+            Self::ReturnOf(call) => call.verdicts(scope),
             Self::This | Self::Field(_) | Self::Parameter(_) | Self::Local(_) => Vec::new(),
         }
     }
 
-    fn standing(&self) -> Standing {
+    fn standing(&self, scope: &Scope) -> Standing {
         match self {
             Self::This => Standing::Friend(Reason::This),
             Self::Field(field) => Standing::Friend(Reason::field(field)),
             Self::Parameter(parameter) => Standing::Friend(Reason::parameter(parameter)),
             Self::ReturnOf(call) => Standing::Stranger(Reason::return_of(&call.name)),
-            Self::Local(name) => Standing::Stranger(Reason::unassigned_local(name)),
+            Self::Local(name) => scope
+                .get(name)
+                .cloned()
+                .unwrap_or_else(|| Standing::Stranger(Reason::unassigned_local(name))),
         }
     }
 
@@ -67,17 +72,23 @@ impl Call {
         Self::new(Expression::return_of(self), name)
     }
 
-    fn verdicts(&self) -> Vec<Verdict> {
-        let mut verdicts = self.receiver.verdicts();
-        verdicts.extend(self.arguments.iter().flat_map(Expression::verdicts));
-        verdicts.push(self.verdict());
+    fn verdicts(&self, scope: &Scope) -> Vec<Verdict> {
+        let mut verdicts = self.receiver.verdicts(scope);
+        verdicts.extend(
+            self.arguments
+                .iter()
+                .flat_map(|argument| argument.verdicts(scope)),
+        );
+        verdicts.push(self.verdict(scope));
         verdicts
     }
 
-    fn verdict(&self) -> Verdict {
-        self.receiver.standing().verdict(&self.name)
+    fn verdict(&self, scope: &Scope) -> Verdict {
+        self.receiver.standing(scope).verdict(&self.name)
     }
 }
+
+type Scope = HashMap<String, Standing>;
 
 #[derive(Debug, Clone)]
 enum Standing {
@@ -92,6 +103,13 @@ impl Standing {
             Self::Stranger(reason) => Verdict::violation(call, reason),
         }
     }
+
+    fn through(self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
+        match self {
+            Self::Friend(reason) => Self::Friend(wrap(reason)),
+            Self::Stranger(reason) => Self::Stranger(wrap(reason)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,6 +119,7 @@ pub enum Reason {
     Parameter(String),
     ReturnOf(String),
     UnassignedLocal(String),
+    Local { name: String, origin: Box<Reason> },
 }
 
 impl Reason {
@@ -114,6 +133,13 @@ impl Reason {
 
     pub fn return_of(call: &str) -> Self {
         Self::ReturnOf(call.to_owned())
+    }
+
+    pub fn local(name: &str, origin: Reason) -> Self {
+        Self::Local {
+            name: name.to_owned(),
+            origin: Box::new(origin),
+        }
     }
 
     pub fn unassigned_local(name: &str) -> Self {
@@ -143,9 +169,31 @@ impl Verdict {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Step {
+    Call(Call),
+    Assign { local: String, value: Expression },
+}
+
+impl Step {
+    fn verdicts(&self, scope: &mut Scope) -> Vec<Verdict> {
+        match self {
+            Self::Call(call) => call.verdicts(scope),
+            Self::Assign { local, value } => {
+                let verdicts = value.verdicts(scope);
+                let standing = value
+                    .standing(scope)
+                    .through(|origin| Reason::local(local, origin));
+                scope.insert(local.clone(), standing);
+                verdicts
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Method {
-    calls: Vec<Call>,
+    steps: Vec<Step>,
 }
 
 impl Method {
@@ -154,12 +202,24 @@ impl Method {
     }
 
     pub fn call(mut self, call: Call) -> Self {
-        self.calls.push(call);
+        self.steps.push(Step::Call(call));
+        self
+    }
+
+    pub fn assign(mut self, local: &str, value: Expression) -> Self {
+        self.steps.push(Step::Assign {
+            local: local.to_owned(),
+            value,
+        });
         self
     }
 
     pub fn verdicts(&self) -> Vec<Verdict> {
-        self.calls.iter().flat_map(Call::verdicts).collect()
+        let mut scope = Scope::new();
+        self.steps
+            .iter()
+            .flat_map(|step| step.verdicts(&mut scope))
+            .collect()
     }
 }
 

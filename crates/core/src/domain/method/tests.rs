@@ -107,3 +107,27 @@ fn calling_a_method_on_an_unassigned_local_is_a_violation() {
         )]
     );
 }
+
+#[test]
+fn calling_a_method_on_a_local_holding_a_returned_object_is_a_violation() {
+    let pay = Method::new()
+        .assign(
+            "customer",
+            Expression::return_of(Call::new(Expression::parameter("order"), "getCustomer")),
+        )
+        .call(Call::new(Expression::local("customer"), "getWallet").then("withdraw"));
+
+    let verdicts = pay.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", Reason::parameter("order")),
+            Verdict::violation(
+                "getWallet",
+                Reason::local("customer", Reason::return_of("getCustomer"))
+            ),
+            Verdict::violation("withdraw", Reason::return_of("getWallet")),
+        ]
+    );
+}
