@@ -12,6 +12,14 @@ pub enum Expression {
 }
 
 impl Expression {
+    pub fn field(name: &str) -> Self {
+        Self::Field(name.to_owned())
+    }
+
+    pub fn parameter(name: &str) -> Self {
+        Self::Parameter(name.to_owned())
+    }
+
     pub fn static_type(name: &str) -> Self {
         Self::StaticType(name.to_owned())
     }
@@ -53,14 +61,6 @@ impl Expression {
                 .cloned()
                 .unwrap_or_else(|| Standing::Stranger(Reason::unassigned_local(name))),
         }
-    }
-
-    pub fn field(name: &str) -> Self {
-        Self::Field(name.to_owned())
-    }
-
-    pub fn parameter(name: &str) -> Self {
-        Self::Parameter(name.to_owned())
     }
 }
 
