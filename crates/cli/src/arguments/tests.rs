@@ -48,3 +48,18 @@ fn classpath_entries_can_be_repeated_and_joined_with_colons() {
         })
     );
 }
+
+#[test]
+fn the_jdk_home_and_the_release_are_read() {
+    let command = parsed(&["-s", "src", "--jdk-home", "/opt/jdk-21", "--release", "17"]);
+
+    assert_eq!(
+        command,
+        Command::Check(Arguments {
+            sources: vec![PathBuf::from("src")],
+            jdk_home: Some(PathBuf::from("/opt/jdk-21")),
+            release: Some(17),
+            ..Arguments::default()
+        })
+    );
+}

@@ -26,6 +26,12 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
     while let Some(argument) = arguments.next() {
         if argument == "--source" || argument == "-s" {
             parsed.sources.extend(arguments.next().map(PathBuf::from));
+        } else if argument == "--jdk-home" {
+            parsed.jdk_home = arguments.next().map(PathBuf::from);
+        } else if argument == "--release" {
+            parsed.release = arguments
+                .next()
+                .and_then(|value| value.to_str()?.parse().ok());
         } else if argument == "--classpath" || argument == "-c" {
             parsed.classpath.extend(
                 arguments
