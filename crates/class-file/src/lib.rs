@@ -1,5 +1,6 @@
 mod error;
 mod shape;
+mod signature;
 mod source;
 
 use std::path::Path;
