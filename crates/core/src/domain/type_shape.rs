@@ -174,6 +174,8 @@ impl MethodShape {
 pub struct TypeShape {
     name: String,
     kind: TypeKind,
+    type_parameters: Vec<String>,
+    superclass: Option<TypeRef>,
     supertypes: Vec<TypeRef>,
     fields: Vec<FieldShape>,
     methods: Vec<MethodShape>,
@@ -184,15 +186,36 @@ impl TypeShape {
         Self {
             name: name.to_owned(),
             kind,
+            type_parameters: Vec::new(),
+            superclass: None,
             supertypes: Vec::new(),
             fields: Vec::new(),
             methods: Vec::new(),
         }
     }
 
+    pub fn with_type_parameter(mut self, name: &str) -> Self {
+        self.type_parameters.push(name.to_owned());
+        self
+    }
+
+    pub fn with_superclass(mut self, superclass: TypeRef) -> Self {
+        self.supertypes.push(superclass.clone());
+        self.superclass = Some(superclass);
+        self
+    }
+
     pub fn extending(mut self, supertype: TypeRef) -> Self {
         self.supertypes.push(supertype);
         self
+    }
+
+    pub fn type_parameters(&self) -> &[String] {
+        &self.type_parameters
+    }
+
+    pub fn superclass(&self) -> Option<&TypeRef> {
+        self.superclass.as_ref()
     }
 
     pub fn with_field(mut self, field: FieldShape) -> Self {
