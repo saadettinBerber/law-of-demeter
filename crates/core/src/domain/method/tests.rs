@@ -754,3 +754,118 @@ fn the_result_of_a_factory_call_on_a_stranger_is_a_stranger() {
         ]
     );
 }
+
+fn customers_with_queries() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("Order", TypeKind::Class).with_method(
+                MethodShape::new("getCustomer")
+                    .reading("customer")
+                    .returning(TypeRef::class("Customer")),
+            ),
+        )
+        .with_shape(
+            TypeShape::new("Customer", TypeKind::Class).with_method(
+                MethodShape::new("findLine")
+                    .with_parameters(vec![TypeRef::class("LineId")])
+                    .returning(TypeRef::class("OrderLine")),
+            ),
+        )
+        .with_shape(
+            TypeShape::new("OrderLine", TypeKind::Class)
+                .with_method(MethodShape::new("applyDiscount")),
+        )
+}
+
+#[test]
+fn the_result_of_a_query_called_on_a_stranger_is_a_stranger() {
+    let discount = Method::new("OrderService", "discount", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getCustomer",
+            2,
+        )
+        .then("findLine", 2)
+        .with(Expression::parameter("id", TypeRef::class("LineId")))
+        .then("applyDiscount", 2),
+    );
+
+    let verdicts = discount.verdicts(&customers_with_queries());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
+            Verdict::violation("findLine", 2, Reason::return_of("getCustomer")),
+            Verdict::violation("applyDiscount", 2, Reason::return_of("findLine")),
+        ]
+    );
+}
+
+#[test]
+fn the_result_of_a_query_called_on_this_is_a_stranger() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("OrderService", TypeKind::Class).with_method(
+                MethodShape::new("findLine")
+                    .with_parameters(vec![TypeRef::class("LineId")])
+                    .returning(TypeRef::class("OrderLine")),
+            ),
+        )
+        .with_shape(
+            TypeShape::new("OrderLine", TypeKind::Class)
+                .with_method(MethodShape::new("applyDiscount")),
+        );
+    let discount = Method::new("OrderService", "discount", 1).call(
+        Call::new(Expression::This, "findLine", 2)
+            .with(Expression::parameter("id", TypeRef::class("LineId")))
+            .then("applyDiscount", 2),
+    );
+
+    let verdicts = discount.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("findLine", 2, Reason::This),
+            Verdict::violation("applyDiscount", 2, Reason::return_of("findLine")),
+        ]
+    );
+}
+
+#[test]
+fn the_result_of_a_query_called_on_a_local_holding_a_field_is_a_friend() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("OrderRepository", TypeKind::Class).with_method(
+                MethodShape::new("findById")
+                    .with_parameters(vec![TypeRef::class("OrderId")])
+                    .returning(TypeRef::class("Order")),
+            ),
+        )
+        .with_shape(TypeShape::new("Order", TypeKind::Class).with_method(MethodShape::new("ship")));
+    let dispatch = Method::new("Dispatcher", "dispatch", 1)
+        .assign_var(
+            "repository",
+            Expression::field("orders", TypeRef::class("OrderRepository")),
+        )
+        .call(
+            Call::new(Expression::local("repository"), "findById", 3)
+                .with(Expression::parameter("id", TypeRef::class("OrderId")))
+                .then("ship", 3),
+        );
+
+    let verdicts = dispatch.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "findById",
+                3,
+                Reason::local("repository", Reason::field("orders"))
+            ),
+            Verdict::allowed("ship", 3, Reason::query_result("findById")),
+        ]
+    );
+}
