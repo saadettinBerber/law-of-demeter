@@ -680,6 +680,24 @@ fn allowed_12_a_call_on_an_immutable_value_object() {
 }
 
 #[test]
+fn allowed_13_a_field_inherited_from_a_superclass() {
+    let types = Types::new()
+        .with_shape(class("PaymentService").with_superclass(TypeRef::class("BaseService")))
+        .with_shape(
+            class("BaseService").with_field(FieldShape::new("wallet", TypeRef::class("Wallet"))),
+        )
+        .with_shape(class("Wallet").with_method(MethodShape::new("withdraw")));
+    let source = "class PaymentService extends BaseService {\n    void pay(int amount) {\n        wallet.withdraw(amount);\n    }\n}";
+
+    let verdicts = verdicts_of(source, "PaymentService", "pay", &types);
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("withdraw", 3, Reason::field("wallet"))]
+    );
+}
+
+#[test]
 fn out_of_scope_1_computing_outside_an_object_on_friend_values() {
     let snippet =
         "int totalOf(Order order) {\n    return order.getPrice() * order.getQuantity();\n}";
