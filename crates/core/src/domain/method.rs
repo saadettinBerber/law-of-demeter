@@ -7,6 +7,17 @@ pub enum Expression {
 }
 
 impl Expression {
+    pub fn return_of(call: Call) -> Self {
+        Self::ReturnOf(Box::new(call))
+    }
+
+    fn verdicts(&self) -> Vec<Verdict> {
+        match self {
+            Self::ReturnOf(call) => call.verdicts(),
+            Self::This | Self::Field(_) | Self::Parameter(_) => Vec::new(),
+        }
+    }
+
     pub fn field(name: &str) -> Self {
         Self::Field(name.to_owned())
     }
@@ -20,6 +31,7 @@ impl Expression {
 pub struct Call {
     receiver: Expression,
     name: String,
+    arguments: Vec<Expression>,
 }
 
 impl Call {
@@ -27,18 +39,22 @@ impl Call {
         Self {
             receiver,
             name: name.to_owned(),
+            arguments: Vec::new(),
         }
     }
 
+    pub fn with(mut self, argument: Expression) -> Self {
+        self.arguments.push(argument);
+        self
+    }
+
     pub fn then(self, name: &str) -> Self {
-        Self::new(Expression::ReturnOf(Box::new(self)), name)
+        Self::new(Expression::return_of(self), name)
     }
 
     fn verdicts(&self) -> Vec<Verdict> {
-        let mut verdicts = match &self.receiver {
-            Expression::ReturnOf(previous) => previous.verdicts(),
-            Expression::This | Expression::Field(_) | Expression::Parameter(_) => Vec::new(),
-        };
+        let mut verdicts = self.receiver.verdicts();
+        verdicts.extend(self.arguments.iter().flat_map(Expression::verdicts));
         verdicts.push(self.verdict());
         verdicts
     }

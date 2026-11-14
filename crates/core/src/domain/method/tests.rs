@@ -36,3 +36,21 @@ fn calling_methods_on_this_and_own_fields_is_allowed() {
         ]
     );
 }
+
+#[test]
+fn passing_a_returned_object_as_an_argument_is_allowed() {
+    let notify_customer =
+        Method::new().call(Call::new(Expression::field("notifier"), "send").with(
+            Expression::return_of(Call::new(Expression::parameter("order"), "getCustomer")),
+        ));
+
+    let verdicts = notify_customer.verdicts();
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", Reason::parameter("order")),
+            Verdict::allowed("send", Reason::field("notifier")),
+        ]
+    );
+}
