@@ -1,25 +1,38 @@
 # Law of Demeter
 
-Bir metot yalnızca yakın çevresiyle konuşur. Yakın çevre dört şeyden oluşur:
+Kural iki kısaltmayla anlatılır:
 
-- Metodun ait olduğu nesne
-- Metodun parametreleri
-- Metodun içinde oluşturduğu nesneler
-- Nesnenin kendi alanları
+- **C:** Bir sınıf.
+- **f:** C sınıfındaki bir metot.
 
-Bunlardan birinin döndürdüğü başka bir nesneyle konuşmak kuralı çiğner. Kısaca: arkadaşlarınla konuş, yabancılarla konuşma.
+f yalnızca şu nesnelerin metotlarını çağırabilir:
+
+- C'nin kendisi
+- f'nin içinde oluşturulan bir nesne
+- f'ye argüman olarak verilen bir nesne
+- C'nin bir alanında tutulan nesne
+
+f, bu nesnelerin döndürdüğü nesnelerin metotlarını çağırmaz. Kısaca: arkadaşlarınla konuş, yabancılarla konuşma.
 
 ```java
-order.getCustomer().getWallet().withdraw(amount);
+class OrderService {
+    void pay(Order order, Money amount) {
+        order.getCustomer().getWallet().withdraw(amount);
+    }
+}
 ```
 
-Bu satır siparişten müşteriye, müşteriden cüzdana uzanıyor. Çağıran, siparişin bir müşterisi, müşterinin de bir cüzdanı olduğunu bilmek zorunda kalıyor. Cüzdanın yeri değişirse bu satır da değişir.
+Burada C `OrderService`, f `pay` metodu. `order`, f'ye argüman olarak verildiği için f onun metodunu çağırabilir; `order.getCustomer()` serbest. Bu çağrının döndürdüğü müşteri ise listede yok. `getWallet()` ve `withdraw()` yabancılarla konuşuyor. Cüzdanın yeri değişirse `pay` de değişmek zorunda kalır.
 
 ```java
-order.charge(amount);
+class OrderService {
+    void pay(Order order, Money amount) {
+        order.charge(amount);
+    }
+}
 ```
 
-Burada çağıran yalnızca siparişe ne yapacağını söylüyor. Müşteriye ve cüzdana nasıl ulaşılacağını sipariş biliyor.
+f artık yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
 
 ## Veri yapıları
 
