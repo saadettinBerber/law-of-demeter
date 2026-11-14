@@ -1,3 +1,5 @@
+mod jdk;
+
 use std::collections::HashMap;
 
 use super::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
@@ -29,18 +31,41 @@ impl Types {
 
     pub fn classify(&self, type_ref: &TypeRef) -> Classification {
         match type_ref {
-            TypeRef::Class { name, .. } => self
-                .shapes
-                .get(name)
-                .map_or(Classification::Unknown, classify_shape),
-            TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => {
-                Classification::Unknown
-            }
+            TypeRef::Class { name, .. } => self.classify_named(name),
+            TypeRef::Primitive(_) => Classification::Value,
+            TypeRef::Array(_) => Classification::Container,
+            TypeRef::Variable(_) => Classification::Unknown,
         }
+    }
+
+    fn classify_named(&self, name: &str) -> Classification {
+        jdk::classify(name).unwrap_or_else(|| {
+            self.shapes
+                .get(name)
+                .map_or(Classification::Unknown, |shape| self.classify_shape(shape))
+        })
+    }
+
+    fn classify_shape(&self, shape: &TypeShape) -> Classification {
+        self.inherited_jdk_classification(shape)
+            .unwrap_or_else(|| classify_kind(shape))
+    }
+
+    fn inherited_jdk_classification(&self, shape: &TypeShape) -> Option<Classification> {
+        shape
+            .supertypes()
+            .iter()
+            .map(|supertype| self.classify(supertype))
+            .find(|classification| {
+                matches!(
+                    classification,
+                    Classification::Value | Classification::Container
+                )
+            })
     }
 }
 
-fn classify_shape(shape: &TypeShape) -> Classification {
+fn classify_kind(shape: &TypeShape) -> Classification {
     match shape.kind() {
         TypeKind::Record => Classification::DataStructure,
         TypeKind::Class => classify_class(shape),

@@ -206,3 +206,142 @@ fn a_data_structure_and_the_object_it_carries_are_told_apart() {
         (Classification::DataStructure, Classification::Object)
     );
 }
+
+fn classify_names(types: &Types, names: &[&str]) -> Vec<Classification> {
+    names
+        .iter()
+        .map(|name| types.classify(&TypeRef::class(name)))
+        .collect()
+}
+
+#[test]
+fn well_known_jdk_values_are_values_without_a_shape() {
+    let names = [
+        "java.lang.String",
+        "java.lang.StringBuilder",
+        "java.lang.Integer",
+        "java.lang.Boolean",
+        "java.lang.Character",
+        "java.lang.Number",
+        "java.math.BigDecimal",
+        "java.time.Instant",
+        "java.time.Duration",
+        "java.time.temporal.ChronoUnit",
+        "java.util.UUID",
+        "java.util.Date",
+    ];
+
+    let classifications = classify_names(&Types::new(), &names);
+
+    assert_eq!(classifications, vec![Classification::Value; names.len()]);
+}
+
+#[test]
+fn primitives_are_values() {
+    let classification = Types::new().classify(&int());
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn jdk_collections_maps_optionals_and_streams_are_containers_without_a_shape() {
+    let names = [
+        "java.util.List",
+        "java.util.ArrayList",
+        "java.util.Set",
+        "java.util.Map",
+        "java.util.HashMap",
+        "java.util.Collection",
+        "java.util.Optional",
+        "java.util.stream.Stream",
+        "java.util.stream.IntStream",
+        "java.util.concurrent.ConcurrentHashMap",
+        "java.lang.Iterable",
+    ];
+
+    let classifications = classify_names(&Types::new(), &names);
+
+    assert_eq!(
+        classifications,
+        vec![Classification::Container; names.len()]
+    );
+}
+
+#[test]
+fn an_array_is_a_container() {
+    let classification = Types::new().classify(&TypeRef::array(TypeRef::class("Order")));
+
+    assert_eq!(classification, Classification::Container);
+}
+
+#[test]
+fn a_subtype_of_number_is_a_value() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Money", TypeKind::Class)
+                .extending(TypeRef::class("java.lang.Number"))
+                .with_method(
+                    MethodShape::new("add").with_parameters(vec![TypeRef::class("Money")]),
+                ),
+        )
+        .with_shape(TypeShape::new("Euro", TypeKind::Class).extending(TypeRef::class("Money")));
+
+    let classifications = classify_names(&types, &["Money", "Euro"]);
+
+    assert_eq!(
+        classifications,
+        [Classification::Value, Classification::Value]
+    );
+}
+
+#[test]
+fn a_subtype_of_a_collection_is_a_container() {
+    let order_list = TypeShape::new("OrderList", TypeKind::Class).extending(TypeRef::generic(
+        "java.util.ArrayList",
+        vec![TypeRef::class("Order")],
+    ));
+    let order_source = TypeShape::new("OrderSource", TypeKind::Interface).extending(
+        TypeRef::generic("java.util.List", vec![TypeRef::class("Order")]),
+    );
+    let types = Types::new().with_shape(order_list).with_shape(order_source);
+
+    let classifications = classify_names(&types, &["OrderList", "OrderSource"]);
+
+    assert_eq!(classifications, [Classification::Container; 2]);
+}
+
+#[test]
+fn a_type_with_no_shape_is_unknown() {
+    let types = Types::new();
+
+    let classification = types.classify(&TypeRef::class("com.example.Mystery"));
+
+    assert_eq!(classification, Classification::Unknown);
+}
+
+#[test]
+fn a_type_variable_is_unknown() {
+    let classification = Types::new().classify(&TypeRef::variable("T"));
+
+    assert_eq!(classification, Classification::Unknown);
+}
+
+#[test]
+fn a_supertype_that_is_neither_value_nor_container_does_not_decide_the_classification() {
+    let types = Types::new()
+        .with_shape(TypeShape::new("Base", TypeKind::Class).with_method(MethodShape::new("charge")))
+        .with_shape(
+            TypeShape::new("Address", TypeKind::Class)
+                .extending(TypeRef::class("Base"))
+                .extending(TypeRef::class("java.lang.Comparable"))
+                .with_method(
+                    MethodShape::new("getCity")
+                        .returning(string())
+                        .reading("city"),
+                ),
+        );
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
