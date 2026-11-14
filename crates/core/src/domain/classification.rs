@@ -5,7 +5,7 @@ pub use naming::{is_factory_method, is_repository_query};
 
 use std::collections::{HashMap, HashSet};
 
-use super::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use super::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Classification {
@@ -239,7 +239,7 @@ impl Types {
         }
         let mut methods: Vec<&MethodShape> = Vec::new();
         let mut hidden: HashSet<(&str, usize)> = HashSet::new();
-        for class in chain {
+        for class in &chain {
             let declared: Vec<_> = class
                 .methods()
                 .iter()
@@ -252,11 +252,18 @@ impl Types {
             );
             hidden.extend(declared.iter().map(|method| signature(method)));
         }
-        Members { methods, complete }
+        Members {
+            chain,
+            methods,
+            complete,
+        }
     }
 
     fn classify_class(&self, shape: &TypeShape) -> Classification {
         let members = self.class_members(shape);
+        if members.is_value_object() {
+            return Classification::Value;
+        }
         let has_setter = members.methods.iter().any(|method| is_setter(method));
         let has_behavior = members.methods.iter().any(|method| is_behavior(method));
         match (has_behavior, has_setter, members.complete) {
@@ -312,8 +319,39 @@ impl HybridClass {
 }
 
 struct Members<'a> {
+    chain: Vec<&'a TypeShape>,
     methods: Vec<&'a MethodShape>,
     complete: bool,
+}
+
+impl Members<'_> {
+    fn is_value_object(&self) -> bool {
+        let mut fields = self
+            .chain
+            .iter()
+            .flat_map(|class| class.fields())
+            .filter(|field| !field.is_static())
+            .peekable();
+        let has_fields = fields.peek().is_some();
+        self.complete
+            && has_fields
+            && fields.all(FieldShape::is_final)
+            && !self.methods.iter().any(|method| is_setter(method))
+            && self.declares("equals", 1)
+            && self.declares("hashCode", 0)
+    }
+
+    fn declares(&self, name: &str, parameter_count: usize) -> bool {
+        self.chain
+            .iter()
+            .flat_map(|class| class.methods())
+            .any(|method| {
+                method.name() == name
+                    && method.parameters().len() == parameter_count
+                    && method.is_public()
+                    && !method.is_static()
+            })
+    }
 }
 
 pub fn element_type(type_ref: &TypeRef) -> Option<&TypeRef> {

@@ -1663,3 +1663,229 @@ fn the_root_shapes_in_the_catalog_do_not_change_what_counts_as_behavior() {
         ]
     );
 }
+
+fn final_field(name: &str) -> FieldShape {
+    FieldShape::new(name, int()).as_final()
+}
+
+fn equals_and_hash_code() -> Vec<MethodShape> {
+    vec![
+        MethodShape::new("equals").with_parameters(vec![TypeRef::class("java.lang.Object")]),
+        MethodShape::new("hashCode").returning(int()),
+    ]
+}
+
+fn version(fields: Vec<FieldShape>, methods: Vec<MethodShape>) -> TypeShape {
+    let shape = TypeShape::new("Version", TypeKind::Class)
+        .with_superclass(TypeRef::class("java.lang.Object"));
+    let shape = fields.into_iter().fold(shape, TypeShape::with_field);
+    methods.into_iter().fold(shape, TypeShape::with_method)
+}
+
+fn with_value_semantics(mut methods: Vec<MethodShape>) -> Vec<MethodShape> {
+    methods.extend(equals_and_hash_code());
+    methods
+}
+
+#[test]
+fn an_immutable_class_with_equals_and_hash_code_is_a_value_even_with_behavior() {
+    let compatible = MethodShape::new("isCompatibleWith")
+        .with_parameters(vec![TypeRef::class("Version")])
+        .returning(TypeRef::primitive("boolean"));
+    let shape = version(
+        vec![final_field("major"), final_field("minor")],
+        with_value_semantics(vec![getter("getMajor", "major"), compatible]),
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn an_immutable_class_with_only_getters_and_value_semantics_is_a_value() {
+    let shape = version(
+        vec![final_field("major")],
+        with_value_semantics(vec![getter("getMajor", "major")]),
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn generated_equals_and_hash_code_count_like_hand_written_ones() {
+    let shape = version(
+        vec![final_field("major")],
+        vec![
+            MethodShape::new("equals")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .generated(),
+            MethodShape::new("hashCode").returning(int()).generated(),
+            behavior("bump"),
+        ],
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn a_class_with_a_mutable_field_is_not_a_value() {
+    let shape = version(
+        vec![final_field("major"), FieldShape::new("minor", int())],
+        with_value_semantics(vec![behavior("bump")]),
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn a_class_with_a_setter_is_not_a_value() {
+    let shape = version(
+        vec![final_field("major")],
+        with_value_semantics(vec![setter("setMajor", "major"), behavior("bump")]),
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Hybrid);
+}
+
+#[test]
+fn a_class_missing_equals_or_hash_code_is_not_a_value() {
+    let only_hash_code = version(
+        vec![final_field("major")],
+        vec![
+            MethodShape::new("hashCode").returning(int()),
+            behavior("bump"),
+        ],
+    );
+    let only_equals = version(
+        vec![final_field("major")],
+        vec![
+            MethodShape::new("equals").with_parameters(vec![TypeRef::class("java.lang.Object")]),
+            behavior("bump"),
+        ],
+    );
+
+    let classifications = (classify(only_hash_code), classify(only_equals));
+
+    assert_eq!(
+        classifications,
+        (Classification::Object, Classification::Object)
+    );
+}
+
+#[test]
+fn equals_and_hash_code_of_the_object_shape_do_not_make_a_class_a_value() {
+    let object = TypeShape::new("java.lang.Object", TypeKind::Class)
+        .with_method(
+            MethodShape::new("equals").with_parameters(vec![TypeRef::class("java.lang.Object")]),
+        )
+        .with_method(MethodShape::new("hashCode").returning(int()));
+    let types = Types::new()
+        .with_shape(object)
+        .with_shape(version(vec![final_field("major")], vec![behavior("bump")]));
+
+    let classification = types.classify(&TypeRef::class("Version"));
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn static_fields_are_ignored_when_checking_that_every_field_is_final() {
+    let shape = version(
+        vec![
+            final_field("major"),
+            FieldShape::new("instances", int()).as_static(),
+        ],
+        with_value_semantics(vec![behavior("bump")]),
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn a_class_without_instance_fields_is_not_a_value() {
+    let shape = version(
+        vec![FieldShape::new("instances", int()).as_static().as_final()],
+        with_value_semantics(vec![behavior("bump")]),
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn a_superclass_with_a_mutable_field_keeps_a_class_from_being_a_value() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Base", TypeKind::Class)
+                .with_superclass(TypeRef::class("java.lang.Object"))
+                .with_field(FieldShape::new("version", int())),
+        )
+        .with_shape(
+            class(
+                "Version",
+                "Base",
+                with_value_semantics(vec![behavior("bump")]),
+            )
+            .with_field(final_field("major")),
+        );
+
+    let classification = types.classify(&TypeRef::class("Version"));
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn equals_and_hash_code_inherited_from_a_project_superclass_count() {
+    let types = Types::new()
+        .with_shape(
+            TypeShape::new("Base", TypeKind::Class)
+                .with_superclass(TypeRef::class("java.lang.Object"))
+                .with_field(final_field("id"))
+                .with_method(equals_and_hash_code().remove(0))
+                .with_method(equals_and_hash_code().remove(1)),
+        )
+        .with_shape(
+            class("Version", "Base", vec![behavior("bump")]).with_field(final_field("major")),
+        );
+
+    let classification = types.classify(&TypeRef::class("Version"));
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn a_class_with_a_missing_superclass_is_not_a_value() {
+    let shape = class(
+        "Version",
+        "com.example.LibraryBase",
+        with_value_semantics(vec![]),
+    )
+    .with_field(final_field("major"));
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Unknown);
+}
+
+#[test]
+fn a_record_with_behavior_stays_a_data_structure() {
+    let shape = TypeShape::new("Range", TypeKind::Record)
+        .with_field(final_field("low"))
+        .with_method(behavior("contains"));
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
