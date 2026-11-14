@@ -84,6 +84,8 @@ pub struct MethodShape {
     is_static: bool,
     is_public: bool,
     is_generated: bool,
+    reads_field: Option<String>,
+    writes_field: Option<String>,
 }
 
 impl MethodShape {
@@ -95,7 +97,19 @@ impl MethodShape {
             is_static: false,
             is_public: true,
             is_generated: false,
+            reads_field: None,
+            writes_field: None,
         }
+    }
+
+    pub fn reading(mut self, field: &str) -> Self {
+        self.reads_field = Some(field.to_owned());
+        self
+    }
+
+    pub fn writing(mut self, field: &str) -> Self {
+        self.writes_field = Some(field.to_owned());
+        self
     }
 
     pub fn with_parameters(mut self, parameters: Vec<TypeRef>) -> Self {
@@ -145,6 +159,14 @@ impl MethodShape {
 
     pub fn is_generated(&self) -> bool {
         self.is_generated
+    }
+
+    pub fn reads_field(&self) -> Option<&str> {
+        self.reads_field.as_deref()
+    }
+
+    pub fn writes_field(&self) -> Option<&str> {
+        self.writes_field.as_deref()
     }
 }
 
