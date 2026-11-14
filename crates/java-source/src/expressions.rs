@@ -244,7 +244,11 @@ impl Reader<'_> {
             .unwrap_or_default();
         scope.open_frame();
         for parameter in &parameters {
-            scope.declare(&parameter.name, Binding::LambdaParameter);
+            scope.declare(
+                &parameter.name,
+                Binding::LambdaParameter,
+                parameter.declared_type.clone().unwrap_or(DeclaredType::Var),
+            );
         }
         let body = match node.child_by_field_name("body") {
             Some(body) if body.kind() == "block" => self.block_statements(body, scope),
@@ -353,7 +357,7 @@ impl Reader<'_> {
             }
         };
         for binding in &bindings {
-            scope.declare(&binding.name, Binding::Local);
+            scope.declare(&binding.name, Binding::Local, binding.declared_type.clone());
         }
         Expression::InstanceOf {
             operand: Box::new(operand),
@@ -415,7 +419,7 @@ impl Reader<'_> {
             .flat_map(|pattern| self.pattern_bindings(pattern, scope))
             .collect();
         for binding in &bindings {
-            scope.declare(&binding.name, Binding::Local);
+            scope.declare(&binding.name, Binding::Local, binding.declared_type.clone());
         }
         let guard = labels
             .iter()

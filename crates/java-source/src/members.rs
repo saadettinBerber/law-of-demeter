@@ -265,7 +265,11 @@ impl Reader<'_> {
     ) -> Option<Vec<Statement>> {
         let body = method.child_by_field_name("body")?;
         for parameter in parameters {
-            scope.declare(&parameter.name, Binding::Parameter);
+            scope.declare(
+                &parameter.name,
+                Binding::Parameter,
+                parameter.declared_type.clone(),
+            );
         }
         Some(self.block_statements(body, scope))
     }

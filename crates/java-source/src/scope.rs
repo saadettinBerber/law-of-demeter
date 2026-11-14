@@ -1,5 +1,5 @@
 use crate::declarations::Declaration;
-use crate::model::{Class, Expression};
+use crate::model::{Class, DeclaredType, Expression, Parameter};
 
 #[derive(Clone, Copy)]
 pub(crate) enum Binding {
@@ -21,13 +21,25 @@ impl Binding {
 
 #[derive(Clone, Default)]
 pub(crate) struct Capture {
-    variables: Vec<String>,
+    variables: Vec<(String, DeclaredType)>,
     types: Vec<(String, String)>,
+}
+
+impl Capture {
+    pub(crate) fn variables(&self) -> Vec<Parameter> {
+        self.variables
+            .iter()
+            .map(|(name, declared_type)| Parameter {
+                name: name.clone(),
+                declared_type: declared_type.clone(),
+            })
+            .collect()
+    }
 }
 
 #[derive(Default)]
 struct Frame {
-    variables: Vec<(String, Binding)>,
+    variables: Vec<(String, Binding, DeclaredType)>,
     types: Vec<(String, String)>,
 }
 
@@ -71,9 +83,11 @@ impl Scope {
         self.frames.pop();
     }
 
-    pub(crate) fn declare(&mut self, name: &str, binding: Binding) {
+    pub(crate) fn declare(&mut self, name: &str, binding: Binding, declared_type: DeclaredType) {
         if let Some(frame) = self.frames.last_mut() {
-            frame.variables.push((name.to_owned(), binding));
+            frame
+                .variables
+                .push((name.to_owned(), binding, declared_type));
         }
     }
 
@@ -88,8 +102,8 @@ impl Scope {
             .iter()
             .rev()
             .flat_map(|frame| frame.variables.iter().rev())
-            .find(|(declared, _)| declared == name)
-            .map(|(_, binding)| binding.expression(name))
+            .find(|(declared, _, _)| declared == name)
+            .map(|(_, binding, _)| binding.expression(name))
     }
 
     pub(crate) fn lookup_type(&self, name: &str) -> Option<&str> {
@@ -106,15 +120,18 @@ impl Scope {
         self.captured
             .variables
             .iter()
-            .any(|captured| captured == name)
+            .any(|(captured, _)| captured == name)
     }
 
     pub(crate) fn capture(&self) -> Capture {
         let mut capture = self.captured.clone();
         for frame in &self.frames {
-            capture
-                .variables
-                .extend(frame.variables.iter().map(|(name, _)| name.clone()));
+            capture.variables.extend(
+                frame
+                    .variables
+                    .iter()
+                    .map(|(name, _, declared_type)| (name.clone(), declared_type.clone())),
+            );
             capture.types.extend(frame.types.iter().cloned());
         }
         capture

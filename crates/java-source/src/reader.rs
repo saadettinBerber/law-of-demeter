@@ -122,6 +122,7 @@ impl Reader<'_> {
             kind: declaration.kind,
             origin: declaration.origin,
             outer: declaration.outer.clone(),
+            captured: declaration.capture.variables(),
             annotations: self.annotations(declaration.node, &scope),
             supertypes: self.supertypes(declaration, &scope),
             fields: self.fields(declaration),

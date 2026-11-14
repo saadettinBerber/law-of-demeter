@@ -111,13 +111,14 @@ impl Reader<'_> {
             .child_by_field_name("value")
             .map(|value| self.expression(value, scope));
         let name_text = self.text.of(name);
-        scope.declare(name_text, Binding::Local);
+        let declared_type = self.with_dimensions(
+            declared_type.clone(),
+            declarator.child_by_field_name("dimensions"),
+        );
+        scope.declare(name_text, Binding::Local, declared_type.clone());
         Some(LocalVariable {
             name: name_text.to_owned(),
-            declared_type: self.with_dimensions(
-                declared_type.clone(),
-                declarator.child_by_field_name("dimensions"),
-            ),
+            declared_type,
             initializer,
             line: line_of(name),
         })
@@ -182,10 +183,11 @@ impl Reader<'_> {
         let iterable = self.expression(node.child_by_field_name("value")?, scope);
         scope.open_frame();
         let name_text = self.text.of(name);
-        scope.declare(name_text, Binding::Local);
+        let declared_type = self.declared_type(declared, scope);
+        scope.declare(name_text, Binding::Local, declared_type.clone());
         let variable = LocalVariable {
             name: name_text.to_owned(),
-            declared_type: self.declared_type(declared, scope),
+            declared_type,
             initializer: None,
             line: line_of(name),
         };
@@ -255,10 +257,11 @@ impl Reader<'_> {
         };
         let initializer = self.expression(value, scope);
         let name_text = self.text.of(name);
-        scope.declare(name_text, Binding::Local);
+        let declared_type = self.declared_type(declared, scope);
+        scope.declare(name_text, Binding::Local, declared_type.clone());
         Some(Statement::Local(LocalVariable {
             name: name_text.to_owned(),
-            declared_type: self.declared_type(declared, scope),
+            declared_type,
             initializer: Some(initializer),
             line: line_of(name),
         }))
@@ -273,14 +276,18 @@ impl Reader<'_> {
             .text
             .of(parameter.child_by_field_name("name")?)
             .to_owned();
-        let types = named_children(*parameter)
+        let types: Vec<DeclaredType> = named_children(*parameter)
             .into_iter()
             .filter(|child| child.kind() == "catch_type")
             .flat_map(named_children)
             .map(|catch_type| self.declared_type(catch_type, scope))
             .collect();
         scope.open_frame();
-        scope.declare(&name, Binding::Local);
+        let caught = match types.as_slice() {
+            [only] => only.clone(),
+            _ => DeclaredType::Var,
+        };
+        scope.declare(&name, Binding::Local, caught);
         let body = clause
             .child_by_field_name("body")
             .map(|body| self.branch_statements(body, scope))

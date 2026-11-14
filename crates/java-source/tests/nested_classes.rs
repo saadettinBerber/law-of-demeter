@@ -403,3 +403,106 @@ fn a_lambda_parameter_is_captured_by_a_class_declared_inside_the_lambda() {
         [run(call(captured("item"), "go", vec![], 4))]
     );
 }
+
+fn captured_of(class: &Class) -> Vec<(&str, DeclaredType)> {
+    class
+        .captured
+        .iter()
+        .map(|variable| (variable.name.as_str(), variable.declared_type.clone()))
+        .collect()
+}
+
+#[test]
+fn a_nested_class_lists_the_variables_it_can_capture_with_their_declared_types() {
+    let source = "class Outer {\n void f(Order order, int rate) {\n  Customer c = order.getCustomer();\n  var v = c.id();\n  order.each(item -> new Object() {});\n }\n}";
+
+    let classes = classes_of(source);
+
+    assert_eq!(
+        captured_of(&classes[1]),
+        [
+            ("order", DeclaredType::class("shop.Order")),
+            ("rate", DeclaredType::primitive("int")),
+            ("c", DeclaredType::class("shop.Customer")),
+            ("v", DeclaredType::Var),
+            ("item", DeclaredType::Var),
+        ]
+    );
+    assert_eq!(captured_of(&classes[0]), []);
+}
+
+#[test]
+fn pattern_catch_loop_and_resource_variables_are_captured_with_their_types() {
+    let source = "class Outer {\n void f(Object o) {\n  if (o instanceof Order x) {\n   new Object() {};\n  }\n  try {\n  } catch (IllegalStateException e) {\n   new Object() {};\n  }\n  for (Wallet w : wallets()) {\n   new Object() {};\n  }\n  try (Customer r = open()) {\n   new Object() {};\n  }\n }\n}";
+
+    let classes = classes_of(source);
+
+    assert_eq!(
+        captured_of(&classes[1]),
+        [
+            ("o", DeclaredType::unresolved("Object")),
+            ("x", DeclaredType::class("shop.Order")),
+        ]
+    );
+    assert_eq!(
+        captured_of(&classes[2]),
+        [
+            ("o", DeclaredType::unresolved("Object")),
+            ("x", DeclaredType::class("shop.Order")),
+            ("e", DeclaredType::class("java.lang.IllegalStateException")),
+        ]
+    );
+    assert_eq!(
+        captured_of(&classes[3]),
+        [
+            ("o", DeclaredType::unresolved("Object")),
+            ("x", DeclaredType::class("shop.Order")),
+            ("w", DeclaredType::class("shop.Wallet")),
+        ]
+    );
+    assert_eq!(
+        captured_of(&classes[4]),
+        [
+            ("o", DeclaredType::unresolved("Object")),
+            ("x", DeclaredType::class("shop.Order")),
+            ("r", DeclaredType::class("shop.Customer")),
+        ]
+    );
+}
+
+#[test]
+fn a_class_captures_the_variables_of_the_enclosing_class_levels_too() {
+    let source = "class Outer {\n void f(Order order) {\n  new Object() {\n   void m(Customer customer) {\n    new Object() {};\n   }\n  };\n }\n}";
+
+    let classes = classes_of(source);
+
+    assert_eq!(
+        captured_of(&classes[2]),
+        [
+            ("order", DeclaredType::class("shop.Order")),
+            ("customer", DeclaredType::class("shop.Customer")),
+        ]
+    );
+}
+
+#[test]
+fn typed_lambda_parameters_and_switch_pattern_variables_are_captured_with_their_types() {
+    let source = "class Outer {\n void f(Object o) {\n  run((Order item) -> new Object() {});\n  switch (o) {\n   case Customer c -> new Object() {};\n   default -> {}\n  }\n }\n}";
+
+    let classes = classes_of(source);
+
+    assert_eq!(
+        captured_of(&classes[1]),
+        [
+            ("o", DeclaredType::unresolved("Object")),
+            ("item", DeclaredType::class("shop.Order")),
+        ]
+    );
+    assert_eq!(
+        captured_of(&classes[2]),
+        [
+            ("o", DeclaredType::unresolved("Object")),
+            ("c", DeclaredType::class("shop.Customer")),
+        ]
+    );
+}
