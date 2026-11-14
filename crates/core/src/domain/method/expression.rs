@@ -14,6 +14,7 @@ pub enum Expression {
     New(Creation),
     StaticType(TypeRef),
     Literal,
+    Operation(Vec<Expression>),
 }
 
 impl Expression {
@@ -51,6 +52,10 @@ impl Expression {
         Self::ReturnOf(Box::new(call))
     }
 
+    pub fn operation(operands: Vec<Expression>) -> Self {
+        Self::Operation(operands)
+    }
+
     pub(super) fn judge(&self, context: &Context) -> Judged {
         match self {
             Self::This => Judged::quiet(Subject::friend(Reason::This, context.this_type.clone())),
@@ -71,6 +76,16 @@ impl Expression {
                 standing: Standing::Friend(Reason::Literal),
                 type_ref: None,
             }),
+            Self::Operation(operands) => Judged {
+                verdicts: operands
+                    .iter()
+                    .flat_map(|operand| operand.judge(context).verdicts)
+                    .collect(),
+                subject: Subject {
+                    standing: Standing::Friend(Reason::Literal),
+                    type_ref: None,
+                },
+            },
         }
     }
 }
