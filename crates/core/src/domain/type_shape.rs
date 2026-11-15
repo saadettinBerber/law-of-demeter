@@ -96,6 +96,7 @@ pub struct MethodShape {
     is_public: bool,
     is_generated: bool,
     is_abstract: bool,
+    is_varargs: bool,
     type_parameters: Vec<String>,
     reads_field: Option<String>,
     writes_field: Option<String>,
@@ -111,6 +112,7 @@ impl MethodShape {
             is_public: true,
             is_generated: false,
             is_abstract: false,
+            is_varargs: false,
             type_parameters: Vec::new(),
             reads_field: None,
             writes_field: None,
@@ -124,6 +126,11 @@ impl MethodShape {
 
     pub fn as_abstract(mut self) -> Self {
         self.is_abstract = true;
+        self
+    }
+
+    pub fn as_varargs(mut self) -> Self {
+        self.is_varargs = true;
         self
     }
 
@@ -188,6 +195,10 @@ impl MethodShape {
 
     pub fn is_abstract(&self) -> bool {
         self.is_abstract
+    }
+
+    pub fn is_varargs(&self) -> bool {
+        self.is_varargs
     }
 
     pub fn type_parameters(&self) -> &[String] {
