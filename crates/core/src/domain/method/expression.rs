@@ -227,6 +227,7 @@ impl Creation {
 pub enum Argument {
     Value(Expression),
     Lambda(Lambda),
+    MethodReference(MethodReference),
 }
 
 impl From<Expression> for Argument {
@@ -241,11 +242,33 @@ impl From<Lambda> for Argument {
     }
 }
 
+impl From<MethodReference> for Argument {
+    fn from(reference: MethodReference) -> Self {
+        Self::MethodReference(reference)
+    }
+}
+
 impl Argument {
     pub(super) fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
         match self {
             Self::Value(value) => value.judge(context).verdicts,
             Self::Lambda(lambda) => lambda.judge(context, feed),
+            Self::MethodReference(reference) => reference.target.judge(context).verdicts,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MethodReference {
+    target: Expression,
+    name: String,
+}
+
+impl MethodReference {
+    pub fn new(target: Expression, name: &str) -> Self {
+        Self {
+            target,
+            name: name.to_owned(),
         }
     }
 }
@@ -254,6 +277,7 @@ impl Argument {
 pub struct Lambda {
     parameters: Vec<String>,
     body: Block,
+    result: Option<Expression>,
 }
 
 impl Lambda {
@@ -261,7 +285,13 @@ impl Lambda {
         Self {
             parameters: parameters.iter().map(|name| (*name).to_owned()).collect(),
             body: Block::default(),
+            result: None,
         }
+    }
+
+    pub fn yielding(mut self, value: Expression) -> Self {
+        self.result = Some(value);
+        self
     }
 
     pub fn call(mut self, call: Call) -> Self {

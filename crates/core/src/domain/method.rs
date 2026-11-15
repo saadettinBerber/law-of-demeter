@@ -5,7 +5,7 @@ mod reason;
 mod subject;
 
 pub use call::Call;
-pub use expression::{Argument, Creation, Expression, Lambda};
+pub use expression::{Argument, Creation, Expression, Lambda, MethodReference};
 pub use reason::{Reason, Verdict};
 
 use block::Block;

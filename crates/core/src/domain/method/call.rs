@@ -12,6 +12,7 @@ pub struct Call {
     name: String,
     line: usize,
     arguments: Vec<Argument>,
+    expected: Option<TypeRef>,
 }
 
 impl Call {
@@ -21,7 +22,13 @@ impl Call {
             name: name.to_owned(),
             line,
             arguments: Vec::new(),
+            expected: None,
         }
+    }
+
+    pub fn expecting(mut self, type_ref: TypeRef) -> Self {
+        self.expected = Some(type_ref);
+        self
     }
 
     pub fn with(mut self, argument: impl Into<Argument>) -> Self {
