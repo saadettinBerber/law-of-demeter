@@ -1,8 +1,9 @@
+use super::arguments::{judge_arguments, judge_values, value_types};
 use super::expression::{Argument, Expression};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{
-    Classification, Invocation, Types, has_variable, is_factory_method, is_repository_query,
+    Classification, Invocation, Types, is_factory_method, is_repository_query,
 };
 use crate::domain::type_shape::TypeRef;
 
@@ -47,11 +48,7 @@ impl Call {
     pub(super) fn judge_expecting(&self, context: &Context, target: Option<Target>) -> Judged {
         let receiver = self.receiver.judge(context);
         let mut verdicts = receiver.verdicts;
-        let values: Vec<_> = self
-            .arguments
-            .iter()
-            .map(|argument| argument.judge_value(context))
-            .collect();
+        let values = judge_values(context, &self.arguments);
         let expected = self
             .expected
             .as_ref()
@@ -59,30 +56,24 @@ impl Call {
         let outer = target
             .and_then(|target| target.elements)
             .unwrap_or(&receiver.subject);
-        let mut invocation = self.invocation(context.types, &receiver.subject, &values, expected);
-        let mut mapped = None;
-        for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
-            match value {
-                Some(judged) => {
-                    let judged =
-                        self.settled(context, argument, index, judged, &mut invocation, outer);
-                    verdicts.extend(judged.verdicts);
-                }
-                None => {
-                    let functional = invocation.functional_method(context.types, index);
-                    let produced =
-                        argument.judge(context, &receiver.subject, functional.as_ref(), outer);
-                    verdicts.extend(produced.verdicts);
-                    invocation.yielded(context.types, index, produced.result.as_ref());
-                    if invocation.feeds_return(context.types, index) {
-                        mapped = mapped.or(produced.standing);
-                    }
-                }
-            }
-        }
+        let mut invocation = self.invocation(
+            context.types,
+            &receiver.subject,
+            &value_types(&values),
+            expected,
+        );
+        let judged = judge_arguments(
+            context,
+            &self.arguments,
+            values,
+            &mut invocation,
+            &receiver.subject,
+            outer,
+        );
+        verdicts.extend(judged.verdicts);
         verdicts.push(self.verdict(context, &receiver.subject));
         let type_ref = invocation.returns();
-        let mapped = mapped.filter(|_| {
+        let mapped = judged.mapped.filter(|_| {
             Self::is_container(context.types, receiver.subject.type_ref.as_ref())
                 && Self::is_container(context.types, type_ref.as_ref())
         });
@@ -101,26 +92,6 @@ impl Call {
         Judged { verdicts, subject }
     }
 
-    fn settled(
-        &self,
-        context: &Context,
-        argument: &Argument,
-        index: usize,
-        judged: Judged,
-        invocation: &mut Invocation,
-        outer: &Subject,
-    ) -> Judged {
-        if !judged.subject.type_ref.as_ref().is_some_and(has_variable) {
-            return judged;
-        }
-        let retried = invocation.parameter_type(index).and_then(|expected| {
-            argument.judge_value_expecting(context, Some(Target::among(&expected, Some(outer))))
-        });
-        let judged = retried.unwrap_or(judged);
-        invocation.argument(context.types, index, judged.subject.type_ref.as_ref());
-        judged
-    }
-
     fn is_container(types: &Types, type_ref: Option<&TypeRef>) -> bool {
         type_ref.is_some_and(|type_ref| types.classify(type_ref) == Classification::Container)
     }
@@ -129,23 +100,14 @@ impl Call {
         &self,
         types: &Types,
         receiver: &Subject,
-        values: &[Option<Judged>],
+        value_types: &[Option<&TypeRef>],
         expected: Option<&TypeRef>,
     ) -> Invocation {
-        let value_types: Vec<_> = values
-            .iter()
-            .map(|value| {
-                value
-                    .as_ref()
-                    .and_then(|judged| judged.subject.type_ref.as_ref())
-                    .filter(|type_ref| !has_variable(type_ref))
-            })
-            .collect();
         receiver
             .type_ref
             .as_ref()
             .map_or_else(Invocation::unknown, |receiver_type| {
-                types.invocation(receiver_type, &self.name, &value_types)
+                types.invocation(receiver_type, &self.name, value_types)
             })
             .expecting(types, expected)
     }
