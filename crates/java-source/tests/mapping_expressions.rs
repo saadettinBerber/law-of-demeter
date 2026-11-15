@@ -1,6 +1,6 @@
 mod mapped;
 
-use law_of_demeter_core::domain::method::{Expression, Lambda, Method};
+use law_of_demeter_core::domain::method::{Expression, Lambda, Method, MethodReference};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 use mapped::{call, class, method_f, parameter};
 
@@ -207,19 +207,37 @@ fn a_lambda_that_is_not_an_argument_runs_inline_with_friendly_parameters() {
 }
 
 #[test]
-fn a_method_reference_is_a_literal_unless_its_target_has_calls() {
-    let source = "class OrderService {\n void f(Order order) {\n  order.lines().forEach(this::go);\n  order.lines().forEach(System.out::println);\n  order.lines().forEach(Order::go);\n  order.lines().forEach(order.getCustomer()::notify);\n }\n}";
+fn a_method_reference_argument_keeps_its_target_and_name() {
+    let source = "class OrderService {\n void f(Order order) {\n  order.lines().forEach(this::go);\n  order.lines().forEach(Order::go);\n  order.lines().forEach(order::go);\n  order.lines().forEach(order.getCustomer()::notify);\n  order.lines().forEach(Order::new);\n }\n}";
+
+    let mapped = method_f(source);
+
+    let for_each = |line, target, name| {
+        call(get("lines", line), "forEach", line).with(MethodReference::new(target, name))
+    };
+    assert_eq!(
+        mapped,
+        f(2).call(for_each(3, Expression::This, "go"))
+            .call(for_each(4, Expression::static_type(class("Order")), "go"))
+            .call(for_each(5, order(), "go"))
+            .call(for_each(6, get("getCustomer", 6), "notify"))
+            .call(for_each(7, Expression::static_type(class("Order")), "new"))
+    );
+}
+
+#[test]
+fn a_method_reference_outside_an_argument_is_a_literal_unless_its_target_has_calls() {
+    let source = "class OrderService {\n void f(Order order) {\n  Runnable a = this::go;\n  Runnable b = order.getCustomer()::notify;\n }\n}";
 
     let mapped = method_f(source);
 
     assert_eq!(
         mapped,
-        f(2).call(call(get("lines", 3), "forEach", 3).with(Expression::literal()))
-            .call(call(get("lines", 4), "forEach", 4).with(Expression::literal()))
-            .call(call(get("lines", 5), "forEach", 5).with(Expression::literal()))
-            .call(
-                call(get("lines", 6), "forEach", 6)
-                    .with(Expression::operation(vec![get("getCustomer", 6)]))
+        f(2).assign("a", class("Runnable"), Expression::literal())
+            .assign(
+                "b",
+                class("Runnable"),
+                Expression::operation(vec![get("getCustomer", 4)])
             )
     );
 }
