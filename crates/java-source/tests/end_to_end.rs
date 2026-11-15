@@ -810,3 +810,114 @@ fn readme_hybrid_the_calls_around_a_hybrid_class_are_judged_on_their_own() {
         ]
     );
 }
+
+fn generic_of(name: &str, arguments: &[TypeRef]) -> TypeRef {
+    TypeRef::generic(name, arguments.to_vec())
+}
+
+fn variable(name: &str) -> TypeRef {
+    TypeRef::variable(name)
+}
+
+fn stream_of(element: TypeRef) -> TypeRef {
+    generic_of("java.util.stream.Stream", &[element])
+}
+
+fn consumer() -> TypeShape {
+    interface("java.util.function.Consumer", &["T"]).with_method(
+        MethodShape::new("accept")
+            .with_parameters(vec![variable("T")])
+            .as_abstract(),
+    )
+}
+
+fn arrays() -> TypeShape {
+    let element = variable("T");
+    class("java.util.Arrays")
+        .with_method(
+            MethodShape::new("stream")
+                .as_static()
+                .with_parameters(vec![TypeRef::array(TypeRef::primitive("int"))])
+                .returning(TypeRef::class("java.util.stream.IntStream")),
+        )
+        .with_method(
+            MethodShape::new("stream")
+                .as_static()
+                .with_type_parameter("T")
+                .with_parameters(vec![TypeRef::array(element.clone())])
+                .returning(stream_of(element)),
+        )
+}
+
+fn int_stream() -> TypeShape {
+    interface("java.util.stream.IntStream", &[]).with_method(
+        MethodShape::new("forEach")
+            .with_parameters(vec![TypeRef::class("java.util.function.IntConsumer")]),
+    )
+}
+
+fn int_consumer() -> TypeShape {
+    interface("java.util.function.IntConsumer", &[]).with_method(
+        MethodShape::new("accept")
+            .with_parameters(vec![TypeRef::primitive("int")])
+            .as_abstract(),
+    )
+}
+
+fn stream() -> TypeShape {
+    interface("java.util.stream.Stream", &["T"]).with_method(
+        MethodShape::new("forEach").with_parameters(vec![generic_of(
+            "java.util.function.Consumer",
+            &[variable("T")],
+        )]),
+    )
+}
+
+fn jdk_streams() -> Types {
+    Types::new()
+        .with_shape(arrays())
+        .with_shape(int_stream())
+        .with_shape(int_consumer())
+        .with_shape(stream())
+        .with_shape(consumer())
+}
+
+fn customer_catalog() -> Types {
+    jdk_streams()
+        .with_shape(
+            class("Order")
+                .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer"))),
+        )
+        .with_shape(class("Customer").with_method(MethodShape::new("rename")))
+}
+
+#[test]
+fn inference_1_the_element_type_of_an_array_argument_types_the_lambda_parameter() {
+    let snippet = "void notify(Order[] orders) {\n    Arrays.stream(orders).forEach(order -> order.getCustomer().rename());\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.Arrays;",
+        "",
+        snippet,
+        "notify",
+        &customer_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "stream",
+                3,
+                Reason::static_type(TypeRef::class("java.util.Arrays"))
+            ),
+            Verdict::allowed(
+                "getCustomer",
+                3,
+                Reason::lambda_parameter("order", Reason::static_result("stream"))
+            ),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+            Verdict::allowed("forEach", 3, Reason::static_result("stream")),
+        ]
+    );
+}
