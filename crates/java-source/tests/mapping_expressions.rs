@@ -1,8 +1,8 @@
 mod mapped;
 
-use law_of_demeter_core::domain::method::{Expression, Lambda, Method, MethodReference};
+use law_of_demeter_core::domain::method::{Creation, Expression, Lambda, Method, MethodReference};
 use law_of_demeter_core::domain::type_shape::TypeRef;
-use mapped::{call, class, method_f, parameter};
+use mapped::{call, class, method_f, method_in, parameter};
 
 fn f(line: usize) -> Method {
     Method::new("OrderService", "f", line)
@@ -42,12 +42,58 @@ fn assigning_a_var_local_again_stays_untyped() {
 }
 
 #[test]
-fn assigning_a_field_judges_only_the_value() {
-    let source = "class OrderService {\n Customer customer;\n void f(Order order) {\n  customer = order.getCustomer();\n }\n}";
+fn assigning_a_field_expects_its_declared_type_from_the_outermost_call() {
+    let source = "import java.util.List;\nclass OrderService {\n Customer customer;\n int total;\n List<Order> orders;\n void f(Order order) {\n  customer = order.getCustomer();\n  this.customer = order.getOwner().getCustomer();\n  total = order.count();\n  orders = order.find();\n }\n}";
 
     let mapped = method_f(source);
 
-    assert_eq!(mapped, f(3).call(call(order(), "getCustomer", 4)));
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 6)
+            .call(call(order(), "getCustomer", 7).expecting(class("Customer")))
+            .call(call(get("getOwner", 8), "getCustomer", 8).expecting(class("Customer")))
+            .call(call(order(), "count", 9).expecting(TypeRef::primitive("int")))
+            .call(
+                call(order(), "find", 10)
+                    .expecting(TypeRef::generic("java.util.List", vec![class("Order")]))
+            )
+    );
+}
+
+#[test]
+fn assigning_a_created_object_to_a_field_expects_nothing_of_its_arguments() {
+    let source = "class OrderService {\n Customer customer;\n void f(Order order) {\n  customer = new Customer(order.getName());\n  customer = null;\n }\n}";
+
+    let mapped = method_f(source);
+
+    assert_eq!(
+        mapped,
+        f(3).evaluate(Expression::created(
+            Creation::new(class("Customer")).with(get("getName", 4))
+        ))
+    );
+}
+
+#[test]
+fn assigning_a_field_of_an_enclosing_class_expects_the_type_declared_there() {
+    let source = "class OrderService {\n Customer customer;\n class Inner {\n  void g(Order order) {\n   customer = order.getCustomer();\n  }\n }\n}";
+
+    let mapped = method_in(source, "OrderService$Inner", "g");
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService$Inner", "g", 4)
+            .call(call(order(), "getCustomer", 5).expecting(class("Customer")))
+    );
+}
+
+#[test]
+fn assigning_into_another_objects_field_expects_nothing() {
+    let source = "class OrderService {\n void f(Order order) {\n  order.customer = order.getCustomer();\n }\n}";
+
+    let mapped = method_f(source);
+
+    assert_eq!(mapped, f(2).call(call(order(), "getCustomer", 3)));
 }
 
 #[test]

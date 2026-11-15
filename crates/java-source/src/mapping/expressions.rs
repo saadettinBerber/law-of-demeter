@@ -4,6 +4,8 @@ use law_of_demeter_core::domain::method::{
     Argument, Call, Creation, Expression, Lambda, MethodReference,
 };
 
+use law_of_demeter_core::domain::type_shape::TypeRef;
+
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
@@ -100,14 +102,27 @@ impl MethodMapper<'_> {
 
     fn assignment(&mut self, target: &model::Expression, value: &model::Expression) -> Expression {
         let model::Expression::Local(name) = target else {
+            let expected = self.field_type_of(target);
             let target = self.expression(target);
             self.steps.evaluate(target);
-            return self.expression(value);
+            let value = self.expression(value);
+            return match expected {
+                Some(type_ref) => expecting(value, type_ref),
+                None => value,
+            };
         };
         let value = self.expression(value);
         let declared = self.locals.get(name).cloned().flatten();
         self.steps.assign(name, declared, value);
         Expression::local(name)
+    }
+
+    fn field_type_of(&self, target: &model::Expression) -> Option<TypeRef> {
+        match target {
+            model::Expression::Field(name) => Some(self.field_type(&self.class.name, name)),
+            model::Expression::OuterField { owner, name } => Some(self.field_type(owner, name)),
+            _ => None,
+        }
     }
 
     fn lambda(&mut self, lambda: &model::Lambda) -> Lambda {
@@ -133,5 +148,12 @@ impl MethodMapper<'_> {
             self.steps.assign(&parameter.name, Some(declared), value);
         }
         self.statements(&lambda.body);
+    }
+}
+
+pub(super) fn expecting(value: Expression, type_ref: TypeRef) -> Expression {
+    match value {
+        Expression::ReturnOf(call) => Expression::return_of(call.expecting(type_ref)),
+        other => other,
     }
 }

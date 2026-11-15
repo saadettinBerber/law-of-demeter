@@ -45,7 +45,7 @@ fn a_call_to_a_method_of_an_enclosing_class_goes_to_this() {
 }
 
 #[test]
-fn field_initializers_become_the_synthetic_initializer_methods() {
+fn field_initializers_become_the_synthetic_initializer_methods_expecting_the_field_type() {
     let source = "class OrderService {\n static Order first = Order.latest();\n Order order = Order.latest();\n Wallet wallet = order.getCustomer().getWallet();\n}";
 
     let methods = mapped_methods(source);
@@ -53,25 +53,29 @@ fn field_initializers_become_the_synthetic_initializer_methods() {
     let named = |name: &str| methods.iter().find(|method| method.name() == name).unwrap();
     assert_eq!(
         named("<static-init>"),
-        &Method::new("OrderService", "<static-init>", 2).call(call(
-            Expression::static_type(class("Order")),
-            "latest",
-            2
-        ))
+        &Method::new("OrderService", "<static-init>", 2).call(
+            call(Expression::static_type(class("Order")), "latest", 2).expecting(class("Order"))
+        )
     );
     assert_eq!(
         named("<instance-init>"),
         &Method::new("OrderService", "<instance-init>", 3)
-            .call(call(Expression::static_type(class("Order")), "latest", 3))
-            .call(call(
-                Expression::return_of(call(
-                    Expression::field("order", class("Order")),
-                    "getCustomer",
+            .call(
+                call(Expression::static_type(class("Order")), "latest", 3)
+                    .expecting(class("Order"))
+            )
+            .call(
+                call(
+                    Expression::return_of(call(
+                        Expression::field("order", class("Order")),
+                        "getCustomer",
+                        4
+                    )),
+                    "getWallet",
                     4
-                )),
-                "getWallet",
-                4
-            ))
+                )
+                .expecting(class("Wallet"))
+            )
     );
 }
 
