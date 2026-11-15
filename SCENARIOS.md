@@ -67,6 +67,8 @@ void pay(Order order, int amount) {
 
 - **Neden:** `getCustomer()`'ın döndürdüğü müşteri f'nin arkadaşı değil. f, müşterinin ve cüzdanının yapısını bilmek zorunda kalıyor.
 
+- **Görünürlük:** Sınıf ya da metotlar `public` olmasa da sonuç aynı. Paket içi görünür ve `protected` metotlar da davranış sayılır; yalnızca `private` metotlar sayılmaz. Örnek: [`Reconciler.java:5`](examples/shop/src/main/java/shop/ledger/Reconciler.java#L5).
+
 - **Örnek projede:** [`PaymentService.java:13`](examples/shop/src/main/java/shop/service/PaymentService.java#L13)
 
 </details>
