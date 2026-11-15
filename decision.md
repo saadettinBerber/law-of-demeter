@@ -19,5 +19,8 @@
 | [Gerçek projede çıkan yanlış alarmları kapat: konteyner sonucu, kütüphane tipi, değer nesnesi, miras alınan alan.](SCENARIOS.md) | Yapıldı |
 | [Gerçek bir Java projesinde dene; her yanlış alarmı yeni bir senaryoya dönüştür.](SCENARIOS.md#uygun) | Yapıldı |
 | [C'nin kendi metodunun döndürdüğü nesneyi yabancı say.](SCENARIOS.md#uygun-değil) | Yapıldı |
-| Metot düzeyindeki generic tip parametrelerini çöz; `<T> T find(Class<T>)` gibi çağrılar çözülemeyen kalmasın. | Yapılmadı |
+| Generic metodun tip argümanını değer argümanından çıkar: `Arrays.stream(orders)` akışının elemanı `Order` olsun. | Yapılmadı |
+| Lambda parametresinin tipini hedef fonksiyonel arayüzden al; hedef tip atamadan da gelebilir: `Map<Key, Consumer<Event>> handlers = Map.of(key, e -> e.getRecord())`. | Yapılmadı |
+| Generic metodun sonucunu lambda ile metot referansından çıkar: `orders.stream().map(Order::getCustomer)` akışının elemanı `Customer` olsun. | Yapılmadı |
+| Metodun tip parametresini sınırına çevir: `<T extends Shape>` içinde `T`, `Shape` sayılsın. | Yapılmadı |
 | Statik import ile gelen enum sabitlerini çöz. | Yapılmadı |
