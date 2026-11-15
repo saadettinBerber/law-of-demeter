@@ -1649,3 +1649,177 @@ fn nested_generic_5_a_method_reference_grouping_types_the_groups() {
         ]
     );
 }
+
+fn lambda_target_catalog() -> Types {
+    let handler = generic_of("java.util.function.Consumer", &[TypeRef::class("Event")]);
+    jdk_streams()
+        .with_shape(
+            class("Event").with_method(
+                MethodShape::new("getRecord").returning(TypeRef::class("EventRecord")),
+            ),
+        )
+        .with_shape(
+            class("EventRecord")
+                .with_method(MethodShape::new("getLock").returning(TypeRef::class("Lock"))),
+        )
+        .with_shape(class("Lock").with_method(MethodShape::new("release")))
+        .with_shape(
+            class("Worker").with_method(MethodShape::new("<init>").with_parameters(vec![handler])),
+        )
+}
+
+const LAMBDA_TARGET_IMPORTS: &str = "import java.util.function.Consumer;";
+
+fn releasing_the_lock_of_the_record(feed: Reason) -> [Verdict; 3] {
+    [
+        Verdict::allowed("getRecord", 3, feed),
+        Verdict::violation("getLock", 3, Reason::return_of("getRecord")),
+        Verdict::violation("release", 3, Reason::return_of("getLock")),
+    ]
+}
+
+fn lambda_target_verdicts(members: &str, snippet: &str, method: &str) -> Vec<Verdict> {
+    verdicts_in_c(
+        LAMBDA_TARGET_IMPORTS,
+        members,
+        snippet,
+        method,
+        &lambda_target_catalog(),
+    )
+}
+
+#[test]
+fn lambda_target_1_a_local_declared_with_a_functional_type_types_the_parameter() {
+    let snippet = "void register() {\n    Consumer<Event> handler = e -> e.getRecord().getLock().release();\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "register");
+
+    assert_eq!(
+        verdicts,
+        releasing_the_lock_of_the_record(Reason::parameter("e"))
+    );
+}
+
+#[test]
+fn lambda_target_2_a_field_assignment_types_the_parameter() {
+    let snippet = "void register() {\n    onField = e -> e.getRecord().getLock().release();\n}";
+
+    let verdicts = lambda_target_verdicts("Consumer<Event> onField;", snippet, "register");
+
+    assert_eq!(
+        verdicts,
+        releasing_the_lock_of_the_record(Reason::parameter("e"))
+    );
+}
+
+#[test]
+fn lambda_target_3_a_returned_lambda_takes_the_return_type_of_the_method() {
+    let snippet = "Consumer<Event> make() {\n    return e -> e.getRecord().getLock().release();\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "make");
+
+    assert_eq!(
+        verdicts,
+        releasing_the_lock_of_the_record(Reason::parameter("e"))
+    );
+}
+
+#[test]
+fn lambda_target_4_a_constructor_argument_takes_the_parameter_type_of_the_constructor() {
+    let snippet =
+        "Worker make() {\n    return new Worker(e -> e.getRecord().getLock().release());\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "make");
+
+    let created = Reason::created(TypeRef::class("Worker"));
+    assert_eq!(
+        verdicts,
+        releasing_the_lock_of_the_record(Reason::lambda_parameter("e", created))
+    );
+}
+
+#[test]
+fn lambda_target_5_a_cast_types_the_parameter() {
+    let snippet = "void register() {\n    Object handler = (Consumer<Event>) e -> e.getRecord().getLock().release();\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "register");
+
+    assert_eq!(
+        verdicts,
+        releasing_the_lock_of_the_record(Reason::parameter("e"))
+    );
+}
+
+#[test]
+fn lambda_target_6_the_variable_holding_the_lambda_has_its_declared_type() {
+    let snippet = "void register(Event event) {\n    Consumer<Event> handler = e -> e.getRecord().getLock().release();\n    handler.accept(event);\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "register");
+
+    let handler = generic_of("java.util.function.Consumer", &[TypeRef::class("Event")]);
+    assert_eq!(
+        verdicts[3],
+        Verdict::allowed(
+            "accept",
+            4,
+            Reason::local("handler", Reason::created(handler))
+        )
+    );
+}
+
+#[test]
+fn lambda_target_7_a_var_local_has_no_target_and_leaves_the_parameter_untyped() {
+    let snippet = "void register() {\n    var handler = e -> e.getRecord().getLock().release();\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "register");
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getRecord", 3, Reason::parameter("e")),
+            Verdict::violation(
+                "getLock",
+                3,
+                Reason::unresolved_type(None, Reason::return_of("getRecord"))
+            ),
+            Verdict::violation(
+                "release",
+                3,
+                Reason::unresolved_type(None, Reason::return_of("getLock"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn lambda_target_8_an_explicitly_typed_parameter_keeps_its_type_in_an_argument() {
+    let snippet = "void register(Registry registry) {\n    registry.add((Event e) -> e.getRecord().getLock().release());\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "register");
+
+    let fed = Reason::lambda_parameter("e", Reason::parameter("registry"));
+    assert_eq!(
+        verdicts,
+        [
+            releasing_the_lock_of_the_record(fed).to_vec(),
+            vec![Verdict::allowed("add", 3, Reason::parameter("registry"))],
+        ]
+        .concat()
+    );
+}
+
+#[test]
+fn lambda_target_8_counter_case_without_a_declared_type_the_argument_parameter_stays_untyped() {
+    let snippet = "void register(Registry registry) {\n    registry.add(e -> e.getRecord().getLock().release());\n}";
+
+    let verdicts = lambda_target_verdicts("", snippet, "register");
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "getLock",
+            3,
+            Reason::unresolved_type(None, Reason::return_of("getRecord"))
+        )
+    );
+}
