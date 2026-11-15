@@ -41,6 +41,10 @@ impl Call {
     }
 
     pub(super) fn judge(&self, context: &Context) -> Judged {
+        self.judge_expecting(context, None)
+    }
+
+    pub(super) fn judge_expecting(&self, context: &Context, expected: Option<&TypeRef>) -> Judged {
         let receiver = self.receiver.judge(context);
         let mut verdicts = receiver.verdicts;
         let values: Vec<_> = self
@@ -48,7 +52,8 @@ impl Call {
             .iter()
             .map(|argument| argument.judge_value(context))
             .collect();
-        let invocation = self.invocation(context.types, &receiver.subject, &values);
+        let expected = self.expected.as_ref().or(expected);
+        let invocation = self.invocation(context.types, &receiver.subject, &values, expected);
         for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
                 Some(judged) => verdicts.extend(judged.verdicts),
@@ -75,6 +80,7 @@ impl Call {
         types: &Types,
         receiver: &Subject,
         values: &[Option<Judged>],
+        expected: Option<&TypeRef>,
     ) -> Invocation {
         let value_types: Vec<_> = values
             .iter()
@@ -90,7 +96,7 @@ impl Call {
             .map_or_else(Invocation::unknown, |receiver_type| {
                 types.invocation(receiver_type, &self.name, &value_types)
             })
-            .expecting(types, self.expected.as_ref())
+            .expecting(types, expected)
     }
 
     fn verdict(&self, context: &Context, receiver: &Subject) -> Verdict {

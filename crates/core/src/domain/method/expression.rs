@@ -93,6 +93,10 @@ impl Expression {
     }
 
     pub(super) fn judge(&self, context: &Context) -> Judged {
+        self.judge_expecting(context, None)
+    }
+
+    pub(super) fn judge_expecting(&self, context: &Context, expected: Option<&TypeRef>) -> Judged {
         match self {
             Self::This => Judged::quiet(Subject::friend(Reason::This, context.this_type.clone())),
             Self::Field { name, type_ref } => {
@@ -101,7 +105,7 @@ impl Expression {
             Self::Parameter { name, type_ref } => {
                 Judged::quiet(Subject::friend(Reason::parameter(name), type_ref.clone()))
             }
-            Self::ReturnOf(call) => call.judge(context),
+            Self::ReturnOf(call) => call.judge_expecting(context, expected),
             Self::Local(name) => Judged::quiet(context.local(name)),
             Self::New(creation) => creation.judge(context),
             Self::StaticType(type_ref) => Judged::quiet(Subject::friend(

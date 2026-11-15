@@ -28,7 +28,7 @@ impl Step {
                 declared,
                 value,
             } => {
-                let judged = value.judge(context);
+                let judged = value.judge_expecting(context, declared.as_ref());
                 let subject = judged
                     .subject
                     .through(|origin| Reason::local(local, origin));
