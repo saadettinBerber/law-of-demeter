@@ -280,10 +280,7 @@ impl Argument {
                 }
             }
             Self::Lambda(lambda) => lambda.judge(context, feed, functional),
-            Self::MethodReference(reference) => Produced {
-                verdicts: reference.target.judge(context).verdicts,
-                result: None,
-            },
+            Self::MethodReference(reference) => reference.judge(context, functional),
         }
     }
 }
@@ -299,6 +296,26 @@ impl MethodReference {
         Self {
             target,
             name: name.to_owned(),
+        }
+    }
+
+    fn judge(&self, context: &Context, functional: Option<&FunctionalMethod>) -> Produced {
+        let target = self.target.judge(context);
+        let result = functional.and_then(|functional| self.result_type(context.types, functional));
+        Produced {
+            verdicts: target.verdicts,
+            result,
+        }
+    }
+
+    fn result_type(&self, types: &Types, functional: &FunctionalMethod) -> Option<TypeRef> {
+        match &self.target {
+            Expression::StaticType(_) => {
+                let first = functional.parameters.first()?;
+                let rest = functional.parameters.len() - 1;
+                types.return_type_on(first, &self.name, rest)
+            }
+            _ => None,
         }
     }
 }

@@ -1,4 +1,4 @@
-use super::{Call, Expression, Lambda, Method, Reason, Verdict};
+use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::Types;
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -382,4 +382,41 @@ fn the_type_argument_of_a_generic_method_comes_from_the_result_of_a_lambda() {
             Verdict::allowed("forEach", 3, Reason::parameter("orders")),
         ]
     );
+}
+
+fn mapping_orders_with(reference: MethodReference) -> Method {
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    Method::new("Billing", "charge", 1).call(
+        Call::new(orders, "stream", 2)
+            .then("map", 2)
+            .with(reference)
+            .then("forEach", 3)
+            .with(withdrawing_from_the_wallet_of("customer")),
+    )
+}
+
+fn charging_the_mapped_customers() -> [Verdict; 5] {
+    [
+        Verdict::allowed("stream", 2, Reason::parameter("orders")),
+        Verdict::allowed("map", 2, Reason::parameter("orders")),
+        Verdict::allowed(
+            "getWallet",
+            3,
+            Reason::lambda_parameter("customer", Reason::parameter("orders")),
+        ),
+        Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+    ]
+}
+
+#[test]
+fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
+    let charge = mapping_orders_with(MethodReference::new(
+        Expression::static_type(order()),
+        "getCustomer",
+    ));
+
+    let verdicts = charge.verdicts(&shop());
+
+    assert_eq!(verdicts, charging_the_mapped_customers());
 }
