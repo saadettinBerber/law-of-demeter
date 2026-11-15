@@ -1,0 +1,43 @@
+İhlaller (6):
+orders/src/main/java/warehouse/orders/PickingService.java:18  warehouse.orders.PickingService.onHand  getOnHand()  İhlal: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+orders/src/main/java/warehouse/orders/PickingService.java:23  warehouse.orders.PickingService.pick  reserve()  İhlal: stock yerel değişkeni: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+orders/src/main/java/warehouse/orders/PickingService.java:31  warehouse.orders.PickingService.fits  fits()  İhlal: getShelf() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+orders/src/main/java/warehouse/orders/PickingService.java:43  warehouse.orders.PickingService.onHandOf  getStock()  İhlal: product() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+orders/src/main/java/warehouse/orders/PickingService.java:43  warehouse.orders.PickingService.onHandOf  getOnHand()  İhlal: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+orders/src/main/java/warehouse/orders/PickingService.java:47  warehouse.orders.PickingService.append  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List<warehouse.orders.OrderLine>): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+
+Uygun çağrılar (13):
+catalog/src/main/java/warehouse/catalog/Product.java:20  warehouse.catalog.Product.isAvailable  getOnHand()  Uygun: stock sınıfın alanı
+orders/src/main/java/warehouse/orders/Order.java:17  warehouse.orders.Order.count  size()  Uygun: lines sınıfın alanı
+orders/src/main/java/warehouse/orders/PickingService.java:14  warehouse.orders.PickingService.canPick  isAvailable()  Uygun: product f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:18  warehouse.orders.PickingService.onHand  getStock()  Uygun: product f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:22  warehouse.orders.PickingService.pick  getStock()  Uygun: product f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:27  warehouse.orders.PickingService.spill  reserve()  Uygun: overflow sınıfın alanı
+orders/src/main/java/warehouse/orders/PickingService.java:31  warehouse.orders.PickingService.fits  getShelf()  Uygun: product f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:35  warehouse.orders.PickingService.codeOf  getSku()  Uygun: product f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:35  warehouse.orders.PickingService.codeOf  code()  Uygun: warehouse.catalog.Sku bir veri yapısı
+orders/src/main/java/warehouse/orders/PickingService.java:39  warehouse.orders.PickingService.kilograms  getWeight()  Uygun: product f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:39  warehouse.orders.PickingService.kilograms  toKilograms()  Uygun: warehouse.catalog.Weight bir değer
+orders/src/main/java/warehouse/orders/PickingService.java:43  warehouse.orders.PickingService.onHandOf  product()  Uygun: line f'ye argüman olarak verildi
+orders/src/main/java/warehouse/orders/PickingService.java:47  warehouse.orders.PickingService.append  getLines()  Uygun: order f'ye argüman olarak verildi
+
+Hibrit sınıflar (1):
+catalog/src/main/java/warehouse/catalog/Shelf.java  warehouse.catalog.Shelf  Hibrit sınıf: davranış: fits; setter: setCapacity, setUsed
+
+Özet:
+  Dosya: 8
+  Metot: 20
+  Çağrı: 19 (uygun 13, ihlal 6, belirsiz 0)
+  Hibrit sınıf: 1
+  Kaynak hatası: 0
+  Tip okuma hatası: 0
+
+İhlal nedenleri:
+  5  Döndürülen nesne f'nin arkadaşı değil
+  1  Döndürülen koleksiyon değiştiriliyor
+
+Uygun nedenleri:
+  8  Argüman
+  3  Sınıfın alanı
+  1  Değer
+  1  Veri yapısı
