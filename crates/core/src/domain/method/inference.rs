@@ -174,7 +174,8 @@ fn shop() -> Types {
                 .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
                 .with_method(MethodShape::new("getTotal").returning(TypeRef::class(BIG_DECIMAL)))
                 .with_method(MethodShape::new("isPaid").returning(TypeRef::primitive("boolean")))
-                .with_method(MethodShape::new("ship")),
+                .with_method(MethodShape::new("ship"))
+                .with_method(MethodShape::new("newReceipt").returning(TypeRef::class("Receipt"))),
         )
         .with_shape(class("Receipt").with_method(MethodShape::new("print")))
         .with_shape(
@@ -451,17 +452,35 @@ fn mapping_orders_with(reference: MethodReference) -> Method {
     )
 }
 
-fn charging_the_mapped_customers() -> [Verdict; 5] {
+fn charging_the_customers_a_stranger_returned(call: &str) -> [Verdict; 5] {
+    [
+        Verdict::allowed("stream", 2, Reason::parameter("orders")),
+        Verdict::allowed("map", 2, Reason::parameter("orders")),
+        Verdict::violation(
+            "getWallet",
+            3,
+            Reason::lambda_parameter("customer", Reason::return_of(call)),
+        ),
+        Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        Verdict::allowed(
+            "forEach",
+            3,
+            Reason::classified(Classification::Container, generic(STREAM, &[customer()])),
+        ),
+    ]
+}
+
+fn charging_the_customers_a_friend_made(made: Reason) -> [Verdict; 5] {
     [
         Verdict::allowed("stream", 2, Reason::parameter("orders")),
         Verdict::allowed("map", 2, Reason::parameter("orders")),
         Verdict::allowed(
             "getWallet",
             3,
-            Reason::lambda_parameter("customer", Reason::parameter("orders")),
+            Reason::lambda_parameter("customer", made.clone()),
         ),
         Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
-        Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+        Verdict::allowed("forEach", 3, made),
     ]
 }
 
@@ -474,7 +493,10 @@ fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(verdicts, charging_the_mapped_customers());
+    assert_eq!(
+        verdicts,
+        charging_the_customers_a_stranger_returned("getCustomer")
+    );
 }
 
 #[test]
@@ -486,7 +508,10 @@ fn a_constructor_reference_yields_the_type_it_creates() {
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(verdicts, charging_the_mapped_customers());
+    assert_eq!(
+        verdicts,
+        charging_the_customers_a_friend_made(Reason::created(customer()))
+    );
 }
 
 #[test]
@@ -498,7 +523,10 @@ fn a_method_reference_to_a_static_method_yields_what_the_method_returns() {
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(verdicts, charging_the_mapped_customers());
+    assert_eq!(
+        verdicts,
+        charging_the_customers_a_friend_made(Reason::static_result("of"))
+    );
 }
 
 #[test]
@@ -510,7 +538,10 @@ fn a_method_reference_on_an_expression_yields_what_the_method_of_its_type_return
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(verdicts, charging_the_mapped_customers());
+    assert_eq!(
+        verdicts,
+        charging_the_customers_a_stranger_returned("lookup")
+    );
 }
 
 fn with_primitive_array_overload(types: Types) -> Types {
@@ -949,6 +980,61 @@ fn a_container_a_call_on_a_non_container_returns_follows_the_usual_standing_rule
             "print",
             3,
             Reason::lambda_parameter("receipt", Reason::return_of("mapAll"))
+        )
+    );
+}
+
+fn orders_then_print(reference: MethodReference) -> Method {
+    Method::new("Billing", "print", 1).call(
+        orders_stream()
+            .then("map", 2)
+            .with(reference)
+            .then("forEach", 3)
+            .with(Lambda::new(&["receipt"]).call(Call::new(
+                Expression::local("receipt"),
+                "print",
+                3,
+            ))),
+    )
+}
+
+#[test]
+fn a_method_reference_to_a_factory_method_of_a_friend_yields_friends() {
+    let print = orders_then_print(MethodReference::new(
+        Expression::static_type(order()),
+        "newReceipt",
+    ));
+
+    let verdicts = print.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[2],
+        Verdict::allowed(
+            "print",
+            3,
+            Reason::lambda_parameter("receipt", Reason::factory_result("newReceipt"))
+        )
+    );
+}
+
+#[test]
+fn a_method_reference_to_an_unknown_method_yields_strangers() {
+    let print = orders_then_print(MethodReference::new(
+        Expression::static_type(order()),
+        "missing",
+    ));
+
+    let verdicts = print.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[2],
+        Verdict::violation(
+            "print",
+            3,
+            Reason::unresolved_type(
+                Some(variable("R")),
+                Reason::lambda_parameter("receipt", Reason::return_of("missing"))
+            )
         )
     );
 }

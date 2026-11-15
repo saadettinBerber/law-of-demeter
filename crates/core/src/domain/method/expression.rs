@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use super::block::Block;
-use super::call::Call;
+use super::call::{Call, standing_after_call};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject};
 use crate::domain::classification::{FunctionalMethod, Types};
@@ -282,7 +282,7 @@ impl Argument {
                 }
             }
             Self::Lambda(lambda) => lambda.judge(context, feed, functional),
-            Self::MethodReference(reference) => reference.judge(context, functional),
+            Self::MethodReference(reference) => reference.judge(context, feed, functional),
         }
     }
 }
@@ -301,37 +301,80 @@ impl MethodReference {
         }
     }
 
-    fn judge(&self, context: &Context, functional: Option<&FunctionalMethod>) -> Produced {
+    fn judge(
+        &self,
+        context: &Context,
+        feed: &Subject,
+        functional: Option<&FunctionalMethod>,
+    ) -> Produced {
         let target = self.target.judge(context);
         let result = functional
-            .and_then(|functional| self.result_type(context.types, &target.subject, functional));
+            .map(|functional| self.result(context.types, feed, &target.subject, functional));
         Produced {
             verdicts: target.verdicts,
-            result,
-            standing: None,
+            result: result.as_ref().and_then(|subject| subject.type_ref.clone()),
+            standing: result.map(|subject| subject.standing),
         }
     }
 
-    fn result_type(
+    fn result(
         &self,
         types: &Types,
+        feed: &Subject,
         target: &Subject,
         functional: &FunctionalMethod,
-    ) -> Option<TypeRef> {
+    ) -> Subject {
+        let arguments = functional.parameters.len();
         match &self.target {
-            Expression::StaticType(created) if self.name == "new" => Some(created.clone()),
-            Expression::StaticType(owner) => {
-                let on_first = functional
-                    .parameters
-                    .split_first()
-                    .and_then(|(first, rest)| types.return_type_on(first, &self.name, rest.len()));
-                on_first.or_else(|| {
-                    types.return_type_on(owner, &self.name, functional.parameters.len())
-                })
+            Expression::StaticType(created) if self.name == "new" => {
+                Subject::friend(Reason::created(created.clone()), created.clone())
             }
-            _ => target.type_ref.as_ref().and_then(|target_type| {
-                types.return_type_on(target_type, &self.name, functional.parameters.len())
-            }),
+            Expression::StaticType(owner) => self
+                .on_first_parameter(types, feed, functional)
+                .or_else(|| {
+                    types
+                        .return_type_on(owner, &self.name, arguments)
+                        .map(|type_ref| {
+                            Subject::friend(Reason::static_result(&self.name), type_ref)
+                        })
+                })
+                .unwrap_or_else(|| self.unresolved()),
+            _ => self.on(types, target, arguments),
+        }
+    }
+
+    fn on_first_parameter(
+        &self,
+        types: &Types,
+        feed: &Subject,
+        functional: &FunctionalMethod,
+    ) -> Option<Subject> {
+        let (first, rest) = functional.parameters.split_first()?;
+        let type_ref = types.return_type_on(first, &self.name, rest.len())?;
+        let element = Subject {
+            standing: feed.standing.clone(),
+            type_ref: Some(first.clone()),
+        };
+        Some(Subject {
+            standing: standing_after_call(types, &element, &self.name, rest.len(), false),
+            type_ref: Some(type_ref),
+        })
+    }
+
+    fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Subject {
+        Subject {
+            standing: standing_after_call(types, target, &self.name, arguments, false),
+            type_ref: target
+                .type_ref
+                .as_ref()
+                .and_then(|target_type| types.return_type_on(target_type, &self.name, arguments)),
+        }
+    }
+
+    fn unresolved(&self) -> Subject {
+        Subject {
+            standing: Standing::Stranger(Reason::return_of(&self.name)),
+            type_ref: None,
         }
     }
 }

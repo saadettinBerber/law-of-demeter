@@ -76,8 +76,15 @@ impl Call {
                 && Self::is_container(context.types, type_ref.as_ref())
         });
         let subject = Subject {
-            standing: mapped
-                .unwrap_or_else(|| self.result_standing(context.types, &receiver.subject)),
+            standing: mapped.unwrap_or_else(|| {
+                standing_after_call(
+                    context.types,
+                    &receiver.subject,
+                    &self.name,
+                    self.arguments.len(),
+                    matches!(self.receiver, Expression::StaticType(_)),
+                )
+            }),
             type_ref,
         };
         Judged { verdicts, subject }
@@ -165,28 +172,37 @@ impl Call {
     }
 
     fn is_fluent_on(&self, types: &Types, type_ref: &TypeRef) -> bool {
-        class_name(type_ref)
-            .is_some_and(|name| types.is_fluent(name, &self.name, self.arguments.len()))
+        is_fluent(types, type_ref, &self.name, self.arguments.len())
     }
+}
 
-    fn result_standing(&self, types: &Types, receiver: &Subject) -> Standing {
-        let standing = &receiver.standing;
-        let keeps_standing = receiver.type_ref.as_ref().is_some_and(|type_ref| {
-            self.is_fluent_on(types, type_ref)
-                || types.classify(type_ref) == Classification::Container
-        });
-        if matches!(self.receiver, Expression::StaticType(_)) {
-            Standing::Friend(Reason::static_result(&self.name))
-        } else if keeps_standing {
-            standing.clone()
-        } else if is_factory_method(&self.name) && matches!(standing, Standing::Friend(_)) {
-            Standing::Friend(Reason::factory_result(&self.name))
-        } else if is_repository_query(&self.name) && standing.is_held() {
-            Standing::Friend(Reason::query_result(&self.name))
-        } else {
-            Standing::Stranger(Reason::return_of(&self.name))
-        }
+pub(super) fn standing_after_call(
+    types: &Types,
+    receiver: &Subject,
+    name: &str,
+    argument_count: usize,
+    on_type: bool,
+) -> Standing {
+    let standing = &receiver.standing;
+    let keeps_standing = receiver.type_ref.as_ref().is_some_and(|type_ref| {
+        is_fluent(types, type_ref, name, argument_count)
+            || types.classify(type_ref) == Classification::Container
+    });
+    if on_type {
+        Standing::Friend(Reason::static_result(name))
+    } else if keeps_standing {
+        standing.clone()
+    } else if is_factory_method(name) && matches!(standing, Standing::Friend(_)) {
+        Standing::Friend(Reason::factory_result(name))
+    } else if is_repository_query(name) && standing.is_held() {
+        Standing::Friend(Reason::query_result(name))
+    } else {
+        Standing::Stranger(Reason::return_of(name))
     }
+}
+
+fn is_fluent(types: &Types, type_ref: &TypeRef, name: &str, argument_count: usize) -> bool {
+    class_name(type_ref).is_some_and(|owner| types.is_fluent(owner, name, argument_count))
 }
 
 fn is_library(context: &Context, type_ref: &TypeRef) -> bool {

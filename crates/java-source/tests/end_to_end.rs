@@ -1035,23 +1035,6 @@ fn inference_2_the_declared_type_of_a_field_types_the_lambda_parameter() {
     assert_eq!(verdicts, closing_the_record_of_the_event());
 }
 
-fn charging_the_wallets_of_the_mapped_customers(first: Vec<Verdict>) -> Vec<Verdict> {
-    let orders = Reason::parameter("orders");
-    let mut verdicts = vec![Verdict::allowed("stream", 3, orders.clone())];
-    verdicts.extend(first);
-    verdicts.extend([
-        Verdict::allowed("map", 3, orders.clone()),
-        Verdict::allowed(
-            "getWallet",
-            3,
-            Reason::lambda_parameter("customer", orders.clone()),
-        ),
-        Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
-        Verdict::allowed("forEach", 3, orders),
-    ]);
-    verdicts
-}
-
 #[test]
 fn inference_3_the_result_of_a_method_reference_types_the_next_lambda_parameter() {
     let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(Order::getCustomer).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
@@ -1066,7 +1049,7 @@ fn inference_3_the_result_of_a_method_reference_types_the_next_lambda_parameter(
 
     assert_eq!(
         verdicts,
-        charging_the_wallets_of_the_mapped_customers(vec![])
+        charging_the_wallets_of_customers_mapped_from_a_stranger(vec![])
     );
 }
 
