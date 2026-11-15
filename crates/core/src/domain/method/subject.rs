@@ -62,6 +62,17 @@ impl Subject {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct Target<'a> {
+    pub(super) type_ref: &'a TypeRef,
+}
+
+impl<'a> Target<'a> {
+    pub(super) fn of(type_ref: &'a TypeRef) -> Self {
+        Self { type_ref }
+    }
+}
+
 pub(super) struct Judged {
     pub(super) verdicts: Vec<Verdict>,
     pub(super) subject: Subject,

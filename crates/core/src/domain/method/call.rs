@@ -1,8 +1,8 @@
 use super::expression::{Argument, Expression};
 use super::reason::{Reason, Verdict};
-use super::subject::{Context, Judged, Standing, Subject};
+use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{
-    Classification, Invocation, Types, is_factory_method, is_repository_query,
+    Classification, Invocation, Types, has_variable, is_factory_method, is_repository_query,
 };
 use crate::domain::type_shape::TypeRef;
 
@@ -44,7 +44,7 @@ impl Call {
         self.judge_expecting(context, None)
     }
 
-    pub(super) fn judge_expecting(&self, context: &Context, expected: Option<&TypeRef>) -> Judged {
+    pub(super) fn judge_expecting(&self, context: &Context, target: Option<Target>) -> Judged {
         let receiver = self.receiver.judge(context);
         let mut verdicts = receiver.verdicts;
         let values: Vec<_> = self
@@ -52,12 +52,18 @@ impl Call {
             .iter()
             .map(|argument| argument.judge_value(context))
             .collect();
-        let expected = self.expected.as_ref().or(expected);
+        let expected = self
+            .expected
+            .as_ref()
+            .or(target.map(|target| target.type_ref));
         let mut invocation = self.invocation(context.types, &receiver.subject, &values, expected);
         let mut mapped = None;
         for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
-                Some(judged) => verdicts.extend(judged.verdicts),
+                Some(judged) => {
+                    let judged = self.settled(context, argument, index, judged, &mut invocation);
+                    verdicts.extend(judged.verdicts);
+                }
                 None => {
                     let functional = invocation.functional_method(context.types, index);
                     let produced = argument.judge(context, &receiver.subject, functional.as_ref());
@@ -90,6 +96,25 @@ impl Call {
         Judged { verdicts, subject }
     }
 
+    fn settled(
+        &self,
+        context: &Context,
+        argument: &Argument,
+        index: usize,
+        judged: Judged,
+        invocation: &mut Invocation,
+    ) -> Judged {
+        if !judged.subject.type_ref.as_ref().is_some_and(has_variable) {
+            return judged;
+        }
+        let retried = invocation.parameter_type(index).and_then(|expected| {
+            argument.judge_value_expecting(context, Some(Target::of(&expected)))
+        });
+        let judged = retried.unwrap_or(judged);
+        invocation.argument(context.types, index, judged.subject.type_ref.as_ref());
+        judged
+    }
+
     fn is_container(types: &Types, type_ref: Option<&TypeRef>) -> bool {
         type_ref.is_some_and(|type_ref| types.classify(type_ref) == Classification::Container)
     }
@@ -107,6 +132,7 @@ impl Call {
                 value
                     .as_ref()
                     .and_then(|judged| judged.subject.type_ref.as_ref())
+                    .filter(|type_ref| !has_variable(type_ref))
             })
             .collect();
         receiver

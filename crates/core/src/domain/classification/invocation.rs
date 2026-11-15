@@ -61,6 +61,18 @@ impl Invocation {
         invocation
     }
 
+    pub(crate) fn parameter_type(&self, index: usize) -> Option<TypeRef> {
+        self.parameters
+            .get(index)
+            .map(|parameter| substitute(parameter, &self.bindings))
+    }
+
+    pub(crate) fn argument(&mut self, types: &Types, index: usize, actual: Option<&TypeRef>) {
+        if let Some((parameter, actual)) = self.parameters.get(index).cloned().zip(actual) {
+            self.unify(types, &parameter, actual);
+        }
+    }
+
     pub(crate) fn expecting(mut self, types: &Types, expected: Option<&TypeRef>) -> Self {
         if let Some((returns, expected)) = self.returns.clone().zip(expected) {
             self.unify(types, &returns, expected);
@@ -109,7 +121,9 @@ impl Invocation {
 
     fn unify(&mut self, types: &Types, declared: &TypeRef, actual: &TypeRef) {
         match (declared, actual) {
-            (TypeRef::Variable(name), _) if self.free.contains(name) => {
+            (TypeRef::Variable(name), actual)
+                if self.free.contains(name) && !matches!(actual, TypeRef::Variable(_)) =>
+            {
                 self.bindings
                     .entry(name.clone())
                     .or_insert_with(|| actual.clone());
@@ -240,5 +254,14 @@ fn expanded_parameters(method: &MethodShape, argument_count: usize) -> Vec<TypeR
                 .collect()
         }
         _ => parameters.to_vec(),
+    }
+}
+
+pub(crate) fn has_variable(type_ref: &TypeRef) -> bool {
+    match type_ref {
+        TypeRef::Variable(_) => true,
+        TypeRef::Class { arguments, .. } => arguments.iter().any(has_variable),
+        TypeRef::Array(element) => has_variable(element),
+        TypeRef::Primitive(_) => false,
     }
 }

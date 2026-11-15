@@ -8,7 +8,7 @@ pub use naming::{is_factory_method, is_repository_query};
 use std::collections::{HashMap, HashSet};
 
 pub(crate) use functional::FunctionalMethod;
-pub(crate) use invocation::Invocation;
+pub(crate) use invocation::{Invocation, has_variable};
 
 use super::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 

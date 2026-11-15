@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::block::Block;
 use super::call::{Call, standing_after_call};
 use super::reason::{Reason, Verdict};
-use super::subject::{Context, Judged, Standing, Subject};
+use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{FunctionalMethod, Types};
 use crate::domain::type_shape::{FieldShape, TypeRef};
 
@@ -106,7 +106,7 @@ impl Expression {
         self.judge_expecting(context, None)
     }
 
-    pub(super) fn judge_expecting(&self, context: &Context, expected: Option<&TypeRef>) -> Judged {
+    pub(super) fn judge_expecting(&self, context: &Context, target: Option<Target>) -> Judged {
         match self {
             Self::This => Judged::quiet(Subject::friend(Reason::This, context.this_type.clone())),
             Self::Field { name, type_ref } => {
@@ -115,7 +115,7 @@ impl Expression {
             Self::Parameter { name, type_ref } => {
                 Judged::quiet(Subject::friend(Reason::parameter(name), type_ref.clone()))
             }
-            Self::ReturnOf(call) => call.judge_expecting(context, expected),
+            Self::ReturnOf(call) => call.judge_expecting(context, target),
             Self::Local(name) => Judged::quiet(context.local(name)),
             Self::New(creation) => creation.judge(context),
             Self::StaticType(type_ref) => Judged::quiet(Subject::friend(
@@ -156,7 +156,7 @@ impl Expression {
                 }
             }
             Self::Cast { type_ref, operand } => {
-                let judged = operand.judge_expecting(context, Some(type_ref));
+                let judged = operand.judge_expecting(context, Some(Target::of(type_ref)));
                 Judged {
                     verdicts: judged.verdicts,
                     subject: judged.subject.declared_as(Some(type_ref)),
@@ -290,8 +290,16 @@ impl From<MethodReference> for Argument {
 
 impl Argument {
     pub(super) fn judge_value(&self, context: &Context) -> Option<Judged> {
+        self.judge_value_expecting(context, None)
+    }
+
+    pub(super) fn judge_value_expecting(
+        &self,
+        context: &Context,
+        target: Option<Target>,
+    ) -> Option<Judged> {
         match self {
-            Self::Value(value) => Some(value.judge(context)),
+            Self::Value(value) => Some(value.judge_expecting(context, target)),
             Self::Lambda(_) | Self::MethodReference(_) => None,
         }
     }

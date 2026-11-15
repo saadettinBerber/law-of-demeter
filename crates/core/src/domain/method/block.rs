@@ -1,7 +1,7 @@
 use super::call::Call;
 use super::expression::Expression;
 use super::reason::{Reason, Verdict};
-use super::subject::Context;
+use super::subject::{Context, Target};
 use crate::domain::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +28,7 @@ impl Step {
                 declared,
                 value,
             } => {
-                let judged = value.judge_expecting(context, declared.as_ref());
+                let judged = value.judge_expecting(context, declared.as_ref().map(Target::of));
                 let subject = judged
                     .subject
                     .through(|origin| Reason::local(local, origin));

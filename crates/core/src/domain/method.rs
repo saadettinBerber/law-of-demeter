@@ -81,6 +81,8 @@ mod compound;
 #[cfg(test)]
 mod inference;
 #[cfg(test)]
+mod nested;
+#[cfg(test)]
 mod scenarios;
 #[cfg(test)]
 mod tests;
