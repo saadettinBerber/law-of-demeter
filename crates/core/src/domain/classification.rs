@@ -454,7 +454,7 @@ fn is_object_method(method: &MethodShape) -> bool {
 }
 
 fn is_exposed(method: &MethodShape) -> bool {
-    method.is_public()
+    !method.is_private()
         && !method.is_static()
         && !is_object_method(method)
         && method.name() != "<init>"

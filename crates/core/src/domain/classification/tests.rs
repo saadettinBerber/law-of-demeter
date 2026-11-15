@@ -126,7 +126,7 @@ fn generated_and_hand_written_accessors_are_classified_the_same() {
 }
 
 #[test]
-fn constructors_object_methods_statics_and_non_public_methods_are_not_behavior() {
+fn constructors_object_methods_statics_and_private_methods_are_not_behavior() {
     let dto = TypeShape::new("Customer", TypeKind::Class)
         .with_method(
             MethodShape::new("getName")
@@ -146,7 +146,7 @@ fn constructors_object_methods_statics_and_non_public_methods_are_not_behavior()
                 .returning(TypeRef::class("Customer$Builder"))
                 .as_static(),
         )
-        .with_method(MethodShape::new("validate").not_public());
+        .with_method(MethodShape::new("validate").as_private());
 
     let classification = classify(dto);
 
@@ -2098,4 +2098,115 @@ fn a_class_that_is_not_marked_as_a_project_type_still_counts_its_own_methods() {
     let classification = types.classify(&TypeRef::class("Account"));
 
     assert_eq!(classification, Classification::Hybrid);
+}
+
+fn package_private(method: MethodShape) -> MethodShape {
+    method.not_public()
+}
+
+#[test]
+fn a_class_whose_methods_are_all_package_private_with_behavior_is_an_object() {
+    let customer = TypeShape::new("Customer", TypeKind::Class)
+        .with_method(package_private(getter("getWallet", "wallet")))
+        .with_method(package_private(behavior("rename")));
+
+    let classification = classify(customer);
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn package_private_getters_and_setters_with_behavior_make_a_hybrid() {
+    let account = TypeShape::new("Account", TypeKind::Class)
+        .with_method(package_private(getter("getBalance", "balance")))
+        .with_method(package_private(setter("setBalance", "balance")))
+        .with_method(package_private(behavior("withdraw")));
+
+    let classification = classify(account);
+
+    assert_eq!(classification, Classification::Hybrid);
+}
+
+#[test]
+fn package_private_getters_and_setters_alone_are_a_data_structure() {
+    let address = TypeShape::new("Address", TypeKind::Class)
+        .with_method(package_private(getter("getCity", "city")))
+        .with_method(package_private(setter("setCity", "city")));
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_protected_behavior_method_counts_next_to_public_accessors() {
+    let order = TypeShape::new("Order", TypeKind::Class)
+        .with_method(getter("getId", "id"))
+        .with_method(package_private(behavior("recalculate")));
+
+    let classification = classify(order);
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn private_methods_do_not_count_as_behavior() {
+    let address = TypeShape::new("Address", TypeKind::Class)
+        .with_method(getter("getCity", "city"))
+        .with_method(behavior("normalize").as_private());
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_private_setter_does_not_make_an_object_a_hybrid() {
+    let order = TypeShape::new("Order", TypeKind::Class)
+        .with_method(behavior("charge"))
+        .with_method(setter("setTotal", "total").as_private());
+
+    let classification = classify(order);
+
+    assert_eq!(classification, Classification::Object);
+}
+
+#[test]
+fn a_hybrid_finding_names_package_private_methods_but_not_private_ones() {
+    let types = Types::new().with_shape(
+        TypeShape::new("Account", TypeKind::Class)
+            .with_method(package_private(setter("setBalance", "balance")))
+            .with_method(package_private(behavior("withdraw")))
+            .with_method(behavior("audit").as_private())
+            .with_method(setter("setSecret", "secret").as_private()),
+    );
+
+    let hybrid = types.hybrid_class("Account");
+
+    assert_eq!(
+        hybrid,
+        Some(HybridClass::new(
+            "Account",
+            vec!["withdraw".to_owned()],
+            vec!["setBalance".to_owned()]
+        ))
+    );
+}
+
+#[test]
+fn a_non_public_equals_does_not_make_a_class_a_value() {
+    let shape = version(
+        vec![final_field("major")],
+        vec![
+            package_private(
+                MethodShape::new("equals").with_parameters(vec![TypeRef::class("Version")]),
+            ),
+            MethodShape::new("hashCode").returning(int()),
+            behavior("bump"),
+        ],
+    );
+
+    let classification = classify(shape);
+
+    assert_eq!(classification, Classification::Object);
 }
