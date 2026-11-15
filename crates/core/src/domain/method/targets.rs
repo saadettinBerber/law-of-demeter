@@ -1,4 +1,4 @@
-use super::{Call, Expression, Lambda, Method, Reason, Verdict};
+use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
 use crate::domain::classification::Types;
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -200,4 +200,165 @@ fn a_lambda_parameter_without_a_declared_type_stays_untyped_in_an_argument() {
             Reason::unresolved_type(None, Reason::return_of("getEntry"))
         )
     );
+}
+
+fn constructor(parameters: Vec<TypeRef>) -> MethodShape {
+    MethodShape::new("<init>").with_parameters(parameters)
+}
+
+fn worker_taking(constructors: Vec<MethodShape>) -> Types {
+    let worker = constructors
+        .into_iter()
+        .fold(class("Worker"), |worker, constructor| {
+            worker.with_method(constructor)
+        });
+    events().with_shape(worker)
+}
+
+fn creating(type_ref: TypeRef, lambdas: Vec<Lambda>) -> Expression {
+    let creation = lambdas
+        .into_iter()
+        .fold(Creation::new(type_ref), Creation::with);
+    Expression::created(creation)
+}
+
+fn release_in(created: TypeRef) -> [Verdict; 3] {
+    let fed = Reason::lambda_parameter("e", Reason::created(created));
+    [
+        Verdict::allowed("getEntry", 2, fed),
+        Verdict::violation("getLock", 2, Reason::return_of("getEntry")),
+        Verdict::violation("release", 2, Reason::return_of("getLock")),
+    ]
+}
+
+fn untyped_getlock() -> Verdict {
+    Verdict::violation(
+        "getLock",
+        2,
+        Reason::unresolved_type(None, Reason::return_of("getEntry")),
+    )
+}
+
+fn plain_handler() -> Lambda {
+    Lambda::new(&["e"]).yielding(releasing_the_lock_of_the_entry_of("e"))
+}
+
+fn worker() -> TypeRef {
+    TypeRef::class("Worker")
+}
+
+#[test]
+fn a_constructor_parameter_of_a_functional_type_types_the_lambda_argument() {
+    let types = worker_taking(vec![constructor(vec![consumer_of(event())])]);
+    let run =
+        Method::new("Dispatcher", "start", 1).evaluate(creating(worker(), vec![plain_handler()]));
+
+    let verdicts = run.verdicts(&types);
+
+    assert_eq!(verdicts, release_in(worker()));
+}
+
+#[test]
+fn the_constructor_whose_parameter_count_fits_the_arguments_types_the_lambda() {
+    let types = worker_taking(vec![
+        constructor(vec![consumer_of(TypeRef::class("Entry"))]),
+        constructor(vec![
+            TypeRef::class("java.lang.String"),
+            consumer_of(event()),
+        ]),
+    ]);
+    let creation = Creation::new(worker())
+        .with(Expression::literal())
+        .with(plain_handler());
+    let run = Method::new("Dispatcher", "start", 1).evaluate(Expression::created(creation));
+
+    let verdicts = run.verdicts(&types);
+
+    assert_eq!(verdicts, release_in(worker()));
+}
+
+#[test]
+fn a_variable_arity_constructor_types_every_lambda_it_takes() {
+    let tasks = TypeRef::array(consumer_of(event()));
+    let types = worker_taking(vec![constructor(vec![tasks]).as_varargs()]);
+    let run = Method::new("Dispatcher", "start", 1)
+        .evaluate(creating(worker(), vec![plain_handler(), plain_handler()]));
+
+    let verdicts = run.verdicts(&types);
+
+    let both: Vec<_> = release_in(worker())
+        .into_iter()
+        .chain(release_in(worker()))
+        .collect();
+    assert_eq!(verdicts, both);
+}
+
+#[test]
+fn the_constructors_of_a_supertype_do_not_type_the_lambda_of_a_subtype() {
+    let types = worker_taking(vec![constructor(vec![consumer_of(event())])])
+        .with_shape(class("Helper").extending(worker()));
+    let run = Method::new("Dispatcher", "start", 1)
+        .evaluate(creating(TypeRef::class("Helper"), vec![plain_handler()]));
+
+    let verdicts = run.verdicts(&types);
+
+    assert_eq!(verdicts[1], untyped_getlock());
+}
+
+#[test]
+fn constructors_of_the_same_arity_leave_the_lambda_untyped() {
+    let types = worker_taking(vec![
+        constructor(vec![consumer_of(event())]),
+        constructor(vec![consumer_of(TypeRef::class("Entry"))]),
+    ]);
+    let run =
+        Method::new("Dispatcher", "start", 1).evaluate(creating(worker(), vec![plain_handler()]));
+
+    let verdicts = run.verdicts(&types);
+
+    assert_eq!(verdicts[1], untyped_getlock());
+}
+
+fn handlers_of_any_event() -> Types {
+    let handler = class("Handler")
+        .with_type_parameter("T")
+        .with_method(constructor(vec![consumer_of(TypeRef::variable("T"))]));
+    events().with_shape(handler)
+}
+
+fn handler_of(argument: TypeRef) -> TypeRef {
+    TypeRef::generic("Handler", vec![argument])
+}
+
+#[test]
+fn the_type_arguments_written_after_the_class_type_the_lambda_argument() {
+    let run = Method::new("Dispatcher", "start", 1)
+        .evaluate(creating(handler_of(event()), vec![plain_handler()]));
+
+    let verdicts = run.verdicts(&handlers_of_any_event());
+
+    assert_eq!(verdicts, release_in(handler_of(event())));
+}
+
+#[test]
+fn a_diamond_takes_its_type_arguments_from_the_declared_type_of_the_local() {
+    let run = Method::new("Dispatcher", "start", 1).assign(
+        "handler",
+        handler_of(event()),
+        creating(TypeRef::class("Handler"), vec![plain_handler()]),
+    );
+
+    let verdicts = run.verdicts(&handlers_of_any_event());
+
+    assert_eq!(verdicts, release_in(TypeRef::class("Handler")));
+}
+
+#[test]
+fn a_diamond_without_a_target_leaves_the_lambda_untyped() {
+    let run = Method::new("Dispatcher", "start", 1)
+        .evaluate(creating(TypeRef::class("Handler"), vec![plain_handler()]));
+
+    let verdicts = run.verdicts(&handlers_of_any_event());
+
+    assert_eq!(verdicts[1], untyped_getlock());
 }

@@ -94,6 +94,37 @@ impl Types {
         }
     }
 
+    pub(crate) fn construction(
+        &self,
+        created: &TypeRef,
+        values: &[Option<&TypeRef>],
+    ) -> Invocation {
+        let Some((shape, class_bindings)) = self.bound(created) else {
+            return Invocation::unknown();
+        };
+        let constructors = || {
+            shape
+                .methods()
+                .iter()
+                .filter(|method| method.name() == "<init>")
+        };
+        let fixed: Vec<_> = constructors()
+            .filter(|method| takes_exactly(values.len())(method))
+            .collect();
+        let overloads = if fixed.is_empty() {
+            constructors()
+                .filter(|method| takes_variable(values.len())(method))
+                .collect()
+        } else {
+            fixed
+        };
+        let overloads = invocation::applicable(self, overloads, &class_bindings, values);
+        match overloads.as_slice() {
+            [only] => Invocation::constructing(self, shape, only, created, &class_bindings, values),
+            _ => Invocation::ambiguous(None),
+        }
+    }
+
     fn overloads(&self, type_name: &str, method: &str, argument_count: usize) -> Vec<&MethodShape> {
         self.overloads_on(&TypeRef::class(type_name), method, argument_count)
             .map(|(_, overloads)| overloads)
@@ -106,14 +137,8 @@ impl Types {
         method: &str,
         argument_count: usize,
     ) -> Option<(TypeRef, Vec<&MethodShape>)> {
-        self.declaring_overloads(receiver, method, |candidate| {
-            candidate.parameters().len() == argument_count
-        })
-        .or_else(|| {
-            self.declaring_overloads(receiver, method, |candidate| {
-                candidate.is_varargs() && candidate.parameters().len() <= argument_count + 1
-            })
-        })
+        self.declaring_overloads(receiver, method, takes_exactly(argument_count))
+            .or_else(|| self.declaring_overloads(receiver, method, takes_variable(argument_count)))
     }
 
     fn declaring_overloads(
@@ -444,6 +469,14 @@ fn class_name(type_ref: &TypeRef) -> Option<&str> {
         TypeRef::Class { name, .. } => Some(name),
         TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => None,
     }
+}
+
+fn takes_exactly(argument_count: usize) -> impl Fn(&MethodShape) -> bool {
+    move |candidate| candidate.parameters().len() == argument_count
+}
+
+fn takes_variable(argument_count: usize) -> impl Fn(&MethodShape) -> bool {
+    move |candidate| candidate.is_varargs() && candidate.parameters().len() <= argument_count + 1
 }
 
 fn is_object_method(method: &MethodShape) -> bool {

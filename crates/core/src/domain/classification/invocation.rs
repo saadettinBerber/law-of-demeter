@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::{FunctionalMethod, Types, class_name, substitute};
-use crate::domain::type_shape::{MethodShape, TypeRef};
+use crate::domain::type_shape::{MethodShape, TypeRef, TypeShape};
 
 pub(crate) struct Invocation {
     parameters: Vec<TypeRef>,
@@ -33,7 +33,60 @@ impl Invocation {
         class_bindings: &HashMap<String, TypeRef>,
         values: &[Option<&TypeRef>],
     ) -> Self {
-        let free = method.type_parameters().to_vec();
+        Self::build(
+            types,
+            method,
+            method.type_parameters().to_vec(),
+            method.returns().cloned(),
+            class_bindings,
+            values,
+        )
+    }
+
+    pub(super) fn constructing(
+        types: &Types,
+        class: &TypeShape,
+        constructor: &MethodShape,
+        created: &TypeRef,
+        class_bindings: &HashMap<String, TypeRef>,
+        values: &[Option<&TypeRef>],
+    ) -> Self {
+        let inferred = class_bindings.is_empty() && !class.type_parameters().is_empty();
+        let (free, returns) = if inferred {
+            let variables = class
+                .type_parameters()
+                .iter()
+                .map(|parameter| TypeRef::variable(parameter));
+            (
+                class
+                    .type_parameters()
+                    .iter()
+                    .chain(constructor.type_parameters())
+                    .cloned()
+                    .collect(),
+                TypeRef::generic(class.name(), variables.collect()),
+            )
+        } else {
+            (constructor.type_parameters().to_vec(), created.clone())
+        };
+        Self::build(
+            types,
+            constructor,
+            free,
+            Some(returns),
+            class_bindings,
+            values,
+        )
+    }
+
+    fn build(
+        types: &Types,
+        method: &MethodShape,
+        free: Vec<String>,
+        returns: Option<TypeRef>,
+        class_bindings: &HashMap<String, TypeRef>,
+        values: &[Option<&TypeRef>],
+    ) -> Self {
         let class_bindings: HashMap<_, _> = class_bindings
             .iter()
             .filter(|(name, _)| !free.contains(name))
@@ -45,9 +98,7 @@ impl Invocation {
             .collect();
         let mut invocation = Self {
             parameters,
-            returns: method
-                .returns()
-                .map(|returned| substitute(returned, &class_bindings)),
+            returns: returns.map(|returned| substitute(&returned, &class_bindings)),
             free,
             bindings: HashMap::new(),
         };
