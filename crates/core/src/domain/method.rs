@@ -79,6 +79,8 @@ mod calibration;
 #[cfg(test)]
 mod compound;
 #[cfg(test)]
+mod inference;
+#[cfg(test)]
 mod scenarios;
 #[cfg(test)]
 mod tests;

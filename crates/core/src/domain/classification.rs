@@ -1,9 +1,12 @@
+mod invocation;
 mod jdk;
 mod naming;
 
 pub use naming::{is_factory_method, is_repository_query};
 
 use std::collections::{HashMap, HashSet};
+
+pub(crate) use invocation::Invocation;
 
 use super::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -62,10 +65,30 @@ impl Types {
         method: &str,
         parameter_count: usize,
     ) -> Option<TypeRef> {
-        let (declaring, overloads) = self.overloads_on(receiver, method, parameter_count)?;
-        let returned = unambiguous_return(&overloads)?;
-        let (_, bindings) = self.bound(&declaring)?;
-        Some(substitute(returned, &bindings))
+        self.invocation(receiver, method, &vec![None; parameter_count])
+            .returns()
+    }
+
+    pub(crate) fn invocation(
+        &self,
+        receiver: &TypeRef,
+        method: &str,
+        values: &[Option<&TypeRef>],
+    ) -> Invocation {
+        let Some((declaring, overloads)) = self.overloads_on(receiver, method, values.len()) else {
+            return Invocation::unknown();
+        };
+        let class_bindings = self
+            .bound(&declaring)
+            .map(|(_, bindings)| bindings)
+            .unwrap_or_default();
+        match overloads.as_slice() {
+            [only] => Invocation::of(only, &class_bindings, values),
+            _ => Invocation::ambiguous(
+                unambiguous_return(&overloads)
+                    .map(|returned| substitute(returned, &class_bindings)),
+            ),
+        }
     }
 
     fn overloads(

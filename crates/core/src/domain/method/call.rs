@@ -2,7 +2,7 @@ use super::expression::{Argument, Expression};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject};
 use crate::domain::classification::{
-    Classification, Types, is_factory_method, is_repository_query,
+    Classification, Invocation, Types, is_factory_method, is_repository_query,
 };
 use crate::domain::type_shape::TypeRef;
 
@@ -43,11 +43,40 @@ impl Call {
     pub(super) fn judge(&self, context: &Context) -> Judged {
         let receiver = self.receiver.judge(context);
         let mut verdicts = receiver.verdicts;
-        for argument in &self.arguments {
-            verdicts.extend(argument.judge(context, &receiver.subject));
+        let values: Vec<_> = self
+            .arguments
+            .iter()
+            .map(|argument| argument.judge_value(context))
+            .collect();
+        let value_types: Vec<_> = values
+            .iter()
+            .map(|value| {
+                value
+                    .as_ref()
+                    .and_then(|judged| judged.subject.type_ref.as_ref())
+            })
+            .collect();
+        let invocation =
+            receiver
+                .subject
+                .type_ref
+                .as_ref()
+                .map_or_else(Invocation::unknown, |receiver_type| {
+                    context
+                        .types
+                        .invocation(receiver_type, &self.name, &value_types)
+                });
+        for (argument, value) in self.arguments.iter().zip(values) {
+            match value {
+                Some(judged) => verdicts.extend(judged.verdicts),
+                None => verdicts.extend(argument.judge(context, &receiver.subject)),
+            }
         }
         verdicts.push(self.verdict(context, &receiver.subject));
-        let subject = self.result(context.types, &receiver.subject);
+        let subject = Subject {
+            standing: self.result_standing(context.types, &receiver.subject),
+            type_ref: invocation.returns(),
+        };
         Judged { verdicts, subject }
     }
 
@@ -107,16 +136,6 @@ impl Call {
     fn is_fluent_on(&self, types: &Types, type_ref: &TypeRef) -> bool {
         class_name(type_ref)
             .is_some_and(|name| types.is_fluent(name, &self.name, self.arguments.len()))
-    }
-
-    fn result(&self, types: &Types, receiver: &Subject) -> Subject {
-        let type_ref = receiver.type_ref.as_ref().and_then(|receiver_type| {
-            types.return_type_on(receiver_type, &self.name, self.arguments.len())
-        });
-        Subject {
-            standing: self.result_standing(types, receiver),
-            type_ref,
-        }
     }
 
     fn result_standing(&self, types: &Types, receiver: &Subject) -> Standing {

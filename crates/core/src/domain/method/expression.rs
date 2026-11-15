@@ -249,6 +249,13 @@ impl From<MethodReference> for Argument {
 }
 
 impl Argument {
+    pub(super) fn judge_value(&self, context: &Context) -> Option<Judged> {
+        match self {
+            Self::Value(value) => Some(value.judge(context)),
+            Self::Lambda(_) | Self::MethodReference(_) => None,
+        }
+    }
+
     pub(super) fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
         match self {
             Self::Value(value) => value.judge(context).verdicts,
