@@ -65,6 +65,7 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
             "shop.Catalog$Node",
             "shop.Container",
             "shop.Customer",
+            "shop.Dispatcher",
             "shop.Entity",
             "shop.Invoice",
             "shop.Money",
