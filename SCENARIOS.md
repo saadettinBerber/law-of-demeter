@@ -33,6 +33,7 @@
 | Uygun değil | 7. Veri yapısının taşıdığı nesneye uzanmak | Raporlanır | ✅ |
 | Uygun değil | 8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak | Raporlanır | ✅ |
 | Uygun değil | 9. Kendi metodunun döndürdüğü nesneyle konuşmak | Raporlanır | ✅ |
+| Uygun değil | 10. Akışın yabancıdan ürettiği elemanla konuşmak | Raporlanır | ✅ |
 | Uygun | 1. Parametreden değer okumak | Raporlanmaz | ✅ |
 | Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ✅ |
 | Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ✅ |
@@ -192,6 +193,21 @@ void discount(String id, int rate) {
 
 </details>
 
+<details>
+<summary><strong>10. Akışın yabancıdan ürettiği elemanla konuşmak</strong></summary>
+
+```java
+void charge(int amount) {
+    orders.stream().map(Order::getCustomer).forEach(customer -> customer.getWallet().withdraw(amount));
+}
+```
+
+- **Neden:** `orders` C'nin bir alanı; akışı da arkadaş. `map(Order::getCustomer)` ise her siparişin müşterisini döndürür ve müşteriler yabancıdır. f, `order.getCustomer().getWallet()` ile aynı yere uzanıyor; akış bunu gizlemez. `getWallet` ve `withdraw` raporlanır.
+
+- **Not:** Lambda ile yazılsa da sonuç aynı: `map(order -> order.getCustomer())`. Eleman f'nin içinde oluşturulursa arkadaş kalır: `map(order -> new Receipt(order))`. `filter` gibi elemanı değiştirmeyen adımlar akışın durumunu korur: Uygun 5.
+
+</details>
+
 ## Uygun
 
 ---
@@ -285,6 +301,8 @@ long paidCount(List<Order> orders) {
 ```
 
 - **Neden:** Stream adımları koleksiyonu dönüştürür; bir nesnenin iç yapısına uzanmaz.
+
+- **Not:** `map` elemanı bir yabancıyla değiştirirse akışın elemanları da yabancı olur: Uygun değil 10.
 
 </details>
 
