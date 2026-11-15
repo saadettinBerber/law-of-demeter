@@ -595,6 +595,14 @@ fn a_lambda_parameter_fed_by_an_unresolved_name_is_unresolved() {
 }
 
 #[test]
+fn a_method_reference_fed_by_an_unresolved_name_is_unresolved() {
+    let feed = Reason::unresolved_name("items");
+    let reason = Reason::method_reference(TypeRef::class("Item"), "getPrice", feed);
+
+    assert!(reason.is_unresolved());
+}
+
+#[test]
 fn a_loop_variable_fed_by_an_unresolved_type_is_unresolved() {
     let feed = Reason::unresolved_type(None, Reason::return_of("find"));
     let reason = Reason::loop_variable("item", feed);

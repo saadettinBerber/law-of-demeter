@@ -16,6 +16,13 @@ pub fn describe(reason: &Reason) -> String {
         Reason::LoopVariable { name, feed } => {
             format!("{name} döngü değişkeni: {}", describe(feed))
         }
+        Reason::MethodReference { owner, name, feed } => {
+            format!(
+                "{}::{name} metot referansı: {}",
+                simple_name(owner),
+                describe(feed)
+            )
+        }
         Reason::ContainerMutation { type_ref, source } => format!(
             "koleksiyon dışarıdan değiştiriliyor ({}): {}",
             type_name(type_ref),
@@ -71,7 +78,9 @@ pub fn describe(reason: &Reason) -> String {
 pub fn category(reason: &Reason) -> &'static str {
     match reason {
         Reason::Local { origin, .. } => category(origin),
-        Reason::LambdaParameter { feed, .. } | Reason::LoopVariable { feed, .. } => category(feed),
+        Reason::LambdaParameter { feed, .. }
+        | Reason::LoopVariable { feed, .. }
+        | Reason::MethodReference { feed, .. } => category(feed),
         Reason::ReturnOf(_) => "Döndürülen nesne f'nin arkadaşı değil",
         Reason::ContainerMutation { .. } => "Döndürülen koleksiyon değiştiriliyor",
         Reason::UnresolvedType { .. } => "Tip çözülemedi",
@@ -108,6 +117,13 @@ fn classification_text(classification: Classification) -> &'static str {
         Classification::Value => "bir değer",
         Classification::Container => "bir konteyner",
         Classification::Unknown => "çözülemeyen bir tip",
+    }
+}
+
+fn simple_name(type_ref: &TypeRef) -> String {
+    match type_ref {
+        TypeRef::Class { name, .. } => name.rsplit('.').next().unwrap_or(name).to_owned(),
+        other => type_name(other),
     }
 }
 

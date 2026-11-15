@@ -34,6 +34,11 @@ pub enum Reason {
         name: String,
         feed: Box<Reason>,
     },
+    MethodReference {
+        owner: TypeRef,
+        name: String,
+        feed: Box<Reason>,
+    },
     Classified {
         classification: Classification,
         type_ref: TypeRef,
@@ -58,7 +63,8 @@ impl Reason {
             Self::UnresolvedType { .. } | Self::UnresolvedName(_) => true,
             Self::Local { origin: inner, .. }
             | Self::LambdaParameter { feed: inner, .. }
-            | Self::LoopVariable { feed: inner, .. } => inner.is_unresolved(),
+            | Self::LoopVariable { feed: inner, .. }
+            | Self::MethodReference { feed: inner, .. } => inner.is_unresolved(),
             _ => false,
         }
     }
@@ -95,6 +101,14 @@ impl Reason {
 
     pub fn loop_variable(name: &str, feed: Reason) -> Self {
         Self::LoopVariable {
+            name: name.to_owned(),
+            feed: Box::new(feed),
+        }
+    }
+
+    pub fn method_reference(owner: TypeRef, name: &str, feed: Reason) -> Self {
+        Self::MethodReference {
+            owner,
             name: name.to_owned(),
             feed: Box::new(feed),
         }

@@ -80,6 +80,41 @@ fn a_violation_reached_through_a_variable_names_the_variable_and_the_origin() {
 }
 
 #[test]
+fn a_violation_through_a_method_reference_names_its_type_method_and_origin() {
+    let report = report_of(vec![finding(Verdict::violation(
+        "getWallet",
+        8,
+        Reason::method_reference(
+            TypeRef::class("shop.domain.Customer"),
+            "getWallet",
+            Reason::return_of("getCustomer"),
+        ),
+    ))]);
+
+    let text = render(&report, false);
+
+    assert_eq!(
+        section(&text, "İhlaller"),
+        [
+            "src/OrderService.java:8  OrderService.pay  getWallet()  İhlal: Customer::getWallet metot referansı: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil"
+        ]
+    );
+}
+
+#[test]
+fn a_method_reference_is_counted_under_the_reason_that_feeds_it() {
+    let reference = Reason::method_reference(
+        TypeRef::class("shop.domain.Order"),
+        "getCustomer",
+        Reason::parameter("orders"),
+    );
+
+    let text = render(&report_of(vec![allowed(9, reference)]), true);
+
+    assert_eq!(section(&text, "Uygun nedenleri"), ["  1  Argüman"]);
+}
+
+#[test]
 fn changing_a_returned_collection_names_the_collection_type() {
     let lines = TypeRef::generic("java.util.List", vec![TypeRef::class("OrderLine")]);
     let report = report_of(vec![finding(Verdict::violation(
