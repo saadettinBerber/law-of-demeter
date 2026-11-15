@@ -156,7 +156,7 @@ impl Expression {
                 }
             }
             Self::Cast { type_ref, operand } => {
-                let judged = operand.judge(context);
+                let judged = operand.judge_expecting(context, Some(type_ref));
                 Judged {
                     verdicts: judged.verdicts,
                     subject: judged.subject.declared_as(Some(type_ref)),

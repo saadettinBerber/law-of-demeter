@@ -272,3 +272,15 @@ fn a_local_declared_with_a_type_gives_its_type_to_the_call_that_fills_it() {
 
     assert_eq!(verdicts[1], closing_the_receipt());
 }
+
+#[test]
+fn a_cast_gives_its_type_to_the_call_it_wraps() {
+    let register = Method::new("Dispatcher", "register", 1).evaluate(Expression::cast(
+        handlers_type(),
+        Expression::return_of(registering_map_of()),
+    ));
+
+    let verdicts = register.verdicts(&shop());
+
+    assert_eq!(verdicts[1], closing_the_receipt());
+}
