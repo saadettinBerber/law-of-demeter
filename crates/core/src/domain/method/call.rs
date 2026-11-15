@@ -48,24 +48,7 @@ impl Call {
             .iter()
             .map(|argument| argument.judge_value(context))
             .collect();
-        let value_types: Vec<_> = values
-            .iter()
-            .map(|value| {
-                value
-                    .as_ref()
-                    .and_then(|judged| judged.subject.type_ref.as_ref())
-            })
-            .collect();
-        let invocation =
-            receiver
-                .subject
-                .type_ref
-                .as_ref()
-                .map_or_else(Invocation::unknown, |receiver_type| {
-                    context
-                        .types
-                        .invocation(receiver_type, &self.name, &value_types)
-                });
+        let invocation = self.invocation(context.types, &receiver.subject, &values);
         for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
                 Some(judged) => verdicts.extend(judged.verdicts),
@@ -85,6 +68,29 @@ impl Call {
             type_ref: invocation.returns(),
         };
         Judged { verdicts, subject }
+    }
+
+    fn invocation(
+        &self,
+        types: &Types,
+        receiver: &Subject,
+        values: &[Option<Judged>],
+    ) -> Invocation {
+        let value_types: Vec<_> = values
+            .iter()
+            .map(|value| {
+                value
+                    .as_ref()
+                    .and_then(|judged| judged.subject.type_ref.as_ref())
+            })
+            .collect();
+        receiver
+            .type_ref
+            .as_ref()
+            .map_or_else(Invocation::unknown, |receiver_type| {
+                types.invocation(receiver_type, &self.name, &value_types)
+            })
+            .expecting(types, self.expected.as_ref())
     }
 
     fn verdict(&self, context: &Context, receiver: &Subject) -> Verdict {

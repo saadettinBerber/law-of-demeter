@@ -62,6 +62,13 @@ impl Invocation {
         invocation
     }
 
+    pub(crate) fn expecting(mut self, types: &Types, expected: Option<&TypeRef>) -> Self {
+        if let Some((returns, expected)) = self.returns.clone().zip(expected) {
+            self.unify(types, &returns, expected);
+        }
+        self
+    }
+
     pub(crate) fn functional_method(
         &self,
         types: &Types,

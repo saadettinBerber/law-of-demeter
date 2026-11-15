@@ -65,6 +65,14 @@ fn shop() -> Types {
         .with_shape(
             interface(MAP, &["K", "V"])
                 .with_method(
+                    MethodShape::new("of")
+                        .as_static()
+                        .with_type_parameter("K")
+                        .with_type_parameter("V")
+                        .with_parameters(vec![variable("K"), variable("V")])
+                        .returning(generic(MAP, &[variable("K"), variable("V")])),
+                )
+                .with_method(
                     MethodShape::new("put")
                         .with_parameters(vec![variable("K"), variable("V")])
                         .returning(variable("V")),
@@ -216,4 +224,38 @@ fn each_lambda_parameter_takes_the_type_at_its_position_in_the_functional_interf
         verdicts[1],
         Verdict::violation("withdraw", 3, Reason::return_of("getWallet"))
     );
+}
+
+fn handlers_type() -> TypeRef {
+    generic(
+        MAP,
+        &[
+            TypeRef::class("java.lang.String"),
+            generic(CONSUMER, &[TypeRef::class("Event")]),
+        ],
+    )
+}
+
+fn registering_map_of() -> Call {
+    Call::new(Expression::static_type(TypeRef::class(MAP)), "of", 2)
+        .with(Expression::literal())
+        .with(Lambda::new(&["event"]).call(Call::new(
+            Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
+            "close",
+            3,
+        )))
+}
+
+fn closing_the_receipt() -> Verdict {
+    Verdict::violation("close", 3, Reason::return_of("getReceipt"))
+}
+
+#[test]
+fn a_call_expecting_a_type_binds_its_type_variables_from_it() {
+    let register = Method::new("Dispatcher", "register", 1)
+        .call(registering_map_of().expecting(handlers_type()));
+
+    let verdicts = register.verdicts(&shop());
+
+    assert_eq!(verdicts[1], closing_the_receipt());
 }
