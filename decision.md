@@ -27,7 +27,8 @@
 | Değişken sayıda argüman alan metodu çöz: `Stream.of(first, second)`, `String.format("%s %s", a, b)`. | Yapıldı |
 | İç içe generic çağrıyı çöz; içteki lambda dış akışın elemanından durum alsın: `collect(Collectors.toList())`, `collect(Collectors.groupingBy(customer -> customer.getWallet()))`. | Yapıldı |
 | Değişkene atanan ya da yapıcıya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`. | Yapılmadı |
-| Örnek bir Java projesiyle uçtan uca sına: her senaryo için bir dosya; `javac` ile derle, gerçek JDK ile CLI'den geçir, raporu beklenen çıktıyla karşılaştır. | Yapılmadı |
+| [Örnek Java projeleriyle uçtan uca sına: bütün senaryolar gerçek kodda; Maven ile derle, gerçek JDK ile CLI'den geçir, raporu beklenen çıktıyla karşılaştır.](examples) | Yapıldı |
+| Paket içi görünür metotları da davranış say: `public` olmayan sınıfın davranışı görülmüyor; sınıf veri yapısı sayılıp zincir uygun çıkıyor. | Yapılmadı |
 | İç içe çağrıdaki metot referansı da dış akışın elemanından durum alsın: `collect(Collectors.groupingBy(Customer::getWallet))`. | Yapılmadı |
 | Depo sorgusunu tip adından da tanı: adı `Repository` ile biten tipteki alanın `get` çağrısı da depo sorgusu sayılsın. | Yapılmadı |
 | Aşırı yükleme seçiminde kutulama ile genişletmeyi destekle: `int` argüman `long` ya da `Integer` parametresine uysun. | Yapılmadı |
