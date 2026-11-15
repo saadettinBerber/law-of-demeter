@@ -1091,3 +1091,61 @@ fn inference_3_the_result_of_a_lambda_types_the_next_lambda_parameter() {
         )])
     );
 }
+
+fn shape_catalog() -> Types {
+    jdk_streams()
+        .with_shape(
+            class("Shape")
+                .with_method(MethodShape::new("getOutline").returning(TypeRef::class("Outline"))),
+        )
+        .with_shape(class("Outline").with_method(MethodShape::new("length")))
+}
+
+#[test]
+fn inference_4_a_type_variable_bound_makes_the_elements_known() {
+    let snippet = "<T extends Shape> double area(List<T> shapes) {\n    return shapes.get(0).getOutline().length();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "",
+        snippet,
+        "area",
+        &shape_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("get", 3, Reason::parameter("shapes")),
+            Verdict::allowed("getOutline", 3, Reason::parameter("shapes")),
+            Verdict::violation("length", 3, Reason::return_of("getOutline")),
+        ]
+    );
+}
+
+#[test]
+fn inference_4_counter_case_an_unbounded_type_variable_stays_unresolved() {
+    let snippet =
+        "<T> double area(List<T> shapes) {\n    return shapes.get(0).getOutline().length();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "",
+        snippet,
+        "area",
+        &shape_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("get", 3, Reason::parameter("shapes")),
+            Verdict::allowed("getOutline", 3, Reason::parameter("shapes")),
+            Verdict::violation(
+                "length",
+                3,
+                Reason::unresolved_type(None, Reason::return_of("getOutline"))
+            ),
+        ]
+    );
+}
