@@ -160,7 +160,7 @@ impl Expression {
                     subject: Subject { standing, type_ref },
                 }
             }
-            Self::Lambda(lambda) => lambda.judge_value(context),
+            Self::Lambda(lambda) => lambda.judge_value(context, target),
             Self::Cast { type_ref, operand } => {
                 let judged = operand.judge_expecting(context, Some(Target::of(type_ref)));
                 Judged {
@@ -524,24 +524,34 @@ impl Lambda {
         (verdicts, yielded)
     }
 
-    fn judge_value(&self, context: &Context) -> Judged {
+    fn judge_value(&self, context: &Context, target: Option<Target>) -> Judged {
+        let functional = target.and_then(|target| context.types.functional_method(target.type_ref));
+        let declared = functional
+            .as_ref()
+            .map(|functional| functional.parameters.as_slice())
+            .unwrap_or_default();
         let mut inner = context.clone();
-        for parameter in &self.parameters {
+        for (index, parameter) in self.parameters.iter().enumerate() {
+            let type_ref = declared
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| TypeRef::class("java.lang.Object"));
             inner.bind(
                 parameter,
-                Subject::friend(
-                    Reason::parameter(parameter),
-                    TypeRef::class("java.lang.Object"),
-                ),
+                Subject::friend(Reason::parameter(parameter), type_ref),
             );
         }
         let (verdicts, _) = self.judge_body(inner);
-        Judged {
-            verdicts,
-            subject: Subject {
+        let subject = match target {
+            Some(target) => Subject::friend(
+                Reason::created(target.type_ref.clone()),
+                target.type_ref.clone(),
+            ),
+            None => Subject {
                 standing: Standing::Friend(Reason::Literal),
                 type_ref: None,
             },
-        }
+        };
+        Judged { verdicts, subject }
     }
 }
