@@ -310,6 +310,7 @@ impl MethodReference {
 
     fn result_type(&self, types: &Types, functional: &FunctionalMethod) -> Option<TypeRef> {
         match &self.target {
+            Expression::StaticType(created) if self.name == "new" => Some(created.clone()),
             Expression::StaticType(_) => {
                 let first = functional.parameters.first()?;
                 let rest = functional.parameters.len() - 1;

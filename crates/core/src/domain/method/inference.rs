@@ -420,3 +420,15 @@ fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
 
     assert_eq!(verdicts, charging_the_mapped_customers());
 }
+
+#[test]
+fn a_constructor_reference_yields_the_type_it_creates() {
+    let charge = mapping_orders_with(MethodReference::new(
+        Expression::static_type(TypeRef::class("Customer")),
+        "new",
+    ));
+
+    let verdicts = charge.verdicts(&shop());
+
+    assert_eq!(verdicts, charging_the_mapped_customers());
+}
