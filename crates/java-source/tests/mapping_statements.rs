@@ -107,11 +107,9 @@ fn a_return_inside_a_lambda_does_not_take_the_return_type_of_the_method() {
     let lines = Expression::return_of(call(order(), "lines", 3));
     assert_eq!(
         mapped,
-        f(2).call(call(lines, "map", 3).with(Lambda::new(&["line"]).call(call(
-            Expression::local("line"),
-            "price",
-            4
-        ))))
+        f(2).call(call(lines, "map", 3).with(Lambda::new(&["line"]).yielding(
+            Expression::return_of(call(Expression::local("line"), "price", 4))
+        )))
         .call(call(order(), "wallet", 7))
         .assign(
             "supplier",

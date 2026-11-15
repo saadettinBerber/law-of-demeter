@@ -210,20 +210,63 @@ fn a_lambda_argument_keeps_its_parameters_and_body() {
 }
 
 #[test]
-fn an_expression_lambda_is_judged_like_a_block_lambda() {
-    let source = "class OrderService {\n void f(Order order) {\n  order.lines().map(line -> line.price());\n }\n}";
+fn an_expression_lambda_argument_yields_its_value_instead_of_judging_it_in_the_body() {
+    let source = "class OrderService {\n void f(Order order) {\n  order.lines().map(line -> line.price());\n  order.lines().map(line -> 1);\n }\n}";
 
     let mapped = method_f(source);
 
     assert_eq!(
         mapped,
         f(2).call(
-            call(get("lines", 3), "map", 3).with(Lambda::new(&["line"]).call(call(
-                Expression::local("line"),
-                "price",
-                3
-            )))
+            call(get("lines", 3), "map", 3).with(Lambda::new(&["line"]).yielding(
+                Expression::return_of(call(Expression::local("line"), "price", 3))
+            ))
         )
+        .call(
+            call(get("lines", 4), "map", 4)
+                .with(Lambda::new(&["line"]).yielding(Expression::literal()))
+        )
+    );
+}
+
+#[test]
+fn a_block_lambda_ending_in_a_return_yields_that_value_and_keeps_the_rest_in_the_body() {
+    let source = "class OrderService {\n void f(Order order, boolean flag) {\n  order.lines().map(line -> {\n   Wallet w = line.wallet();\n   if (flag) {\n    return line.first();\n   }\n   return w.balance();\n  });\n }\n}";
+
+    let mapped = method_f(source);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(get("lines", 3), "map", 3).with(
+                Lambda::new(&["line"])
+                    .assign(
+                        "w",
+                        class("Wallet"),
+                        Expression::return_of(call(Expression::local("line"), "wallet", 4))
+                    )
+                    .call(call(Expression::local("line"), "first", 6))
+                    .yielding(Expression::return_of(call(
+                        Expression::local("w"),
+                        "balance",
+                        8
+                    )))
+            )
+        )
+    );
+}
+
+#[test]
+fn a_block_lambda_that_does_not_end_in_a_return_value_yields_nothing() {
+    let source = "class OrderService {\n void f(Order order) {\n  order.lines().forEach(line -> {\n   line.apply();\n  });\n  order.lines().forEach(line -> {\n   line.apply();\n   return;\n  });\n }\n}";
+
+    let mapped = method_f(source);
+
+    let apply = |line| call(Expression::local("line"), "apply", line);
+    assert_eq!(
+        mapped,
+        f(2).call(call(get("lines", 3), "forEach", 3).with(Lambda::new(&["line"]).call(apply(4))))
+            .call(call(get("lines", 6), "forEach", 6).with(Lambda::new(&["line"]).call(apply(7))))
     );
 }
 

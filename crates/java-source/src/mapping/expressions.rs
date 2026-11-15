@@ -135,11 +135,20 @@ impl MethodMapper<'_> {
             .iter()
             .map(|parameter| parameter.name.as_str())
             .collect();
+        let (result, body) = match lambda.body.split_last() {
+            Some((model::Statement::Return(Some(result)), earlier)) => (Some(result), earlier),
+            _ => (None, lambda.body.as_slice()),
+        };
         let outer_steps = mem::take(&mut self.steps);
         let outer_returns = self.returns.take();
-        self.statements(&lambda.body);
+        self.statements(body);
+        let result = result.map(|result| self.expression(result));
         self.returns = outer_returns;
-        mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names))
+        let mapped = mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names));
+        match result {
+            Some(value) => mapped.yielding(value),
+            None => mapped,
+        }
     }
 
     fn inline_lambda(&mut self, lambda: &model::Lambda) {
