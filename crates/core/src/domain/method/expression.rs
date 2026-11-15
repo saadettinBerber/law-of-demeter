@@ -166,6 +166,22 @@ impl Expression {
     }
 }
 
+fn element_feed<'a>(
+    types: &Types,
+    outer: &'a Subject,
+    feed: &'a Subject,
+    declared: Option<&TypeRef>,
+) -> &'a Subject {
+    let element = outer
+        .type_ref
+        .as_ref()
+        .and_then(|type_ref| types.element_type_of(type_ref));
+    match element.as_ref().zip(declared) {
+        Some((element, declared)) if element == declared => outer,
+        _ => feed,
+    }
+}
+
 fn class_name(type_ref: &TypeRef) -> Option<&str> {
     match type_ref {
         TypeRef::Class { name, .. } => Some(name),
@@ -248,7 +264,7 @@ impl Creation {
         let verdicts = self
             .arguments
             .iter()
-            .flat_map(|argument| argument.judge(context, &created, None).verdicts)
+            .flat_map(|argument| argument.judge(context, &created, None, &created).verdicts)
             .collect();
         Judged {
             verdicts,
@@ -309,6 +325,7 @@ impl Argument {
         context: &Context,
         feed: &Subject,
         functional: Option<&FunctionalMethod>,
+        outer: &Subject,
     ) -> Produced {
         match self {
             Self::Value(value) => {
@@ -319,7 +336,7 @@ impl Argument {
                     standing: Some(judged.subject.standing),
                 }
             }
-            Self::Lambda(lambda) => lambda.judge(context, feed, functional),
+            Self::Lambda(lambda) => lambda.judge(context, feed, functional, outer),
             Self::MethodReference(reference) => reference.judge(context, feed, functional),
         }
     }
@@ -468,13 +485,15 @@ impl Lambda {
         context: &Context,
         feed: &Subject,
         functional: Option<&FunctionalMethod>,
+        outer: &Subject,
     ) -> Produced {
         let declared = functional
             .map(|functional| functional.parameters.as_slice())
             .unwrap_or_default();
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
-            let subject = feed.element(context.types, |feed| {
+            let source = element_feed(context.types, outer, feed, declared.get(index));
+            let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });
             inner.bind(parameter, subject.declared_as(declared.get(index)));

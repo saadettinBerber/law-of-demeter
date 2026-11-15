@@ -303,3 +303,80 @@ fn a_collector_wrapping_another_gets_its_result_from_its_finisher() {
         ))
     );
 }
+
+fn grouping_by_the_result_of(call: Call) -> Call {
+    collectors_call("groupingBy").with(Lambda::new(&["each"]).yielding(Expression::return_of(call)))
+}
+
+#[test]
+fn a_lambda_in_a_nested_call_takes_the_standing_of_the_stranger_elements_it_receives() {
+    let wallet_of_each = Call::new(Expression::local("each"), "getWallet", 3);
+    let group =
+        Method::new("Billing", "group", 1).call(mapped_customers().then("collect", 2).with(
+            Expression::return_of(grouping_by_the_result_of(wallet_of_each)),
+        ));
+
+    let verdicts = group.verdicts(&collecting());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed("map", 2, Reason::parameter("orders")),
+            Verdict::violation(
+                "getWallet",
+                3,
+                Reason::lambda_parameter("each", stranger_customers())
+            ),
+            Verdict::allowed("groupingBy", 2, collectors_static()),
+            Verdict::allowed(
+                "collect",
+                2,
+                Reason::classified(Classification::Container, stream_of(customer()))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_lambda_in_a_nested_call_takes_the_standing_of_the_friend_elements_it_receives() {
+    let status_of_each = Call::new(Expression::local("each"), "getStatus", 3);
+    let group = Method::new("Billing", "group", 1).call(orders_collected_by(
+        grouping_by_the_result_of(status_of_each),
+    ));
+
+    let verdicts = group.verdicts(&collecting());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "getStatus",
+                3,
+                Reason::lambda_parameter("each", Reason::parameter("orders"))
+            ),
+            Verdict::allowed("groupingBy", 2, collectors_static()),
+            Verdict::allowed("collect", 2, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn a_lambda_in_a_nested_call_that_receives_something_else_keeps_its_own_feed() {
+    let first = Lambda::new(&["list"]).yielding(Expression::return_of(
+        Call::new(Expression::local("list"), "get", 3).with(Expression::literal()),
+    ));
+    let wrapping = collectors_call("collectingAndThen")
+        .with(Expression::return_of(collectors_call("toList")))
+        .with(first);
+    let ship = Method::new("Billing", "ship", 1).call(orders_collected_by(wrapping));
+
+    let verdicts = ship.verdicts(&collecting());
+
+    assert!(verdicts.contains(&Verdict::allowed(
+        "get",
+        3,
+        Reason::lambda_parameter("list", collectors_static())
+    )));
+}

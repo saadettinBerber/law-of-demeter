@@ -56,17 +56,22 @@ impl Call {
             .expected
             .as_ref()
             .or(target.map(|target| target.type_ref));
+        let outer = target
+            .and_then(|target| target.elements)
+            .unwrap_or(&receiver.subject);
         let mut invocation = self.invocation(context.types, &receiver.subject, &values, expected);
         let mut mapped = None;
         for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
                 Some(judged) => {
-                    let judged = self.settled(context, argument, index, judged, &mut invocation);
+                    let judged =
+                        self.settled(context, argument, index, judged, &mut invocation, outer);
                     verdicts.extend(judged.verdicts);
                 }
                 None => {
                     let functional = invocation.functional_method(context.types, index);
-                    let produced = argument.judge(context, &receiver.subject, functional.as_ref());
+                    let produced =
+                        argument.judge(context, &receiver.subject, functional.as_ref(), outer);
                     verdicts.extend(produced.verdicts);
                     invocation.yielded(context.types, index, produced.result.as_ref());
                     if invocation.feeds_return(context.types, index) {
@@ -103,12 +108,13 @@ impl Call {
         index: usize,
         judged: Judged,
         invocation: &mut Invocation,
+        outer: &Subject,
     ) -> Judged {
         if !judged.subject.type_ref.as_ref().is_some_and(has_variable) {
             return judged;
         }
         let retried = invocation.parameter_type(index).and_then(|expected| {
-            argument.judge_value_expecting(context, Some(Target::of(&expected)))
+            argument.judge_value_expecting(context, Some(Target::among(&expected, Some(outer))))
         });
         let judged = retried.unwrap_or(judged);
         invocation.argument(context.types, index, judged.subject.type_ref.as_ref());

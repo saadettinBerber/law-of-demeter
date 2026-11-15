@@ -65,11 +65,19 @@ impl Subject {
 #[derive(Clone, Copy)]
 pub(super) struct Target<'a> {
     pub(super) type_ref: &'a TypeRef,
+    pub(super) elements: Option<&'a Subject>,
 }
 
 impl<'a> Target<'a> {
     pub(super) fn of(type_ref: &'a TypeRef) -> Self {
-        Self { type_ref }
+        Self {
+            type_ref,
+            elements: None,
+        }
+    }
+
+    pub(super) fn among(type_ref: &'a TypeRef, elements: Option<&'a Subject>) -> Self {
+        Self { type_ref, elements }
     }
 }
 
