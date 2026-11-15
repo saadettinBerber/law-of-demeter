@@ -178,6 +178,7 @@ pub enum Expression {
         bindings: Vec<PatternBinding>,
     },
     Switch(Switch),
+    ClassLiteral(DeclaredType),
     Literal,
     Operation(Vec<Expression>),
 }

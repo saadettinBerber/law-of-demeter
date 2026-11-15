@@ -152,3 +152,32 @@ fn a_syntax_error_is_flagged_and_located() {
     assert!(tree.root_node().has_error());
     assert_eq!(error.start_position().row, 2);
 }
+
+#[test]
+fn a_class_literal_holds_the_named_type_as_its_only_named_child() {
+    let source = "class A { Object f() { return Order[].class; } }";
+
+    let tree = parse(source);
+
+    let literal = first_of_kind(tree.root_node(), "class_literal").unwrap();
+    assert_eq!(literal.named_child_count(), 1);
+    assert_eq!(literal.named_child(0).unwrap().kind(), "array_type");
+}
+
+#[test]
+fn a_type_parameter_holds_its_name_then_a_bound_with_every_bound_type() {
+    let source = "class A<T extends Shape & Other> {}";
+
+    let tree = parse(source);
+
+    let parameter = first_of_kind(tree.root_node(), "type_parameter").unwrap();
+    assert_eq!(text(parameter.named_child(0).unwrap(), source), "T");
+    let bound = parameter.named_child(1).unwrap();
+    assert_eq!(bound.kind(), "type_bound");
+    let mut cursor = bound.walk();
+    let bounds: Vec<&str> = bound
+        .named_children(&mut cursor)
+        .map(|child| text(child, source))
+        .collect();
+    assert_eq!(bounds, ["Shape", "Other"]);
+}

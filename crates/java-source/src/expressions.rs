@@ -30,6 +30,7 @@ impl Reader<'_> {
             "cast_expression" => self.cast(node, scope),
             "switch_expression" => Expression::Switch(self.switch(node, scope)),
             "instanceof_expression" => self.instance_of(node, scope),
+            "class_literal" => self.class_literal(node, scope),
             kind if is_literal(kind) => Expression::Literal,
             _ => Expression::Operation(self.operands(node, scope)),
         }
@@ -309,6 +310,14 @@ impl Reader<'_> {
             target: Box::new(target),
             name,
         }
+    }
+
+    fn class_literal(&self, node: Node, scope: &Scope) -> Expression {
+        named_children(node)
+            .first()
+            .map_or(Expression::Literal, |named| {
+                Expression::ClassLiteral(self.declared_type(*named, scope))
+            })
     }
 
     fn cast(&self, node: Node, scope: &mut Scope) -> Expression {

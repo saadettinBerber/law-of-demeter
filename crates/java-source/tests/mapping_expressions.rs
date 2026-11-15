@@ -287,3 +287,26 @@ fn a_method_reference_outside_an_argument_is_a_literal_unless_its_target_has_cal
             )
     );
 }
+
+#[test]
+fn a_class_literal_is_a_literal_typed_as_the_class_of_its_type() {
+    let source = "class OrderService {\n void f(Order order) {\n  order.read(Order.class, Ghost.class, Order[].class);\n }\n}";
+
+    let mapped = method_f(source);
+
+    let literal_of = |type_ref| {
+        Expression::cast(
+            TypeRef::generic("java.lang.Class", vec![type_ref]),
+            Expression::literal(),
+        )
+    };
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(order(), "read", 3)
+                .with(literal_of(class("Order")))
+                .with(literal_of(class("Ghost")))
+                .with(literal_of(TypeRef::array(class("Order"))))
+        )
+    );
+}

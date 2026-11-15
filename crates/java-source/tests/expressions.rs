@@ -262,3 +262,20 @@ fn calls_on_unresolved_and_own_names_are_kept_in_order() {
         ))]
     );
 }
+
+#[test]
+fn a_class_literal_keeps_the_type_it_names() {
+    let body = body_of("void f() {\n var a = Order.class;\n var b = Order[].class;\n}");
+
+    let Statement::Local(first) = &body[0] else {
+        panic!("expected a local variable, got {body:?}");
+    };
+    assert_eq!(
+        first.initializer,
+        Some(Expression::ClassLiteral(DeclaredType::class("shop.Order")))
+    );
+    assert_eq!(
+        initializer_of(&body[1..]),
+        Expression::ClassLiteral(DeclaredType::array(DeclaredType::class("shop.Order")))
+    );
+}

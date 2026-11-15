@@ -63,6 +63,10 @@ impl MethodMapper<'_> {
                 operand, bindings, ..
             } => self.instance_of(operand, bindings),
             model::Expression::Switch(switch) => self.switch(switch),
+            model::Expression::ClassLiteral(named) => Expression::cast(
+                TypeRef::generic("java.lang.Class", vec![type_ref_or_object(named)]),
+                Expression::literal(),
+            ),
             model::Expression::Literal => Expression::literal(),
         }
     }
