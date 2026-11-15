@@ -486,3 +486,33 @@ fn the_real_jdk_ct_sym_methods_carry_type_parameters() {
 
     assert_generic_methods_of_the_real_jdk(&reading);
 }
+
+fn assert_abstract_flags_of_the_real_jdk(reading: &Reading) {
+    let apply = methods_named(reading, "java.util.function.Function", "apply");
+    let and_then = methods_named(reading, "java.util.function.Function", "andThen");
+    let accept = methods_named(reading, "java.util.function.Consumer", "accept");
+    assert!(apply.iter().all(|method| method.is_abstract()));
+    assert!(and_then.iter().all(|method| !method.is_abstract()));
+    assert!(accept.iter().all(|method| method.is_abstract()));
+    assert!(!apply.is_empty() && !and_then.is_empty() && !accept.is_empty());
+}
+
+#[test]
+fn the_real_jdk_runtime_image_methods_know_whether_they_are_abstract() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap();
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_abstract_flags_of_the_real_jdk(&reading);
+}
+
+#[test]
+fn the_real_jdk_ct_sym_methods_know_whether_they_are_abstract() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap() - 1;
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_abstract_flags_of_the_real_jdk(&reading);
+}

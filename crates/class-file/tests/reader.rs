@@ -212,15 +212,18 @@ fn reads_generic_signatures_of_interface_methods() {
     assert_eq!(
         find,
         MethodShape::new("find")
+            .as_abstract()
             .with_parameters(vec![TypeRef::variable("ID")])
             .returning(TypeRef::variable("T"))
     );
     assert_eq!(
         find_all,
-        MethodShape::new("findAll").returning(TypeRef::generic(
-            "java.util.List",
-            vec![TypeRef::variable("T")]
-        ))
+        MethodShape::new("findAll")
+            .as_abstract()
+            .returning(TypeRef::generic(
+                "java.util.List",
+                vec![TypeRef::variable("T")]
+            ))
     );
 }
 
@@ -546,6 +549,30 @@ fn a_method_without_type_parameters_lists_none() {
     let find = method(&catalog, "find");
 
     assert!(find.type_parameters().is_empty());
+}
+
+#[test]
+fn default_and_static_interface_methods_are_not_abstract() {
+    let repository = shape("shop.Repository");
+
+    let exists = method(&repository, "exists");
+    let none = method(&repository, "none");
+
+    assert!(!exists.is_abstract());
+    assert!(!none.is_abstract());
+    assert_eq!(none.type_parameters(), ["T"]);
+}
+
+#[test]
+fn an_abstract_class_method_is_abstract_and_its_implementation_is_not() {
+    let container = shape("shop.Container");
+    let registry = shape("shop.Registry");
+
+    let declared = method(&container, "keyOf");
+    let implemented = method(&registry, "keyOf");
+
+    assert!(declared.is_abstract());
+    assert!(!implemented.is_abstract());
 }
 
 #[test]

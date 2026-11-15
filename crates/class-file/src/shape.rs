@@ -151,6 +151,9 @@ fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShap
     if !method.access_flags.contains(MethodAccessFlags::PUBLIC) {
         shape = shape.not_public();
     }
+    if method.access_flags.contains(MethodAccessFlags::ABSTRACT) {
+        shape = shape.as_abstract();
+    }
     if is_lombok_generated(&method.attributes) {
         shape = shape.generated();
     }
