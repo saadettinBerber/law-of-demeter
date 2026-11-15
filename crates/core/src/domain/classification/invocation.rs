@@ -128,3 +128,54 @@ impl Invocation {
         }
     }
 }
+
+pub(super) fn applicable<'a>(
+    types: &Types,
+    overloads: Vec<&'a MethodShape>,
+    class_bindings: &HashMap<String, TypeRef>,
+    values: &[Option<&TypeRef>],
+) -> Vec<&'a MethodShape> {
+    if overloads.len() < 2 {
+        return overloads;
+    }
+    let fitting: Vec<_> = overloads
+        .iter()
+        .copied()
+        .filter(|method| {
+            method
+                .parameters()
+                .iter()
+                .zip(values)
+                .all(|(parameter, value)| {
+                    value.is_none_or(|value| {
+                        accepts(types, &substitute(parameter, class_bindings), value)
+                    })
+                })
+        })
+        .collect();
+    if fitting.is_empty() {
+        overloads
+    } else {
+        fitting
+    }
+}
+
+fn accepts(types: &Types, parameter: &TypeRef, value: &TypeRef) -> bool {
+    match (parameter, value) {
+        (TypeRef::Variable(_), _) | (_, TypeRef::Variable(_)) => true,
+        (TypeRef::Array(parameter), TypeRef::Array(value)) => accepts(types, parameter, value),
+        (TypeRef::Primitive(parameter), TypeRef::Primitive(value)) => parameter == value,
+        (TypeRef::Class { name, .. }, TypeRef::Array(_))
+        | (TypeRef::Array(_), TypeRef::Class { name, .. }) => name == "java.lang.Object",
+        (TypeRef::Primitive(_), TypeRef::Array(_) | TypeRef::Class { .. })
+        | (TypeRef::Array(_) | TypeRef::Class { .. }, TypeRef::Primitive(_)) => false,
+        (TypeRef::Class { name, .. }, TypeRef::Class { .. }) => {
+            let ancestors = types.ancestors(value);
+            name == "java.lang.Object"
+                || ancestors
+                    .iter()
+                    .filter_map(class_name)
+                    .any(|ancestor| ancestor == name || types.shape(ancestor).is_none())
+        }
+    }
+}

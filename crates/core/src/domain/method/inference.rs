@@ -471,3 +471,159 @@ fn a_method_reference_on_an_expression_yields_what_the_method_of_its_type_return
 
     assert_eq!(verdicts, charging_the_mapped_customers());
 }
+
+fn with_primitive_array_overload(types: Types) -> Types {
+    let arrays = class(ARRAYS)
+        .with_method(
+            MethodShape::new("stream")
+                .as_static()
+                .with_parameters(vec![TypeRef::array(TypeRef::primitive("int"))])
+                .returning(TypeRef::class("java.util.stream.IntStream")),
+        )
+        .with_method(
+            MethodShape::new("stream")
+                .as_static()
+                .with_type_parameter("T")
+                .with_parameters(vec![TypeRef::array(variable("T"))])
+                .returning(generic(STREAM, &[variable("T")])),
+        );
+    types.with_shape(arrays)
+}
+
+#[test]
+fn the_overload_whose_parameters_fit_the_arguments_decides_the_type_variables() {
+    let notify = Method::new("Shipping", "notify", 1).call(
+        Call::new(
+            Expression::return_of(
+                Call::new(Expression::static_type(TypeRef::class(ARRAYS)), "stream", 2)
+                    .with(Expression::parameter("orders", TypeRef::array(order()))),
+            ),
+            "forEach",
+            2,
+        )
+        .with(Lambda::new(&["order"]).call(customer_of("order", 3))),
+    );
+
+    let verdicts = notify.verdicts(&with_primitive_array_overload(shop()));
+
+    assert_eq!(
+        verdicts[2],
+        Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
+    );
+}
+
+fn with_quotes(overloads: &[(TypeRef, &str)]) -> Types {
+    let pricing = overloads
+        .iter()
+        .fold(class("Pricing"), |shape, (parameter, returns)| {
+            shape.with_method(
+                MethodShape::new("quote")
+                    .with_parameters(vec![parameter.clone()])
+                    .returning(TypeRef::class(returns)),
+            )
+        });
+    shop().with_shape(pricing)
+}
+
+fn quoting_with(argument: TypeRef, then: &str) -> Method {
+    Method::new("Billing", "charge", 1).call(Call::new(
+        Expression::return_of(
+            Call::new(
+                Expression::parameter("pricing", TypeRef::class("Pricing")),
+                "quote",
+                2,
+            )
+            .with(Expression::parameter("argument", argument)),
+        ),
+        then,
+        2,
+    ))
+}
+
+fn int() -> TypeRef {
+    TypeRef::primitive("int")
+}
+
+fn wallet() -> TypeRef {
+    TypeRef::class("Wallet")
+}
+
+#[test]
+fn the_overload_whose_primitive_parameter_matches_the_argument_decides_the_quote() {
+    let types = with_quotes(&[(int(), "Wallet"), (TypeRef::primitive("long"), "Customer")]);
+    let charge = quoting_with(int(), "withdraw");
+
+    let verdicts = charge.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("withdraw", 2, Reason::return_of("quote"))
+    );
+}
+
+#[test]
+fn the_overload_whose_class_parameter_is_a_supertype_of_the_argument_decides_the_quote() {
+    let types = with_quotes(&[(order(), "Customer"), (wallet(), "Wallet")]);
+    let charge = quoting_with(wallet(), "withdraw");
+
+    let verdicts = charge.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("withdraw", 2, Reason::return_of("quote"))
+    );
+}
+
+#[test]
+fn an_array_argument_fits_only_object_and_array_parameters() {
+    let object = TypeRef::class("java.lang.Object");
+    let types = with_quotes(&[(object, "Wallet"), (wallet(), "Customer")]);
+    let charge = quoting_with(TypeRef::array(order()), "withdraw");
+
+    let verdicts = charge.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("withdraw", 2, Reason::return_of("quote"))
+    );
+}
+
+#[test]
+fn an_argument_of_a_type_the_catalog_lacks_fits_any_class_parameter() {
+    let types = with_quotes(&[(order(), "Customer"), (int(), "Wallet")]);
+    let charge = quoting_with(TypeRef::class("Unmapped"), "rename");
+
+    let verdicts = charge.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("rename", 2, Reason::return_of("quote"))
+    );
+}
+
+#[test]
+fn overloads_that_all_miss_the_argument_still_agree_on_a_common_return() {
+    let types = with_quotes(&[(order(), "Customer"), (wallet(), "Customer")]);
+    let charge = quoting_with(TypeRef::class("Customer"), "rename");
+
+    let verdicts = charge.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("rename", 2, Reason::return_of("quote"))
+    );
+}
+
+#[test]
+fn a_class_argument_fits_an_object_parameter() {
+    let object = TypeRef::class("java.lang.Object");
+    let types = with_quotes(&[(object, "Customer"), (int(), "Wallet")]);
+    let charge = quoting_with(wallet(), "rename");
+
+    let verdicts = charge.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("rename", 2, Reason::return_of("quote"))
+    );
+}

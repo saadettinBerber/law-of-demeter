@@ -84,6 +84,7 @@ impl Types {
             .bound(&declaring)
             .map(|(_, bindings)| bindings)
             .unwrap_or_default();
+        let overloads = invocation::applicable(self, overloads, &class_bindings, values);
         match overloads.as_slice() {
             [only] => Invocation::of(self, only, &class_bindings, values),
             _ => Invocation::ambiguous(
