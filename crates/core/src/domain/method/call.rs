@@ -54,6 +54,7 @@ impl Call {
             .collect();
         let expected = self.expected.as_ref().or(expected);
         let mut invocation = self.invocation(context.types, &receiver.subject, &values, expected);
+        let mut mapped = None;
         for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
                 Some(judged) => verdicts.extend(judged.verdicts),
@@ -62,15 +63,28 @@ impl Call {
                     let produced = argument.judge(context, &receiver.subject, functional.as_ref());
                     verdicts.extend(produced.verdicts);
                     invocation.yielded(context.types, index, produced.result.as_ref());
+                    if invocation.feeds_return(context.types, index) {
+                        mapped = mapped.or(produced.standing);
+                    }
                 }
             }
         }
         verdicts.push(self.verdict(context, &receiver.subject));
+        let type_ref = invocation.returns();
+        let mapped = mapped.filter(|_| {
+            Self::is_container(context.types, receiver.subject.type_ref.as_ref())
+                && Self::is_container(context.types, type_ref.as_ref())
+        });
         let subject = Subject {
-            standing: self.result_standing(context.types, &receiver.subject),
-            type_ref: invocation.returns(),
+            standing: mapped
+                .unwrap_or_else(|| self.result_standing(context.types, &receiver.subject)),
+            type_ref,
         };
         Judged { verdicts, subject }
+    }
+
+    fn is_container(types: &Types, type_ref: Option<&TypeRef>) -> bool {
+        type_ref.is_some_and(|type_ref| types.classify(type_ref) == Classification::Container)
     }
 
     fn invocation(

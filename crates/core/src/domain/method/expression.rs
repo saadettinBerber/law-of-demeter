@@ -230,6 +230,7 @@ impl Creation {
 pub(super) struct Produced {
     pub(super) verdicts: Vec<Verdict>,
     pub(super) result: Option<TypeRef>,
+    pub(super) standing: Option<Standing>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -277,6 +278,7 @@ impl Argument {
                 Produced {
                     verdicts: judged.verdicts,
                     result: judged.subject.type_ref,
+                    standing: Some(judged.subject.standing),
                 }
             }
             Self::Lambda(lambda) => lambda.judge(context, feed, functional),
@@ -306,6 +308,7 @@ impl MethodReference {
         Produced {
             verdicts: target.verdicts,
             result,
+            standing: None,
         }
     }
 
@@ -396,11 +399,17 @@ impl Lambda {
             inner.bind(parameter, subject.declared_as(declared.get(index)));
         }
         let mut verdicts = self.body.judge(&mut inner);
-        let result = self.result.as_ref().and_then(|result| {
+        let yielded = self.result.as_ref().map(|result| {
             let judged = result.judge(&inner);
             verdicts.extend(judged.verdicts);
-            judged.subject.type_ref
+            judged.subject
         });
-        Produced { verdicts, result }
+        Produced {
+            verdicts,
+            result: yielded
+                .as_ref()
+                .and_then(|subject| subject.type_ref.clone()),
+            standing: yielded.map(|subject| subject.standing),
+        }
     }
 }

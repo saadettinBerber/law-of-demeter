@@ -78,6 +78,21 @@ impl Invocation {
         }
     }
 
+    pub(crate) fn feeds_return(&self, types: &Types, index: usize) -> bool {
+        let yielded = self
+            .parameters
+            .get(index)
+            .and_then(|parameter| types.functional_method(parameter))
+            .and_then(|functional| functional.returns);
+        yielded
+            .zip(self.returns.as_ref())
+            .is_some_and(|(yielded, returned)| {
+                self.free
+                    .iter()
+                    .any(|name| mentions(&yielded, name) && mentions(returned, name))
+            })
+    }
+
     pub(crate) fn functional_method(
         &self,
         types: &Types,
@@ -200,4 +215,15 @@ fn arguments_in_ancestors(types: &Types, type_ref: &TypeRef, name: &str) -> Opti
             } if ancestor_name == name => Some(arguments),
             _ => None,
         })
+}
+
+fn mentions(type_ref: &TypeRef, name: &str) -> bool {
+    match type_ref {
+        TypeRef::Variable(variable) => variable == name,
+        TypeRef::Class { arguments, .. } => {
+            arguments.iter().any(|argument| mentions(argument, name))
+        }
+        TypeRef::Array(element) => mentions(element, name),
+        TypeRef::Primitive(_) => false,
+    }
 }

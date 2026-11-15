@@ -1,5 +1,5 @@
-use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
-use crate::domain::classification::Types;
+use super::{Call, Creation, Expression, Lambda, Method, MethodReference, Reason, Verdict};
+use crate::domain::classification::{Classification, Types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const ARRAYS: &str = "java.util.Arrays";
@@ -10,6 +10,8 @@ const ARRAY_LIST: &str = "java.util.ArrayList";
 const STREAMS: &str = "shop.Streams";
 const LIST: &str = "java.util.List";
 const FUNCTION: &str = "java.util.function.Function";
+const BIG_DECIMAL: &str = "java.math.BigDecimal";
+const PREDICATE: &str = "java.util.function.Predicate";
 const MAP: &str = "java.util.Map";
 const BI_CONSUMER: &str = "java.util.function.BiConsumer";
 
@@ -36,6 +38,10 @@ fn order() -> TypeRef {
     TypeRef::class("Order")
 }
 
+fn customer() -> TypeRef {
+    TypeRef::class("Customer")
+}
+
 fn shop() -> Types {
     Types::new()
         .with_shape(
@@ -54,11 +60,30 @@ fn shop() -> Types {
                         .with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
                 )
                 .with_method(
+                    MethodShape::new("filter")
+                        .with_parameters(vec![generic(PREDICATE, &[variable("T")])])
+                        .returning(generic(STREAM, &[variable("T")])),
+                )
+                .with_method(
+                    MethodShape::new("fold")
+                        .with_type_parameter("R")
+                        .with_parameters(vec![generic(FUNCTION, &[variable("T"), variable("R")])])
+                        .returning(variable("R")),
+                )
+                .with_method(
                     MethodShape::new("map")
                         .with_type_parameter("R")
                         .with_parameters(vec![generic(FUNCTION, &[variable("T"), variable("R")])])
                         .returning(generic(STREAM, &[variable("R")])),
                 ),
+        )
+        .with_shape(
+            interface(PREDICATE, &["T"]).with_method(
+                MethodShape::new("test")
+                    .with_parameters(vec![variable("T")])
+                    .returning(TypeRef::primitive("boolean"))
+                    .as_abstract(),
+            ),
         )
         .with_shape(
             interface(FUNCTION, &["T", "R"]).with_method(
@@ -146,7 +171,19 @@ fn shop() -> Types {
         )
         .with_shape(
             class("Order")
-                .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer"))),
+                .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
+                .with_method(MethodShape::new("getTotal").returning(TypeRef::class(BIG_DECIMAL)))
+                .with_method(MethodShape::new("isPaid").returning(TypeRef::primitive("boolean")))
+                .with_method(MethodShape::new("ship")),
+        )
+        .with_shape(class("Receipt").with_method(MethodShape::new("print")))
+        .with_shape(
+            class("Mapper").with_method(
+                MethodShape::new("mapAll")
+                    .with_type_parameter("R")
+                    .with_parameters(vec![generic(FUNCTION, &[order(), variable("R")])])
+                    .returning(generic(STREAM, &[variable("R")])),
+            ),
         )
         .with_shape(
             class("Customer")
@@ -388,13 +425,17 @@ fn the_type_argument_of_a_generic_method_comes_from_the_result_of_a_lambda() {
                 Reason::lambda_parameter("order", Reason::parameter("orders"))
             ),
             Verdict::allowed("map", 2, Reason::parameter("orders")),
-            Verdict::allowed(
+            Verdict::violation(
                 "getWallet",
                 3,
-                Reason::lambda_parameter("customer", Reason::parameter("orders"))
+                Reason::lambda_parameter("customer", Reason::return_of("getCustomer"))
             ),
             Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
-            Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+            Verdict::allowed(
+                "forEach",
+                3,
+                Reason::classified(Classification::Container, generic(STREAM, &[customer()]))
+            ),
         ]
     );
 }
@@ -761,4 +802,153 @@ fn a_class_with_one_abstract_method_is_not_functional() {
     let verdict = registering_into(handler_of_event("shop.Task"), vec![task]);
 
     assert_eq!(verdict, undecided_close());
+}
+
+fn orders_stream() -> Call {
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    Call::new(orders, "stream", 2)
+}
+
+#[test]
+fn a_stream_mapped_to_created_objects_keeps_them_friends() {
+    let created = Expression::created(
+        Creation::new(TypeRef::class("Receipt")).with(Expression::local("order")),
+    );
+    let print = Method::new("Billing", "print", 1).call(
+        orders_stream()
+            .then("map", 2)
+            .with(Lambda::new(&["order"]).yielding(created))
+            .then("forEach", 3)
+            .with(Lambda::new(&["receipt"]).call(Call::new(
+                Expression::local("receipt"),
+                "print",
+                3,
+            ))),
+    );
+
+    let verdicts = print.verdicts(&shop());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed("map", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "print",
+                3,
+                Reason::lambda_parameter("receipt", Reason::created(TypeRef::class("Receipt")))
+            ),
+            Verdict::allowed("forEach", 3, Reason::created(TypeRef::class("Receipt"))),
+        ]
+    );
+}
+
+#[test]
+fn a_filtered_stream_keeps_the_standing_of_its_receiver() {
+    let is_paid = Expression::return_of(Call::new(Expression::local("order"), "isPaid", 2));
+    let ship = Method::new("Billing", "ship", 1).call(
+        orders_stream()
+            .then("filter", 2)
+            .with(Lambda::new(&["order"]).yielding(is_paid))
+            .then("forEach", 3)
+            .with(Lambda::new(&["order"]).call(Call::new(Expression::local("order"), "ship", 3))),
+    );
+
+    let verdicts = ship.verdicts(&shop());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "isPaid",
+                2,
+                Reason::lambda_parameter("order", Reason::parameter("orders"))
+            ),
+            Verdict::allowed("filter", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "ship",
+                3,
+                Reason::lambda_parameter("order", Reason::parameter("orders"))
+            ),
+            Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn a_value_mapped_from_a_stream_is_allowed_by_its_classification() {
+    let total = Expression::return_of(Call::new(Expression::local("order"), "getTotal", 2));
+    let check = Method::new("Billing", "check", 1).call(
+        orders_stream()
+            .then("map", 2)
+            .with(Lambda::new(&["order"]).yielding(total))
+            .then("forEach", 3)
+            .with(Lambda::new(&["total"]).call(Call::new(Expression::local("total"), "signum", 3))),
+    );
+
+    let verdicts = check.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[3],
+        Verdict::allowed(
+            "signum",
+            3,
+            Reason::classified(Classification::Value, TypeRef::class(BIG_DECIMAL))
+        )
+    );
+}
+
+#[test]
+fn a_call_returning_a_non_container_keeps_the_standing_of_its_container_receiver() {
+    let customer_of_order =
+        Expression::return_of(Call::new(Expression::local("order"), "getCustomer", 2));
+    let rename = Method::new("Billing", "rename", 1).call(Call::new(
+        Expression::return_of(
+            orders_stream()
+                .then("fold", 2)
+                .with(Lambda::new(&["order"]).yielding(customer_of_order)),
+        ),
+        "rename",
+        3,
+    ));
+
+    let verdicts = rename.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[3],
+        Verdict::allowed("rename", 3, Reason::parameter("orders"))
+    );
+}
+
+#[test]
+fn a_container_a_call_on_a_non_container_returns_follows_the_usual_standing_rules() {
+    let created = Expression::created(
+        Creation::new(TypeRef::class("Receipt")).with(Expression::local("order")),
+    );
+    let print = Method::new("Billing", "print", 1).call(
+        Call::new(
+            Expression::field("mapper", TypeRef::class("Mapper")),
+            "mapAll",
+            2,
+        )
+        .with(Lambda::new(&["order"]).yielding(created))
+        .then("forEach", 3)
+        .with(Lambda::new(&["receipt"]).call(Call::new(
+            Expression::local("receipt"),
+            "print",
+            3,
+        ))),
+    );
+
+    let verdicts = print.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "print",
+            3,
+            Reason::lambda_parameter("receipt", Reason::return_of("mapAll"))
+        )
+    );
 }

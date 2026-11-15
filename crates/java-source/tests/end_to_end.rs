@@ -1070,6 +1070,26 @@ fn inference_3_the_result_of_a_method_reference_types_the_next_lambda_parameter(
     );
 }
 
+fn charging_the_wallets_of_customers_mapped_from_a_stranger(first: Vec<Verdict>) -> Vec<Verdict> {
+    let mapped = Reason::return_of("getCustomer");
+    let mut verdicts = vec![Verdict::allowed("stream", 3, Reason::parameter("orders"))];
+    verdicts.extend(first);
+    verdicts.extend([
+        Verdict::allowed("map", 3, Reason::parameter("orders")),
+        Verdict::violation("getWallet", 3, Reason::lambda_parameter("customer", mapped)),
+        Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        Verdict::allowed(
+            "forEach",
+            3,
+            Reason::classified(
+                Classification::Container,
+                TypeRef::generic("java.util.stream.Stream", vec![TypeRef::class("Customer")]),
+            ),
+        ),
+    ]);
+    verdicts
+}
+
 #[test]
 fn inference_3_the_result_of_a_lambda_types_the_next_lambda_parameter() {
     let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(order -> order.getCustomer()).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
@@ -1084,7 +1104,7 @@ fn inference_3_the_result_of_a_lambda_types_the_next_lambda_parameter() {
 
     assert_eq!(
         verdicts,
-        charging_the_wallets_of_the_mapped_customers(vec![Verdict::allowed(
+        charging_the_wallets_of_customers_mapped_from_a_stranger(vec![Verdict::allowed(
             "getCustomer",
             3,
             Reason::lambda_parameter("order", Reason::parameter("orders"))
