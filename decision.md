@@ -25,6 +25,6 @@
 | Metodun tip parametresini sınırına çevir: `<T extends Shape>` içinde `T`, `Shape` sayılsın. | Yapıldı |
 | [Akışın yabancıdan ürettiği elemanı yabancı say: `map(Order::getCustomer)`.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | Değişken sayıda argüman alan metodu çöz: `Stream.of(first, second)`, `String.format("%s %s", a, b)`. | Yapıldı |
-| İç içe generic çağrıyı çöz: `collect(Collectors.groupingBy(Order::getStatus))`. | Yapılmadı |
+| İç içe generic çağrıyı çöz; içteki lambda dış akışın elemanından durum alsın: `collect(Collectors.toList())`, `collect(Collectors.groupingBy(customer -> customer.getWallet()))`. | Yapıldı |
 | Değişkene atanan ya da yapıcıya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`. | Yapılmadı |
 | Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
