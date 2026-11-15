@@ -1855,3 +1855,214 @@ fn lambda_target_8_counter_case_without_a_declared_type_the_argument_parameter_s
         )
     );
 }
+
+fn method_reference_catalog() -> Types {
+    nested_generic_catalog().with_shape(
+        class("Wallets").with_method(
+            MethodShape::new("of")
+                .as_static()
+                .with_parameters(vec![TypeRef::class("Customer")])
+                .returning(TypeRef::class("Wallet")),
+        ),
+    )
+}
+
+fn method_reference_verdicts(members: &str, snippet: &str) -> Vec<Verdict> {
+    verdicts_in_c(
+        NESTED_IMPORTS,
+        members,
+        snippet,
+        "charge",
+        &method_reference_catalog(),
+    )
+}
+
+fn customers_mapped_from_the_orders() -> [Verdict; 2] {
+    [
+        Verdict::allowed("stream", 3, Reason::parameter("orders")),
+        referencing("Order", "getCustomer", 3, Reason::parameter("orders")),
+    ]
+}
+
+fn a_stream_of_customers() -> Reason {
+    Reason::classified(
+        Classification::Container,
+        stream_of(TypeRef::class("Customer")),
+    )
+}
+
+#[test]
+fn method_reference_1_an_unbound_reference_on_mapped_strangers_is_a_violation() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Customer::getWallet);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            customers_mapped_from_the_orders().to_vec(),
+            vec![
+                Verdict::allowed("map", 3, Reason::parameter("orders")),
+                Verdict::violation(
+                    "getWallet",
+                    3,
+                    Reason::method_reference(
+                        TypeRef::class("Customer"),
+                        "getWallet",
+                        Reason::return_of("getCustomer")
+                    )
+                ),
+                Verdict::allowed("map", 3, a_stream_of_customers()),
+            ],
+        ]
+        .concat()
+    );
+}
+
+#[test]
+fn method_reference_2_a_nested_reference_receives_the_strangers_of_the_stream_collected() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).collect(Collectors.groupingBy(Customer::getWallet));\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            customers_mapped_from_the_orders().to_vec(),
+            vec![
+                Verdict::allowed("map", 3, Reason::parameter("orders")),
+                Verdict::violation(
+                    "getWallet",
+                    3,
+                    Reason::method_reference(
+                        TypeRef::class("Customer"),
+                        "getWallet",
+                        Reason::return_of("getCustomer")
+                    )
+                ),
+                Verdict::allowed("groupingBy", 3, collectors_type()),
+                Verdict::allowed("collect", 3, a_stream_of_customers()),
+            ],
+        ]
+        .concat()
+    );
+}
+
+#[test]
+fn method_reference_3_a_static_reference_is_allowed_whoever_feeds_it() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Wallets::of);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            customers_mapped_from_the_orders().to_vec(),
+            vec![
+                Verdict::allowed("map", 3, Reason::parameter("orders")),
+                Verdict::allowed("of", 3, Reason::static_type(TypeRef::class("Wallets"))),
+                Verdict::allowed("map", 3, a_stream_of_customers()),
+            ],
+        ]
+        .concat()
+    );
+}
+
+#[test]
+fn method_reference_4_a_bound_reference_on_this_is_allowed() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().forEach(this::ship);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            Verdict::allowed("ship", 3, Reason::This),
+            Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn method_reference_5_a_bound_reference_on_what_a_stranger_returned_is_a_violation() {
+    let snippet = "void charge(Order order, List<Order> orders) {\n    orders.stream().forEach(order.getCustomer()::rename);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            Verdict::allowed("getCustomer", 3, Reason::parameter("order")),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+            Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn method_reference_6_a_bound_reference_on_a_field_is_allowed() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).forEach(wallet::withdraw);\n}";
+
+    let verdicts = method_reference_verdicts("Wallet wallet;", snippet);
+
+    assert_eq!(
+        verdicts[3..],
+        [
+            Verdict::allowed("withdraw", 3, Reason::field("wallet")),
+            Verdict::allowed("forEach", 3, a_stream_of_customers()),
+        ]
+    );
+}
+
+#[test]
+fn method_reference_7_a_constructor_reference_is_not_a_call() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Wallet::new);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            customers_mapped_from_the_orders().to_vec(),
+            vec![
+                Verdict::allowed("map", 3, Reason::parameter("orders")),
+                Verdict::allowed("map", 3, a_stream_of_customers()),
+            ],
+        ]
+        .concat()
+    );
+}
+
+#[test]
+fn method_reference_8_an_array_constructor_reference_is_not_a_call() {
+    let snippet =
+        "void charge(List<Order> orders) {\n    orders.stream().toArray(Order[]::new);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            Verdict::allowed("toArray", 3, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn method_reference_9_a_reference_on_a_type_that_cannot_be_resolved_is_unresolved() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Missing::of);\n}";
+
+    let verdicts = method_reference_verdicts("", snippet);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "of",
+            3,
+            Reason::unresolved_type(None, Reason::unresolved_name("Missing"))
+        )
+    );
+}
