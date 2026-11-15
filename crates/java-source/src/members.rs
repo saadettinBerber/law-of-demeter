@@ -217,6 +217,7 @@ impl Reader<'_> {
         let name = node.child_by_field_name("name")?;
         let mut scope =
             Scope::for_class(declaration).with_type_variables(self.text.type_parameters(node));
+        let type_parameters = self.type_parameters(node, &scope);
         let returns = node
             .child_by_field_name("type")
             .map(|declared| self.declared_type(declared, &scope));
@@ -230,6 +231,7 @@ impl Reader<'_> {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
             is_static: has_modifier(node, "static"),
+            type_parameters,
             returns,
             body,
             parameters,
@@ -251,6 +253,7 @@ impl Reader<'_> {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
             is_static: false,
+            type_parameters: Vec::new(),
             returns: None,
             body,
             parameters,
@@ -360,6 +363,7 @@ impl Initializer {
             name: self.name.to_owned(),
             line: self.line?,
             is_static: self.is_static,
+            type_parameters: Vec::new(),
             parameters: Vec::new(),
             returns: Some(DeclaredType::primitive("void")),
             body: Some(self.statements),

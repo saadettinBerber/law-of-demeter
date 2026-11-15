@@ -1,4 +1,6 @@
-use law_of_demeter_java_source::{Class, DeclaredType, Method, Parameter, parse};
+use law_of_demeter_java_source::{
+    Class, DeclaredType, Method, Parameter, TypeName, TypeParameter, parse,
+};
 
 fn first_class(source: &str) -> Class {
     parse("A.java", source).unwrap().classes.remove(0)
@@ -144,4 +146,33 @@ fn methods_of_enums_and_nested_classes_belong_to_their_own_class() {
             ("Outer$Inner", vec!["b"])
         ]
     );
+}
+
+#[test]
+fn a_method_keeps_the_names_and_first_bounds_of_its_own_type_parameters() {
+    let source = "class OrderService<C extends Order> {\n <T extends Order & Customer, U, V extends Comparable<V>> void f(T item, U other, V third) {}\n void g(C item) {}\n}";
+
+    let class = first_class(source);
+
+    assert_eq!(
+        method_named(&class, "f").type_parameters,
+        [
+            TypeParameter {
+                name: "T".to_owned(),
+                bound: Some(DeclaredType::unresolved("Order"))
+            },
+            TypeParameter {
+                name: "U".to_owned(),
+                bound: None
+            },
+            TypeParameter {
+                name: "V".to_owned(),
+                bound: Some(DeclaredType::Class {
+                    name: TypeName::Unresolved("Comparable".to_owned()),
+                    arguments: vec![DeclaredType::variable("V")]
+                })
+            },
+        ]
+    );
+    assert_eq!(method_named(&class, "g").type_parameters, []);
 }

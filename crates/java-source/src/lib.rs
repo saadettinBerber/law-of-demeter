@@ -17,7 +17,7 @@ pub use model::{
     Call, Catch, Class, ClassKind, ClassOrigin, DeclaredType, Expression, Field,
     INSTANCE_INITIALIZER, ImplicitTarget, Import, Lambda, LambdaParameter, LocalVariable, Method,
     New, Parameter, PatternBinding, STATIC_INITIALIZER, SourceFile, Statement, Switch,
-    SwitchBranch, TypeName,
+    SwitchBranch, TypeName, TypeParameter,
 };
 
 pub fn parse(path: &str, source: &str) -> Result<SourceFile, ParseError> {

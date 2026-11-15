@@ -46,6 +46,7 @@ pub struct Class {
     pub origin: ClassOrigin,
     pub outer: Option<String>,
     pub captured: Vec<Parameter>,
+    pub type_parameters: Vec<TypeParameter>,
     pub annotations: Vec<TypeName>,
     pub supertypes: Vec<DeclaredType>,
     pub fields: Vec<Field>,
@@ -57,6 +58,7 @@ pub struct Method {
     pub name: String,
     pub line: usize,
     pub is_static: bool,
+    pub type_parameters: Vec<TypeParameter>,
     pub parameters: Vec<Parameter>,
     pub returns: Option<DeclaredType>,
     pub body: Option<Vec<Statement>>,
@@ -73,6 +75,12 @@ impl Method {
     pub fn is_initializer(&self) -> bool {
         self.name == STATIC_INITIALIZER || self.name == INSTANCE_INITIALIZER
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TypeParameter {
+    pub name: String,
+    pub bound: Option<DeclaredType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

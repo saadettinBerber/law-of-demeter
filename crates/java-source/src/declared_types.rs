@@ -1,8 +1,9 @@
 use tree_sitter::Node;
 
-use crate::model::DeclaredType;
+use crate::model::{DeclaredType, TypeParameter};
 use crate::reader::Reader;
 use crate::scope::Scope;
+use crate::tree::named_children;
 
 impl Reader<'_> {
     pub(crate) fn declared_type(&self, node: Node, scope: &Scope) -> DeclaredType {
@@ -20,6 +21,25 @@ impl Reader<'_> {
             "wildcard" => self.wildcard(node, scope),
             _ => DeclaredType::unresolved(self.text.of(node)),
         }
+    }
+
+    pub(crate) fn type_parameters(&self, declaration: Node, scope: &Scope) -> Vec<TypeParameter> {
+        let Some(parameters) = declaration.child_by_field_name("type_parameters") else {
+            return Vec::new();
+        };
+        named_children(parameters)
+            .into_iter()
+            .filter(|parameter| parameter.kind() == "type_parameter")
+            .filter_map(|parameter| {
+                let name = self.text.of(parameter.named_child(0)?).to_owned();
+                let bound = named_children(parameter)
+                    .into_iter()
+                    .find(|child| child.kind() == "type_bound")
+                    .and_then(|bound| named_children(bound).into_iter().next())
+                    .map(|first| self.declared_type(first, scope));
+                Some(TypeParameter { name, bound })
+            })
+            .collect()
     }
 
     pub(crate) fn with_dimensions(
