@@ -148,7 +148,9 @@ fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShap
     if method.access_flags.contains(MethodAccessFlags::STATIC) {
         shape = shape.as_static();
     }
-    if !method.access_flags.contains(MethodAccessFlags::PUBLIC) {
+    if method.access_flags.contains(MethodAccessFlags::PRIVATE) {
+        shape = shape.as_private();
+    } else if !method.access_flags.contains(MethodAccessFlags::PUBLIC) {
         shape = shape.not_public();
     }
     if method.access_flags.contains(MethodAccessFlags::ABSTRACT) {

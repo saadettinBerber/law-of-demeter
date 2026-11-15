@@ -11,4 +11,8 @@ public class Pair<A, B> {
     public B second() {
         return null;
     }
+
+    private B hidden() {
+        return null;
+    }
 }

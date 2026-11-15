@@ -14,4 +14,16 @@ public class Invoice {
     public String label(String[] names) {
         return names[0];
     }
+
+    private int discount() {
+        return 0;
+    }
+
+    int rounding() {
+        return 1;
+    }
+
+    protected int tax() {
+        return 2;
+    }
 }

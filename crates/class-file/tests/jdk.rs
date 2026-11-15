@@ -225,7 +225,11 @@ fn jdk_types_keep_their_generic_signatures() {
             .iter()
             .map(|method| method.returns().cloned())
             .collect::<Vec<_>>(),
-        [Some(TypeRef::variable("A")), Some(TypeRef::variable("B"))]
+        [
+            Some(TypeRef::variable("A")),
+            Some(TypeRef::variable("B")),
+            Some(TypeRef::variable("B"))
+        ]
     );
 }
 
@@ -260,6 +264,29 @@ fn jdk_fields_know_whether_they_are_final() {
             FieldShape::new("left", TypeRef::variable("A")).as_final(),
             FieldShape::new("right", TypeRef::variable("B")),
         ]
+    );
+}
+
+#[test]
+fn jdk_methods_know_whether_they_are_private() {
+    let reading = reading_of(11);
+    let pair = shape(&reading, "sample.util.Pair");
+
+    let hidden = pair
+        .methods()
+        .iter()
+        .find(|method| method.name() == "hidden");
+    let first = pair
+        .methods()
+        .iter()
+        .find(|method| method.name() == "first");
+
+    assert_eq!(
+        (
+            hidden.map(|method| (method.is_private(), method.is_public())),
+            first.map(|method| (method.is_private(), method.is_public()))
+        ),
+        (Some((true, false)), Some((false, true)))
     );
 }
 

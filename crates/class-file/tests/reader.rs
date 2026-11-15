@@ -199,7 +199,7 @@ fn reads_void_methods_and_non_public_methods() {
         add_line,
         MethodShape::new("addLine").with_parameters(vec![TypeRef::class("shop.OrderLine")])
     );
-    assert_eq!(audit, MethodShape::new("audit").not_public());
+    assert_eq!(audit, MethodShape::new("audit").as_private());
 }
 
 #[test]
@@ -598,6 +598,37 @@ fn a_method_with_a_plain_array_parameter_is_not_varargs() {
     let label = method(&invoice, "label");
 
     assert!(!label.is_varargs());
+}
+
+#[test]
+fn a_private_method_is_private_and_not_public() {
+    let invoice = shape("shop.Invoice");
+
+    let discount = method(&invoice, "discount");
+
+    assert!(discount.is_private());
+    assert!(!discount.is_public());
+}
+
+#[test]
+fn package_private_and_protected_methods_are_neither_public_nor_private() {
+    let invoice = shape("shop.Invoice");
+
+    let rounding = method(&invoice, "rounding");
+    let tax = method(&invoice, "tax");
+
+    assert!(!rounding.is_public() && !rounding.is_private());
+    assert!(!tax.is_public() && !tax.is_private());
+}
+
+#[test]
+fn a_public_method_is_public_and_not_private() {
+    let invoice = shape("shop.Invoice");
+
+    let get_total = method(&invoice, "getTotal");
+
+    assert!(get_total.is_public());
+    assert!(!get_total.is_private());
 }
 
 #[test]
