@@ -880,6 +880,7 @@ fn jdk_streams() -> Types {
         .with_shape(int_consumer())
         .with_shape(stream())
         .with_shape(consumer())
+        .with_shape(map())
 }
 
 fn customer_catalog() -> Types {
@@ -920,4 +921,86 @@ fn inference_1_the_element_type_of_an_array_argument_types_the_lambda_parameter(
             Verdict::allowed("forEach", 3, Reason::static_result("stream")),
         ]
     );
+}
+
+fn map() -> TypeShape {
+    let entry = || generic_of("java.util.Map", &[variable("K"), variable("V")]);
+    interface("java.util.Map", &["K", "V"])
+        .with_method(
+            MethodShape::new("of")
+                .as_static()
+                .with_type_parameter("K")
+                .with_type_parameter("V")
+                .with_parameters(vec![variable("K"), variable("V")])
+                .returning(entry()),
+        )
+        .with_method(
+            MethodShape::new("of")
+                .as_static()
+                .with_type_parameter("K")
+                .with_type_parameter("V")
+                .with_parameters(vec![
+                    variable("K"),
+                    variable("V"),
+                    variable("K"),
+                    variable("V"),
+                ])
+                .returning(entry()),
+        )
+}
+fn event_catalog() -> Types {
+    jdk_streams()
+        .with_shape(
+            class("Event").with_method(
+                MethodShape::new("getRecord").returning(TypeRef::class("EventRecord")),
+            ),
+        )
+        .with_shape(class("EventRecord").with_method(MethodShape::new("close")))
+}
+
+fn closing_the_record_of_the_event() -> [Verdict; 3] {
+    [
+        Verdict::allowed(
+            "getRecord",
+            3,
+            Reason::lambda_parameter("e", Reason::static_type(TypeRef::class("java.util.Map"))),
+        ),
+        Verdict::violation("close", 3, Reason::return_of("getRecord")),
+        Verdict::allowed(
+            "of",
+            3,
+            Reason::static_type(TypeRef::class("java.util.Map")),
+        ),
+    ]
+}
+
+#[test]
+fn inference_2_the_declared_type_of_a_local_types_the_lambda_parameter() {
+    let snippet = "void register() {\n    Map<String, Consumer<Event>> handlers = Map.of(\"created\", e -> e.getRecord().close());\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.Map; import java.util.function.Consumer;",
+        "",
+        snippet,
+        "register",
+        &event_catalog(),
+    );
+
+    assert_eq!(verdicts, closing_the_record_of_the_event());
+}
+
+#[test]
+fn inference_2_the_declared_type_of_a_field_types_the_lambda_parameter() {
+    let snippet =
+        "void register() {\n    handlers = Map.of(\"created\", e -> e.getRecord().close());\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.Map; import java.util.function.Consumer;",
+        "Map<String, Consumer<Event>> handlers;",
+        snippet,
+        "register",
+        &event_catalog(),
+    );
+
+    assert_eq!(verdicts, closing_the_record_of_the_event());
 }
