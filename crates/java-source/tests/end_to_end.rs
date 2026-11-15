@@ -314,6 +314,101 @@ fn violation_9_talking_to_the_object_an_own_method_returned() {
     );
 }
 
+fn charging_the_customers_a_stream_mapped_from_the_orders_field(
+    first: Vec<Verdict>,
+) -> Vec<Verdict> {
+    let mut verdicts = vec![Verdict::allowed("stream", 3, Reason::field("orders"))];
+    verdicts.extend(first);
+    verdicts.extend([
+        Verdict::allowed("map", 3, Reason::field("orders")),
+        Verdict::violation(
+            "getWallet",
+            3,
+            Reason::lambda_parameter("customer", Reason::return_of("getCustomer")),
+        ),
+        Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        Verdict::allowed(
+            "forEach",
+            3,
+            Reason::classified(
+                Classification::Container,
+                stream_of(TypeRef::class("Customer")),
+            ),
+        ),
+    ]);
+    verdicts
+}
+
+#[test]
+fn violation_10_talking_to_an_element_a_stream_mapped_from_a_stranger() {
+    let snippet = "void charge(int amount) {\n    orders.stream().map(Order::getCustomer).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "List<Order> orders;",
+        snippet,
+        "charge",
+        &customer_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        charging_the_customers_a_stream_mapped_from_the_orders_field(vec![])
+    );
+}
+
+#[test]
+fn violation_10_the_same_with_a_lambda_result() {
+    let snippet = "void charge(int amount) {\n    orders.stream().map(order -> order.getCustomer()).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "List<Order> orders;",
+        snippet,
+        "charge",
+        &customer_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        charging_the_customers_a_stream_mapped_from_the_orders_field(vec![Verdict::allowed(
+            "getCustomer",
+            3,
+            Reason::lambda_parameter("order", Reason::field("orders"))
+        )])
+    );
+}
+
+#[test]
+fn violation_10_counter_case_elements_mapped_to_new_objects_stay_friends() {
+    let types =
+        customer_catalog().with_shape(class("Receipt").with_method(MethodShape::new("print")));
+    let snippet = "void print() {\n    orders.stream().map(order -> new Receipt(order)).forEach(receipt -> receipt.print());\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "List<Order> orders;",
+        snippet,
+        "print",
+        &types,
+    );
+
+    let receipt = Reason::created(TypeRef::class("Receipt"));
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 3, Reason::field("orders")),
+            Verdict::allowed("map", 3, Reason::field("orders")),
+            Verdict::allowed(
+                "print",
+                3,
+                Reason::lambda_parameter("receipt", receipt.clone())
+            ),
+            Verdict::allowed("forEach", 3, receipt),
+        ]
+    );
+}
+
 #[test]
 fn allowed_1_reading_a_value_from_a_parameter() {
     let snippet = "boolean canShip(Order order) {\n    return order.getStatus() == Status.PAID;\n}";
