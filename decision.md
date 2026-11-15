@@ -18,5 +18,6 @@
 | [CLI'yi ve metin raporunu bağla; uygun çağrıları kullanıcı isterse uydukları kuralla göster.](README.md#mimari) | Yapıldı |
 | [Gerçek projede çıkan yanlış alarmları kapat: konteyner sonucu, kütüphane tipi, değer nesnesi, miras alınan alan.](SCENARIOS.md) | Yapıldı |
 | [Gerçek bir Java projesinde dene; her yanlış alarmı yeni bir senaryoya dönüştür.](SCENARIOS.md#uygun) | Yapıldı |
+| [C'nin kendi metodunun döndürdüğü nesneyi yabancı say.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | Metot düzeyindeki generic tip parametrelerini çöz; `<T> T find(Class<T>)` gibi çağrılar çözülemeyen kalmasın. | Yapılmadı |
 | Statik import ile gelen enum sabitlerini çöz. | Yapılmadı |
