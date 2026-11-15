@@ -29,11 +29,13 @@
 | Değişkene atanan, döndürülen ya da kurucuya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`, `new Worker(e -> ...)`. | Yapıldı |
 | [Örnek Java projeleriyle uçtan uca sına: bütün senaryolar gerçek kodda; Maven ile derle, gerçek JDK ile CLI'den geçir, raporu beklenen çıktıyla karşılaştır.](examples) | Yapıldı |
 | [Paket içi görünür ile `protected` metotları da davranış say; yalnızca `private` metotlar sayılmasın.](SCENARIOS.md#uygun-değil) | Yapıldı |
-| İç içe çağrıdaki metot referansı da dış akışın elemanından durum alsın: `collect(Collectors.groupingBy(Customer::getWallet))`. | Yapılmadı |
+| [Metot referansını, eşdeğer lambdanın yaptığı çağrı gibi yargıla: `Customer::getWallet`, `customer -> customer.getWallet()` ile aynı kararı alsın; iç içe çağrıda da: `collect(Collectors.groupingBy(Customer::getWallet))`.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | Depo sorgusunu tip adından da tanı: adı `Repository` ile biten tipteki alanın `get` çağrısı da depo sorgusu sayılsın. | Yapılmadı |
 | Aşırı yükleme seçiminde kutulama ile genişletmeyi destekle: `int` argüman `long` ya da `Integer` parametresine uysun. | Yapılmadı |
 | Değişmez argümanın tipini kullan: `Map.of("created", handler)` içinde `K`, `String` olsun. | Yapılmadı |
 | Blok gövdeli lambdada son `return` dışındaki `return` ifadelerinin tipini de kullan. | Yapılmadı |
 | İç içe generic çağrının maliyetini sınırla: her iç içe seviye yargılamayı ikiye katlıyor. | Yapılmadı |
 | Rapor metninde statik sabiti metot çağrısı gibi yazma: `PAID() statik çağrısı` yerine `PAID statik sabiti`. | Yapılmadı |
+| Gruplama anahtarının durumunu sınıflandırıcıdan al: `groupingBy(Order::getCustomer)` haritasının anahtarları yabancı, değerleri arkadaş olsun. | Yapılmadı |
+| Değer konumundaki metot referansını da yargıla: `Function<Order, Customer> f = Order::getCustomer;`, `return this::handle;`. | Yapılmadı |
 | Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
