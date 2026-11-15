@@ -94,6 +94,7 @@ pub struct MethodShape {
     returns: Option<TypeRef>,
     is_static: bool,
     is_public: bool,
+    is_private: bool,
     is_generated: bool,
     is_abstract: bool,
     is_varargs: bool,
@@ -110,6 +111,7 @@ impl MethodShape {
             returns: None,
             is_static: false,
             is_public: true,
+            is_private: false,
             is_generated: false,
             is_abstract: false,
             is_varargs: false,
@@ -164,6 +166,12 @@ impl MethodShape {
         self
     }
 
+    pub fn as_private(mut self) -> Self {
+        self.is_public = false;
+        self.is_private = true;
+        self
+    }
+
     pub fn generated(mut self) -> Self {
         self.is_generated = true;
         self
@@ -187,6 +195,10 @@ impl MethodShape {
 
     pub fn is_public(&self) -> bool {
         self.is_public
+    }
+
+    pub fn is_private(&self) -> bool {
+        self.is_private
     }
 
     pub fn is_generated(&self) -> bool {
