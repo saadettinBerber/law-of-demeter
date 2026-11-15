@@ -26,7 +26,7 @@
 | [Akışın yabancıdan ürettiği elemanı yabancı say: `map(Order::getCustomer)`.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | Değişken sayıda argüman alan metodu çöz: `Stream.of(first, second)`, `String.format("%s %s", a, b)`. | Yapıldı |
 | İç içe generic çağrıyı çöz; içteki lambda dış akışın elemanından durum alsın: `collect(Collectors.toList())`, `collect(Collectors.groupingBy(customer -> customer.getWallet()))`. | Yapıldı |
-| Değişkene atanan ya da yapıcıya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`. | Yapılmadı |
+| Değişkene atanan, döndürülen ya da kurucuya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`, `new Worker(e -> ...)`. | Yapıldı |
 | [Örnek Java projeleriyle uçtan uca sına: bütün senaryolar gerçek kodda; Maven ile derle, gerçek JDK ile CLI'den geçir, raporu beklenen çıktıyla karşılaştır.](examples) | Yapıldı |
 | [Paket içi görünür ile `protected` metotları da davranış say; yalnızca `private` metotlar sayılmasın.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | İç içe çağrıdaki metot referansı da dış akışın elemanından durum alsın: `collect(Collectors.groupingBy(Customer::getWallet))`. | Yapılmadı |
