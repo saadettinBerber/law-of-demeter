@@ -95,6 +95,8 @@ pub struct MethodShape {
     is_static: bool,
     is_public: bool,
     is_generated: bool,
+    is_abstract: bool,
+    type_parameters: Vec<String>,
     reads_field: Option<String>,
     writes_field: Option<String>,
 }
@@ -108,9 +110,21 @@ impl MethodShape {
             is_static: false,
             is_public: true,
             is_generated: false,
+            is_abstract: false,
+            type_parameters: Vec::new(),
             reads_field: None,
             writes_field: None,
         }
+    }
+
+    pub fn with_type_parameter(mut self, name: &str) -> Self {
+        self.type_parameters.push(name.to_owned());
+        self
+    }
+
+    pub fn as_abstract(mut self) -> Self {
+        self.is_abstract = true;
+        self
     }
 
     pub fn reading(mut self, field: &str) -> Self {
@@ -170,6 +184,14 @@ impl MethodShape {
 
     pub fn is_generated(&self) -> bool {
         self.is_generated
+    }
+
+    pub fn is_abstract(&self) -> bool {
+        self.is_abstract
+    }
+
+    pub fn type_parameters(&self) -> &[String] {
+        &self.type_parameters
     }
 
     pub fn reads_field(&self) -> Option<&str> {
