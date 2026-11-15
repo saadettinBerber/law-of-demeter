@@ -87,6 +87,23 @@ fn collecting() -> Types {
                 .as_static()
                 .with_type_parameter("T")
                 .with_type_parameter("K")
+                .with_type_parameter("A")
+                .with_type_parameter("D")
+                .with_parameters(vec![
+                    function(variable("T"), variable("K")),
+                    collector(variable("T"), variable("A"), variable("D")),
+                ])
+                .returning(collector(
+                    variable("T"),
+                    wildcard(),
+                    generic(MAP, &[variable("K"), variable("D")]),
+                )),
+        )
+        .with_method(
+            MethodShape::new("groupingBy")
+                .as_static()
+                .with_type_parameter("T")
+                .with_type_parameter("K")
                 .with_parameters(vec![function(variable("T"), variable("K"))])
                 .returning(collector(
                     variable("T"),
@@ -379,4 +396,28 @@ fn a_lambda_in_a_nested_call_that_receives_something_else_keeps_its_own_feed() {
         3,
         Reason::lambda_parameter("list", collectors_static())
     )));
+}
+
+#[test]
+fn collectors_nested_two_levels_deep_type_the_groups() {
+    let ship = Method::new("Billing", "ship", 1).call(
+        orders_collected_by(grouping_by_status(Some(collectors_call("toList"))))
+            .then("get", 2)
+            .with(Expression::parameter("status", status()))
+            .then("get", 2)
+            .with(Expression::literal())
+            .then("getCustomer", 3)
+            .then("rename", 3),
+    );
+
+    let verdicts = ship.verdicts(&collecting());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation(
+            "rename",
+            3,
+            Reason::return_of("getCustomer")
+        ))
+    );
 }
