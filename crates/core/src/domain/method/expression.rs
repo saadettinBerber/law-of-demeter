@@ -355,6 +355,10 @@ impl Lambda {
                 .filter(|type_ref| !matches!(type_ref, TypeRef::Variable(_)));
             inner.bind(parameter, subject.declared_as(known));
         }
-        self.body.judge(&mut inner)
+        let mut verdicts = self.body.judge(&mut inner);
+        if let Some(result) = &self.result {
+            verdicts.extend(result.judge(&inner).verdicts);
+        }
+        verdicts
     }
 }

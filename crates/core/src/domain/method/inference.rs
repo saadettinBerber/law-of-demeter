@@ -8,6 +8,8 @@ const CONSUMER: &str = "java.util.function.Consumer";
 const COLLECTION: &str = "java.util.Collection";
 const ARRAY_LIST: &str = "java.util.ArrayList";
 const STREAMS: &str = "shop.Streams";
+const LIST: &str = "java.util.List";
+const FUNCTION: &str = "java.util.function.Function";
 const MAP: &str = "java.util.Map";
 const BI_CONSUMER: &str = "java.util.function.BiConsumer";
 
@@ -45,9 +47,32 @@ fn shop() -> Types {
                     .returning(generic(STREAM, &[variable("T")])),
             ),
         )
-        .with_shape(interface(STREAM, &["T"]).with_method(
-            MethodShape::new("forEach").with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
-        ))
+        .with_shape(
+            interface(STREAM, &["T"])
+                .with_method(
+                    MethodShape::new("forEach")
+                        .with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
+                )
+                .with_method(
+                    MethodShape::new("map")
+                        .with_type_parameter("R")
+                        .with_parameters(vec![generic(FUNCTION, &[variable("T"), variable("R")])])
+                        .returning(generic(STREAM, &[variable("R")])),
+                ),
+        )
+        .with_shape(
+            interface(FUNCTION, &["T", "R"]).with_method(
+                MethodShape::new("apply")
+                    .with_parameters(vec![variable("T")])
+                    .returning(variable("R"))
+                    .as_abstract(),
+            ),
+        )
+        .with_shape(
+            interface(LIST, &["E"]).with_method(
+                MethodShape::new("stream").returning(generic(STREAM, &[variable("E")])),
+            ),
+        )
         .with_shape(
             interface(CONSUMER, &["T"]).with_method(
                 MethodShape::new("accept")
@@ -283,4 +308,30 @@ fn a_cast_gives_its_type_to_the_call_it_wraps() {
     let verdicts = register.verdicts(&shop());
 
     assert_eq!(verdicts[1], closing_the_receipt());
+}
+
+#[test]
+fn the_expression_a_lambda_yields_is_judged_like_a_statement() {
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    let charge = Method::new("Billing", "charge", 1).call(
+        Call::new(orders, "stream", 2)
+            .then("forEach", 2)
+            .with(Lambda::new(&["order"]).yielding(Expression::return_of(customer_of("order", 3)))),
+    );
+
+    let verdicts = charge.verdicts(&shop());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "getCustomer",
+                3,
+                Reason::lambda_parameter("order", Reason::parameter("orders"))
+            ),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+            Verdict::allowed("forEach", 2, Reason::parameter("orders")),
+        ]
+    );
 }
