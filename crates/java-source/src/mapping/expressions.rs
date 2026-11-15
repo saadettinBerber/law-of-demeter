@@ -97,7 +97,7 @@ impl MethodMapper<'_> {
     fn argument(&mut self, argument: &model::Expression) -> Argument {
         match argument {
             model::Expression::Lambda(lambda) => Argument::Lambda(self.lambda(lambda)),
-            model::Expression::MethodReference { target, name } => {
+            model::Expression::MethodReference { target, name, .. } => {
                 Argument::MethodReference(MethodReference::new(self.expression(target), name))
             }
             other => Argument::Value(self.expression(other)),

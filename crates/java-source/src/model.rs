@@ -179,6 +179,7 @@ pub enum Expression {
     MethodReference {
         target: Box<Expression>,
         name: String,
+        line: usize,
     },
     Cast {
         target: DeclaredType,

@@ -470,7 +470,8 @@ fn allowed_5_a_stream_with_a_method_reference() {
                     "filter",
                     vec![Expression::MethodReference {
                         target: Box::new(type_ref("shop.Order")),
-                        name: "isPaid".to_owned()
+                        name: "isPaid".to_owned(),
+                        line: 3
                     }],
                     3
                 ),

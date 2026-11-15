@@ -324,6 +324,7 @@ impl Reader<'_> {
         Expression::MethodReference {
             target: Box::new(target),
             name,
+            line: line_of(node),
         }
     }
 

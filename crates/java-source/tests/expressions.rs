@@ -140,6 +140,7 @@ fn a_method_reference_has_a_target_and_a_name() {
     let reference = |target: Expression, name: &str| Expression::MethodReference {
         target: Box::new(target),
         name: name.to_owned(),
+        line: 4,
     };
     assert_eq!(
         outermost.arguments,
@@ -159,6 +160,32 @@ fn a_method_reference_has_a_target_and_a_name() {
     assert_eq!(
         first.arguments,
         [reference(type_ref("shop.Order"), "isPaid")]
+    );
+}
+
+#[test]
+fn a_method_reference_keeps_the_line_it_is_on() {
+    let body = body_of(
+        "void f(List<Order> orders) {\n orders.stream()\n  .map(Order::isPaid)\n  .forEach(this::ship);\n}",
+    );
+
+    let Statement::Expression(Expression::Call(for_each)) = &body[0] else {
+        panic!("expected a call, got {body:?}");
+    };
+    let Expression::Call(map) = for_each.receiver.as_deref().unwrap() else {
+        panic!("expected a call");
+    };
+    let reference = |target: Expression, name: &str, line: usize| Expression::MethodReference {
+        target: Box::new(target),
+        name: name.to_owned(),
+        line,
+    };
+    assert_eq!(
+        (&map.arguments, &for_each.arguments),
+        (
+            &vec![reference(type_ref("shop.Order"), "isPaid", 4)],
+            &vec![reference(Expression::This, "ship", 5)]
+        )
     );
 }
 
