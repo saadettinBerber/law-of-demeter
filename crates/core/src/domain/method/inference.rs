@@ -550,10 +550,9 @@ fn a_method_reference_on_an_expression_yields_what_the_method_of_its_type_return
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(
-        verdicts,
-        charging_the_customers_a_stranger_returned("lookup")
-    );
+    let mut expected = charging_the_customers_a_stranger_returned("lookup").to_vec();
+    expected.insert(1, Verdict::allowed("lookup", 2, Reason::field("registry")));
+    assert_eq!(verdicts, expected);
 }
 
 fn with_primitive_array_overload(types: Types) -> Types {

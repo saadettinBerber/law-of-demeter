@@ -8,6 +8,7 @@ const COLLECTORS: &str = "java.util.stream.Collectors";
 const MAP: &str = "java.util.Map";
 const LIST: &str = "java.util.List";
 const FUNCTION: &str = "java.util.function.Function";
+const CONSUMER: &str = "java.util.function.Consumer";
 
 fn class(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -55,6 +56,10 @@ fn streams() -> Types {
                         .returning(stream_of(variable("R"))),
                 )
                 .with_method(
+                    MethodShape::new("forEach")
+                        .with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
+                )
+                .with_method(
                     MethodShape::new("collect")
                         .with_type_parameter("R")
                         .with_type_parameter("A")
@@ -88,6 +93,13 @@ fn streams() -> Types {
                 MethodShape::new("apply")
                     .with_parameters(vec![variable("T")])
                     .returning(variable("R"))
+                    .as_abstract(),
+            ),
+        )
+        .with_shape(
+            interface(CONSUMER, &["T"]).with_method(
+                MethodShape::new("accept")
+                    .with_parameters(vec![variable("T")])
                     .as_abstract(),
             ),
         )
@@ -338,5 +350,111 @@ fn a_constructor_reference_is_not_a_call() {
             Verdict::allowed("stream", 2, Reason::parameter("orders")),
             Verdict::allowed("map", 2, Reason::parameter("orders")),
         ]
+    );
+}
+
+fn printing_each_order_with(reference: MethodReference) -> Method {
+    Method::new("Billing", "print", 1).call(orders_stream().then("forEach", 2).with(reference))
+}
+
+fn forwarding_to(target: Expression, name: &str) -> Method {
+    printing_each_order_with(MethodReference::new(target, name, 3))
+}
+
+#[test]
+fn a_bound_reference_on_this_is_allowed_as_the_call_on_this_would_be() {
+    let print = forwarding_to(Expression::This, "print");
+
+    let verdicts = print.verdicts(&streams());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed("print", 3, Reason::This),
+            Verdict::allowed("forEach", 2, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn a_bound_reference_on_a_field_is_allowed_as_the_call_on_the_field_would_be() {
+    let print = forwarding_to(
+        Expression::field("printer", TypeRef::class("Printer")),
+        "print",
+    );
+
+    let verdicts = print.verdicts(&streams());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::allowed("print", 3, Reason::field("printer"))
+    );
+}
+
+#[test]
+fn a_bound_reference_on_what_a_stranger_returned_is_a_violation() {
+    let returned_by_the_order = Expression::return_of(Call::new(
+        Expression::parameter("order", order()),
+        "getCustomer",
+        3,
+    ));
+    let print = forwarding_to(returned_by_the_order, "rename");
+
+    let verdicts = print.verdicts(&streams());
+
+    assert_eq!(
+        verdicts[1..3],
+        [
+            Verdict::allowed("getCustomer", 3, Reason::parameter("order")),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+        ]
+    );
+}
+
+#[test]
+fn a_bound_reference_on_a_static_field_is_allowed_as_the_call_on_it_would_be() {
+    let out = Expression::field_of(
+        Expression::static_type(TypeRef::class("java.lang.System")),
+        "out",
+    );
+    let print = forwarding_to(out, "println");
+
+    let verdicts = print.verdicts(&streams());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::allowed("println", 3, Reason::static_result("out"))
+    );
+}
+
+#[test]
+fn an_array_constructor_reference_is_not_a_call() {
+    let print = forwarding_to(Expression::operation(Vec::new()), "new");
+
+    let verdicts = print.verdicts(&streams());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed("forEach", 2, Reason::parameter("orders")),
+        ]
+    );
+}
+
+#[test]
+fn a_reference_on_a_name_that_cannot_be_resolved_is_unresolved() {
+    let print = forwarding_to(Expression::unresolved("Printers"), "print");
+
+    let verdicts = print.verdicts(&streams());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "print",
+            3,
+            Reason::unresolved_type(None, Reason::unresolved_name("Printers"))
+        )
     );
 }

@@ -555,6 +555,10 @@ fn allowed_5_java_collections_and_streams() {
                         .returning(orders_stream.clone()),
                 )
                 .with_method(MethodShape::new("count").returning(TypeRef::primitive("long"))),
+        )
+        .with_shape(
+            class("Order")
+                .with_method(MethodShape::new("isPaid").returning(TypeRef::primitive("boolean"))),
         );
     let snippet = "long paidCount(List<Order> orders) {\n    return orders.stream().filter(Order::isPaid).count();\n}";
 
@@ -564,6 +568,7 @@ fn allowed_5_java_collections_and_streams() {
         verdicts,
         [
             Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            referencing("Order", "isPaid", 3, Reason::parameter("orders")),
             Verdict::allowed("filter", 3, Reason::parameter("orders")),
             Verdict::allowed("count", 3, Reason::parameter("orders")),
         ]

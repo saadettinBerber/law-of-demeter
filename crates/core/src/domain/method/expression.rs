@@ -399,7 +399,10 @@ impl MethodReference {
                 verdicts.push(verdict_on(context, &receiver, &self.called(arguments)));
                 functional.map(|_| self.on(types, &element, arguments))
             }
-            _ => functional.map(|_| self.on(types, &target.subject, arity)),
+            _ => {
+                verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
+                functional.map(|_| self.on(types, &target.subject, arity))
+            }
         };
         Produced {
             verdicts,
