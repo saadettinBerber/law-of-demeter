@@ -33,7 +33,8 @@ impl MethodMapper<'_> {
             model::Expression::StaticImport { owner, name } => {
                 Expression::field_of(Expression::static_type(named_type(owner)), name)
             }
-            model::Expression::Unresolved(name) => Expression::unresolved(name),
+            model::Expression::Unresolved(name)
+            | model::Expression::OnDemandStaticImport { name, .. } => Expression::unresolved(name),
             model::Expression::FieldAccess { target, name } => {
                 Expression::field_of(self.expression(target), name)
             }

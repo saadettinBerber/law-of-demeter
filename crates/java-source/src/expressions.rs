@@ -76,8 +76,28 @@ impl Reader<'_> {
             .or_else(|| self.resolver.resolve_simple(name, &scope.class));
         match binary_name {
             Some(binary_name) => Expression::Type(TypeName::Resolved(binary_name)),
-            None => Expression::Unresolved(name.to_owned()),
+            None => self.unresolved_name(name),
         }
+    }
+
+    fn unresolved_name(&self, name: &str) -> Expression {
+        let candidates = self.on_demand_static_owners();
+        if candidates.is_empty() {
+            Expression::Unresolved(name.to_owned())
+        } else {
+            Expression::OnDemandStaticImport {
+                name: name.to_owned(),
+                candidates,
+            }
+        }
+    }
+
+    fn on_demand_static_owners(&self) -> Vec<TypeName> {
+        self.resolver
+            .static_on_demand_owners()
+            .iter()
+            .map(|owner| TypeName::Resolved(owner.clone()))
+            .collect()
     }
 
     fn declares_field(&self, class: &str, name: &str) -> bool {
@@ -101,12 +121,7 @@ impl Reader<'_> {
                 owner: TypeName::Resolved(owner.to_owned()),
             };
         }
-        let candidates: Vec<TypeName> = self
-            .resolver
-            .static_on_demand_owners()
-            .iter()
-            .map(|owner| TypeName::Resolved(owner.clone()))
-            .collect();
+        let candidates = self.on_demand_static_owners();
         if candidates.is_empty() {
             ImplicitTarget::OwnMethod
         } else {

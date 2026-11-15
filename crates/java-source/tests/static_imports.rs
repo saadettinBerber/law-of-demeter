@@ -143,3 +143,71 @@ fn a_static_imported_name_used_as_a_value_is_a_static_import() {
     );
     assert_eq!(call.receiver.as_deref(), Some(&parameter("order")));
 }
+
+fn value_argument(imports: &str, members: &str) -> Expression {
+    let body = method_in(imports, "", members, "f").body.unwrap();
+    let Statement::Expression(Expression::Call(call)) = &body[0] else {
+        panic!("expected a call, got {body:?}");
+    };
+    call.arguments[0].clone()
+}
+
+#[test]
+fn a_name_nothing_else_resolves_lists_the_on_demand_static_imports_as_candidates() {
+    let value = value_argument(
+        "import static shop.Status.*; import static shop.Order.*;",
+        "void f(Order order) {\n order.set(PAID);\n}",
+    );
+
+    assert_eq!(
+        value,
+        Expression::OnDemandStaticImport {
+            name: "PAID".to_owned(),
+            candidates: vec![resolved("shop.Status"), resolved("shop.Order")]
+        }
+    );
+}
+
+#[test]
+fn a_single_static_import_hides_the_on_demand_candidates() {
+    let value = value_argument(
+        "import static shop.Order.*; import static shop.Status.PAID;",
+        "void f(Order order) {\n order.set(PAID);\n}",
+    );
+
+    assert_eq!(
+        value,
+        Expression::StaticImport {
+            owner: resolved("shop.Status"),
+            name: "PAID".to_owned()
+        }
+    );
+}
+
+#[test]
+fn parameters_fields_and_types_hide_the_on_demand_candidates() {
+    let imports = "import static shop.Status.*;";
+    let parameter_name = value_argument(
+        imports,
+        "void f(Order order, int PAID) {\n order.set(PAID);\n}",
+    );
+    let field_name = value_argument(
+        imports,
+        "int PAID;\nvoid f(Order order) {\n order.set(PAID);\n}",
+    );
+    let type_name = value_argument(imports, "void f(Order order) {\n order.set(Order);\n}");
+
+    assert_eq!(parameter_name, parameter("PAID"));
+    assert_eq!(field_name, support::field("PAID"));
+    assert_eq!(type_name, support::type_ref("shop.Order"));
+}
+
+#[test]
+fn without_on_demand_static_imports_a_name_nothing_resolves_has_no_candidates() {
+    let value = value_argument(
+        "import static shop.Status.PAID;",
+        "void f(Order order) {\n order.set(SHIPPED);\n}",
+    );
+
+    assert_eq!(value, support::unresolved("SHIPPED"));
+}

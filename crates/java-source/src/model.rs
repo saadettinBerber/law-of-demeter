@@ -160,6 +160,10 @@ pub enum Expression {
         owner: TypeName,
         name: String,
     },
+    OnDemandStaticImport {
+        name: String,
+        candidates: Vec<TypeName>,
+    },
     Unresolved(String),
     FieldAccess {
         target: Box<Expression>,
