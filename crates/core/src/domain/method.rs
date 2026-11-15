@@ -84,3 +84,5 @@ mod inference;
 mod scenarios;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod varargs;

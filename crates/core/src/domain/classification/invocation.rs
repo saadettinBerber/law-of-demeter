@@ -39,8 +39,7 @@ impl Invocation {
             .filter(|(name, _)| !free.contains(name))
             .map(|(name, type_ref)| (name.clone(), type_ref.clone()))
             .collect();
-        let parameters: Vec<_> = method
-            .parameters()
+        let parameters: Vec<_> = expanded_parameters(method, values.len())
             .iter()
             .map(|parameter| substitute(parameter, &class_bindings))
             .collect();
@@ -145,8 +144,7 @@ pub(super) fn applicable<'a>(
         .iter()
         .copied()
         .filter(|method| {
-            method
-                .parameters()
+            expanded_parameters(method, values.len())
                 .iter()
                 .zip(values)
                 .all(|(parameter, value)| {
@@ -225,5 +223,22 @@ fn mentions(type_ref: &TypeRef, name: &str) -> bool {
         }
         TypeRef::Array(element) => mentions(element, name),
         TypeRef::Primitive(_) => false,
+    }
+}
+
+fn expanded_parameters(method: &MethodShape, argument_count: usize) -> Vec<TypeRef> {
+    let parameters = method.parameters();
+    match parameters.split_last() {
+        Some((TypeRef::Array(element), fixed))
+            if method.is_varargs() && parameters.len() != argument_count =>
+        {
+            fixed
+                .iter()
+                .cloned()
+                .chain(std::iter::repeat((**element).clone()))
+                .take(argument_count)
+                .collect()
+        }
+        _ => parameters.to_vec(),
     }
 }

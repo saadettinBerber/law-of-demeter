@@ -55,9 +55,9 @@ impl Types {
         &self,
         type_name: &str,
         method: &str,
-        parameter_count: usize,
+        argument_count: usize,
     ) -> Option<&TypeRef> {
-        let overloads = self.overloads(type_name, method, parameter_count);
+        let overloads = self.overloads(type_name, method, argument_count);
         unambiguous_return(&overloads)
     }
 
@@ -65,9 +65,9 @@ impl Types {
         &self,
         receiver: &TypeRef,
         method: &str,
-        parameter_count: usize,
+        argument_count: usize,
     ) -> Option<TypeRef> {
-        self.invocation(receiver, method, &vec![None; parameter_count])
+        self.invocation(receiver, method, &vec![None; argument_count])
             .returns()
     }
 
@@ -94,13 +94,8 @@ impl Types {
         }
     }
 
-    fn overloads(
-        &self,
-        type_name: &str,
-        method: &str,
-        parameter_count: usize,
-    ) -> Vec<&MethodShape> {
-        self.overloads_on(&TypeRef::class(type_name), method, parameter_count)
+    fn overloads(&self, type_name: &str, method: &str, argument_count: usize) -> Vec<&MethodShape> {
+        self.overloads_on(&TypeRef::class(type_name), method, argument_count)
             .map(|(_, overloads)| overloads)
             .unwrap_or_default()
     }
@@ -109,7 +104,23 @@ impl Types {
         &self,
         receiver: &TypeRef,
         method: &str,
-        parameter_count: usize,
+        argument_count: usize,
+    ) -> Option<(TypeRef, Vec<&MethodShape>)> {
+        self.declaring_overloads(receiver, method, |candidate| {
+            candidate.parameters().len() == argument_count
+        })
+        .or_else(|| {
+            self.declaring_overloads(receiver, method, |candidate| {
+                candidate.is_varargs() && candidate.parameters().len() <= argument_count + 1
+            })
+        })
+    }
+
+    fn declaring_overloads(
+        &self,
+        receiver: &TypeRef,
+        method: &str,
+        takes: impl Fn(&MethodShape) -> bool,
     ) -> Option<(TypeRef, Vec<&MethodShape>)> {
         let roots = self.root_types(receiver);
         self.ancestors(receiver)
@@ -120,10 +131,7 @@ impl Types {
                 let declared: Vec<_> = shape
                     .methods()
                     .iter()
-                    .filter(|candidate| {
-                        candidate.name() == method
-                            && candidate.parameters().len() == parameter_count
-                    })
+                    .filter(|candidate| candidate.name() == method && takes(candidate))
                     .collect();
                 (!declared.is_empty()).then_some((ancestor, declared))
             })
@@ -195,8 +203,8 @@ impl Types {
         element_type(&container).cloned()
     }
 
-    pub fn is_fluent(&self, type_name: &str, method: &str, parameter_count: usize) -> bool {
-        let overloads = self.overloads(type_name, method, parameter_count);
+    pub fn is_fluent(&self, type_name: &str, method: &str, argument_count: usize) -> bool {
+        let overloads = self.overloads(type_name, method, argument_count);
         !overloads.is_empty()
             && overloads.iter().all(|overload| {
                 !overload.is_static() && overload.returns().and_then(class_name) == Some(type_name)
