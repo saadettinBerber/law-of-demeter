@@ -13,7 +13,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::{Class, Method as ParsedMethod, ParseError, SourceFile, parse_with};
 
 use steps::Steps;
-use types::{object, type_ref_or_object};
+use types::{object, type_ref, type_ref_or_object};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappedFile {
@@ -56,6 +56,7 @@ struct MethodMapper<'a> {
     method: &'a ParsedMethod,
     parameters: HashMap<&'a str, TypeRef>,
     locals: HashMap<String, Option<TypeRef>>,
+    returns: Option<TypeRef>,
     steps: Steps,
 }
 
@@ -76,6 +77,7 @@ impl<'a> MethodMapper<'a> {
                 })
                 .collect(),
             locals: HashMap::new(),
+            returns: method.returns.as_ref().and_then(type_ref),
             steps: Steps::default(),
         }
     }

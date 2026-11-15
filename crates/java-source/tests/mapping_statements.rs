@@ -1,6 +1,6 @@
 mod mapped;
 
-use law_of_demeter_core::domain::method::{Creation, Expression, Method};
+use law_of_demeter_core::domain::method::{Creation, Expression, Lambda, Method};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 use mapped::{call, class, method_f, parameter};
 
@@ -56,7 +56,70 @@ fn a_return_judges_its_value_and_a_bare_return_does_nothing() {
 
     let mapped = method_f(source);
 
-    assert_eq!(mapped, f(2).call(call(order(), "getStatus", 4)));
+    assert_eq!(
+        mapped,
+        f(2).call(call(order(), "getStatus", 4).expecting(class("Status")))
+    );
+}
+
+#[test]
+fn a_returned_call_expects_the_declared_return_type_from_its_outermost_call() {
+    let source = "import java.util.List;\nclass OrderService<T> {\n List<Order> f(Order order) {\n  return order.getOwner().find();\n }\n int g(Order order) {\n  return order.count();\n }\n T h(Order order) {\n  return order.item();\n }\n}";
+
+    let mapped = mapped::mapped_methods(source);
+
+    let owner = Expression::return_of(call(order(), "getOwner", 4));
+    let named = |name: &str| mapped.iter().find(|method| method.name() == name).unwrap();
+    assert_eq!(
+        named("f"),
+        &Method::new("OrderService", "f", 3).call(
+            call(owner, "find", 4)
+                .expecting(TypeRef::generic("java.util.List", vec![class("Order")]))
+        )
+    );
+    assert_eq!(
+        named("g"),
+        &Method::new("OrderService", "g", 6)
+            .call(call(order(), "count", 7).expecting(TypeRef::primitive("int")))
+    );
+    assert_eq!(
+        named("h"),
+        &Method::new("OrderService", "h", 9)
+            .call(call(order(), "item", 10).expecting(TypeRef::variable("T")))
+    );
+}
+
+#[test]
+fn a_returned_value_that_is_not_a_call_expects_nothing() {
+    let source = "class OrderService {\n Order f(Order order) {\n  return order;\n }\n}";
+
+    let mapped = method_f(source);
+
+    assert_eq!(mapped, f(2));
+}
+
+#[test]
+fn a_return_inside_a_lambda_does_not_take_the_return_type_of_the_method() {
+    let source = "class OrderService {\n Order f(Order order) {\n  order.lines().map(line -> {\n   return line.price();\n  });\n  Supplier<Wallet> supplier = () -> {\n   return order.wallet();\n  };\n  return order.next();\n }\n}";
+
+    let mapped = method_f(source);
+
+    let lines = Expression::return_of(call(order(), "lines", 3));
+    assert_eq!(
+        mapped,
+        f(2).call(call(lines, "map", 3).with(Lambda::new(&["line"]).call(call(
+            Expression::local("line"),
+            "price",
+            4
+        ))))
+        .call(call(order(), "wallet", 7))
+        .assign(
+            "supplier",
+            TypeRef::generic("Supplier", vec![class("Wallet")]),
+            Expression::literal()
+        )
+        .call(call(order(), "next", 9).expecting(class("Order")))
+    );
 }
 
 #[test]

@@ -132,7 +132,9 @@ impl MethodMapper<'_> {
             .map(|parameter| parameter.name.as_str())
             .collect();
         let outer_steps = mem::take(&mut self.steps);
+        let outer_returns = self.returns.take();
         self.statements(&lambda.body);
+        self.returns = outer_returns;
         mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names))
     }
 
@@ -147,7 +149,9 @@ impl MethodMapper<'_> {
             let value = Expression::parameter(&parameter.name, declared.clone());
             self.steps.assign(&parameter.name, Some(declared), value);
         }
+        let outer_returns = self.returns.take();
         self.statements(&lambda.body);
+        self.returns = outer_returns;
     }
 }
 

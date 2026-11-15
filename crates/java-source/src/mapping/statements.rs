@@ -4,6 +4,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::{Catch, Expression, LocalVariable, Statement};
 
 use super::MethodMapper;
+use super::expressions::expecting;
 use super::types::{type_ref, type_ref_or_object};
 
 impl MethodMapper<'_> {
@@ -16,9 +17,8 @@ impl MethodMapper<'_> {
     fn statement(&mut self, statement: &Statement) {
         match statement {
             Statement::Local(local) => self.local(local),
-            Statement::Expression(expression) | Statement::Return(Some(expression)) => {
-                self.evaluate(expression);
-            }
+            Statement::Expression(expression) => self.evaluate(expression),
+            Statement::Return(Some(expression)) => self.returned(expression),
             Statement::Return(None) => {}
             Statement::Block(body) => self.statements(body),
             Statement::If {
@@ -82,6 +82,15 @@ impl MethodMapper<'_> {
 
     pub(super) fn evaluate(&mut self, expression: &Expression) {
         let value = self.expression(expression);
+        self.steps.evaluate(value);
+    }
+
+    fn returned(&mut self, expression: &Expression) {
+        let value = self.expression(expression);
+        let value = match self.returns.clone() {
+            Some(type_ref) => expecting(value, type_ref),
+            None => value,
+        };
         self.steps.evaluate(value);
     }
 
