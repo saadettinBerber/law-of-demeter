@@ -446,6 +446,7 @@ pub struct Lambda {
     body: Block,
     result: Option<Expression>,
     expected: Option<TypeRef>,
+    declared: Vec<(String, TypeRef)>,
 }
 
 impl Lambda {
@@ -455,7 +456,13 @@ impl Lambda {
             body: Block::default(),
             result: None,
             expected: None,
+            declared: Vec::new(),
         }
+    }
+
+    pub fn declaring(mut self, parameter: &str, type_ref: TypeRef) -> Self {
+        self.declared.push((parameter.to_owned(), type_ref));
+        self
     }
 
     pub fn expecting(mut self, type_ref: TypeRef) -> Self {
@@ -505,11 +512,12 @@ impl Lambda {
             .unwrap_or_default();
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
-            let source = element_feed(context.types, outer, feed, declared.get(index));
+            let known = self.declared_type(parameter).or(declared.get(index));
+            let source = element_feed(context.types, outer, feed, known);
             let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });
-            inner.bind(parameter, subject.declared_as(declared.get(index)));
+            inner.bind(parameter, subject.declared_as(known));
         }
         let (verdicts, yielded) = self.judge_body(inner);
         Produced {
@@ -519,6 +527,13 @@ impl Lambda {
                 .and_then(|subject| subject.type_ref.clone()),
             standing: yielded.map(|subject| subject.standing),
         }
+    }
+
+    fn declared_type(&self, parameter: &str) -> Option<&TypeRef> {
+        self.declared
+            .iter()
+            .find(|(name, _)| name == parameter)
+            .map(|(_, type_ref)| type_ref)
     }
 
     fn judge_body(&self, mut inner: Context) -> (Vec<Verdict>, Option<Subject>) {
@@ -543,8 +558,9 @@ impl Lambda {
             .unwrap_or_default();
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
-            let type_ref = declared
-                .get(index)
+            let type_ref = self
+                .declared_type(parameter)
+                .or(declared.get(index))
                 .cloned()
                 .unwrap_or_else(|| TypeRef::class("java.lang.Object"));
             inner.bind(

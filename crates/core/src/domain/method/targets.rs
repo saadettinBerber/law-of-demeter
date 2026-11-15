@@ -145,3 +145,59 @@ fn a_lambda_expecting_a_type_types_its_parameters_without_a_declaration() {
 
     assert_eq!(verdicts, releasing_through_a_typed_parameter());
 }
+
+fn typed_handler() -> Lambda {
+    Lambda::new(&["e"])
+        .declaring("e", event())
+        .yielding(releasing_the_lock_of_the_entry_of("e"))
+}
+
+#[test]
+fn an_explicitly_typed_parameter_of_a_lambda_in_value_position_keeps_its_type() {
+    let register = Method::new("Dispatcher", "register", 1)
+        .assign_var("handler", Expression::lambda(typed_handler()));
+
+    let verdicts = register.verdicts(&events());
+
+    assert_eq!(verdicts, releasing_through_a_typed_parameter());
+}
+
+#[test]
+fn an_explicitly_typed_parameter_of_a_lambda_argument_keeps_its_type() {
+    let registry = Expression::parameter("registry", TypeRef::class("Registry"));
+    let register = Method::new("Dispatcher", "register", 1)
+        .call(Call::new(registry, "register", 2).with(typed_handler()));
+
+    let verdicts = register.verdicts(&events());
+
+    let fed = |name: &str| Reason::lambda_parameter(name, Reason::parameter("registry"));
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getEntry", 2, fed("e")),
+            Verdict::violation("getLock", 2, Reason::return_of("getEntry")),
+            Verdict::violation("release", 2, Reason::return_of("getLock")),
+            Verdict::allowed("register", 2, Reason::parameter("registry")),
+        ]
+    );
+}
+
+#[test]
+fn a_lambda_parameter_without_a_declared_type_stays_untyped_in_an_argument() {
+    let registry = Expression::parameter("registry", TypeRef::class("Registry"));
+    let register = Method::new("Dispatcher", "register", 1).call(
+        Call::new(registry, "register", 2)
+            .with(Lambda::new(&["e"]).yielding(releasing_the_lock_of_the_entry_of("e"))),
+    );
+
+    let verdicts = register.verdicts(&events());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "getLock",
+            2,
+            Reason::unresolved_type(None, Reason::return_of("getEntry"))
+        )
+    );
+}
