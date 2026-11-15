@@ -32,6 +32,7 @@
 | Uygun değil | 6. İç koleksiyonun elemanlarını dışarıdan değiştirmek | Raporlanır | ✅ |
 | Uygun değil | 7. Veri yapısının taşıdığı nesneye uzanmak | Raporlanır | ✅ |
 | Uygun değil | 8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak | Raporlanır | ✅ |
+| Uygun değil | 9. Kendi metodunun döndürdüğü nesneyle konuşmak | Raporlanır | ✅ |
 | Uygun | 1. Parametreden değer okumak | Raporlanmaz | ✅ |
 | Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ✅ |
 | Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ✅ |
@@ -173,6 +174,21 @@ void checkout(Session session) {
 - **Neden:** `getCart()` ile alınan sepet `Session`'ın bir parçası. f sepete doğrudan uzanıyor; `Session`'ın sepet üzerindeki kuralları atlanabilir.
 
 - **Not:** Kural, `Session`'ın sepeti yalnızca saklayıp saklamadığını bilemez. Getter ile ulaşılan nesneyi her zaman yabancı sayar. f bunu sahibine söylemeli: `session.checkout()`. Depo sorgusu ayrı bir durum: Uygun 9.
+
+</details>
+
+<details>
+<summary><strong>9. Kendi metodunun döndürdüğü nesneyle konuşmak</strong></summary>
+
+```java
+void discount(String id, int rate) {
+    findLine(id).applyDiscount(rate);
+}
+```
+
+- **Neden:** `findLine` C'nin kendi metodu; onu çağırmak serbest. Döndürdüğü `OrderLine` ise C'nin alanı da f'nin argümanı da değil. f satıra doğrudan uzanıyor.
+
+- **Not:** Kural metodun gövdesine bakmaz; döndürülen nesne bir alandan gelse de yabancı sayılır. Adı `find` ile başlasa da depo sorgusu sayılmaz, çünkü depo sorgusunun alıcısı bir alan ya da parametre olmalı: Uygun 9.
 
 </details>
 
