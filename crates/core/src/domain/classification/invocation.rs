@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::substitute;
+use super::{Types, class_name, substitute};
 use crate::domain::type_shape::{MethodShape, TypeRef};
 
 pub(crate) struct Invocation {
@@ -26,6 +26,7 @@ impl Invocation {
     }
 
     pub(super) fn of(
+        types: &Types,
         method: &MethodShape,
         class_bindings: &HashMap<String, TypeRef>,
         values: &[Option<&TypeRef>],
@@ -45,7 +46,7 @@ impl Invocation {
         };
         for (parameter, value) in method.parameters().iter().zip(values) {
             if let Some(value) = value {
-                invocation.unify(&substitute(parameter, &class_bindings), value);
+                invocation.unify(types, &substitute(parameter, &class_bindings), value);
             }
         }
         invocation
@@ -57,7 +58,7 @@ impl Invocation {
             .map(|returned| substitute(returned, &self.bindings))
     }
 
-    fn unify(&mut self, declared: &TypeRef, actual: &TypeRef) {
+    fn unify(&mut self, types: &Types, declared: &TypeRef, actual: &TypeRef) {
         match (declared, actual) {
             (TypeRef::Variable(name), _) if self.free.contains(name) => {
                 self.bindings
@@ -65,20 +66,27 @@ impl Invocation {
                     .or_insert_with(|| actual.clone());
             }
             (TypeRef::Array(declared), TypeRef::Array(actual)) => {
-                self.unify(declared, actual);
+                self.unify(types, declared, actual);
             }
             (
                 TypeRef::Class {
                     name: declared_name,
                     arguments: declared_arguments,
                 },
-                TypeRef::Class {
-                    name: actual_name,
+                TypeRef::Class { .. },
+            ) => {
+                let matching = types
+                    .ancestors(actual)
+                    .into_iter()
+                    .find(|ancestor| class_name(ancestor) == Some(declared_name));
+                if let Some(TypeRef::Class {
                     arguments: actual_arguments,
-                },
-            ) if declared_name == actual_name => {
-                for (declared, actual) in declared_arguments.iter().zip(actual_arguments) {
-                    self.unify(declared, actual);
+                    ..
+                }) = matching
+                {
+                    for (declared, actual) in declared_arguments.iter().zip(&actual_arguments) {
+                        self.unify(types, declared, actual);
+                    }
                 }
             }
             _ => {}

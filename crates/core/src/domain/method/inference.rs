@@ -5,6 +5,9 @@ use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 const ARRAYS: &str = "java.util.Arrays";
 const STREAM: &str = "java.util.stream.Stream";
 const CONSUMER: &str = "java.util.function.Consumer";
+const COLLECTION: &str = "java.util.Collection";
+const ARRAY_LIST: &str = "java.util.ArrayList";
+const STREAMS: &str = "shop.Streams";
 
 fn class(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -44,6 +47,21 @@ fn shop() -> Types {
             MethodShape::new("forEach").with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
         ))
         .with_shape(interface(CONSUMER, &["T"]))
+        .with_shape(interface(COLLECTION, &["E"]))
+        .with_shape(
+            class(ARRAY_LIST)
+                .with_type_parameter("E")
+                .extending(generic(COLLECTION, &[variable("E")])),
+        )
+        .with_shape(
+            class(STREAMS).with_method(
+                MethodShape::new("from")
+                    .as_static()
+                    .with_type_parameter("T")
+                    .with_parameters(vec![generic(COLLECTION, &[variable("T")])])
+                    .returning(generic(STREAM, &[variable("T")])),
+            ),
+        )
         .with_shape(
             class("Order")
                 .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer"))),
@@ -87,5 +105,28 @@ fn the_type_argument_of_a_generic_method_comes_from_an_array_argument() {
             Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
             Verdict::allowed("forEach", 2, Reason::static_result("stream")),
         ]
+    );
+}
+
+#[test]
+fn the_type_argument_of_a_generic_method_comes_through_the_supertype_of_the_argument() {
+    let notify = Method::new("Shipping", "notify", 1).call(
+        Call::new(
+            Expression::return_of(
+                Call::new(Expression::static_type(TypeRef::class(STREAMS)), "from", 2).with(
+                    Expression::parameter("orders", generic(ARRAY_LIST, &[order()])),
+                ),
+            ),
+            "forEach",
+            2,
+        )
+        .with(Lambda::new(&["order"]).call(customer_of("order", 3))),
+    );
+
+    let verdicts = notify.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[2],
+        Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
     );
 }

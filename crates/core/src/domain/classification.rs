@@ -83,7 +83,7 @@ impl Types {
             .map(|(_, bindings)| bindings)
             .unwrap_or_default();
         match overloads.as_slice() {
-            [only] => Invocation::of(only, &class_bindings, values),
+            [only] => Invocation::of(self, only, &class_bindings, values),
             _ => Invocation::ambiguous(
                 unambiguous_return(&overloads)
                     .map(|returned| substitute(returned, &class_bindings)),
