@@ -23,6 +23,7 @@
 | Lambda parametresinin tipini hedef fonksiyonel arayüzden al; hedef tip atamadan da gelebilir: `Map<Key, Consumer<Event>> handlers = Map.of(key, e -> e.getRecord())`. | Yapıldı |
 | Generic metodun sonucunu lambda ile metot referansından çıkar: `orders.stream().map(Order::getCustomer)` akışının elemanı `Customer` olsun. | Yapıldı |
 | Metodun tip parametresini sınırına çevir: `<T extends Shape>` içinde `T`, `Shape` sayılsın. | Yapıldı |
+| [Akışın yabancıdan ürettiği elemanı yabancı say: `map(Order::getCustomer)`.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | Değişken sayıda argüman alan generic metodu çöz: `Stream.of(first, second)`. | Yapılmadı |
 | İç içe generic çağrıyı çöz: `collect(Collectors.groupingBy(Order::getStatus))`. | Yapılmadı |
 | Değişkene atanan ya da yapıcıya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`. | Yapılmadı |
