@@ -445,6 +445,7 @@ pub struct Lambda {
     parameters: Vec<String>,
     body: Block,
     result: Option<Expression>,
+    expected: Option<TypeRef>,
 }
 
 impl Lambda {
@@ -453,7 +454,13 @@ impl Lambda {
             parameters: parameters.iter().map(|name| (*name).to_owned()).collect(),
             body: Block::default(),
             result: None,
+            expected: None,
         }
+    }
+
+    pub fn expecting(mut self, type_ref: TypeRef) -> Self {
+        self.expected = Some(type_ref);
+        self
     }
 
     pub fn yielding(mut self, value: Expression) -> Self {
@@ -525,7 +532,11 @@ impl Lambda {
     }
 
     fn judge_value(&self, context: &Context, target: Option<Target>) -> Judged {
-        let functional = target.and_then(|target| context.types.functional_method(target.type_ref));
+        let expected = self
+            .expected
+            .as_ref()
+            .or(target.map(|target| target.type_ref));
+        let functional = expected.and_then(|expected| context.types.functional_method(expected));
         let declared = functional
             .as_ref()
             .map(|functional| functional.parameters.as_slice())
@@ -542,11 +553,8 @@ impl Lambda {
             );
         }
         let (verdicts, _) = self.judge_body(inner);
-        let subject = match target {
-            Some(target) => Subject::friend(
-                Reason::created(target.type_ref.clone()),
-                target.type_ref.clone(),
-            ),
+        let subject = match expected {
+            Some(expected) => Subject::friend(Reason::created(expected.clone()), expected.clone()),
             None => Subject {
                 standing: Standing::Friend(Reason::Literal),
                 type_ref: None,

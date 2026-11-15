@@ -133,3 +133,15 @@ fn a_local_holding_a_lambda_is_an_object_created_in_the_method_with_the_declared
         )
     );
 }
+
+#[test]
+fn a_lambda_expecting_a_type_types_its_parameters_without_a_declaration() {
+    let lambda = Lambda::new(&["e"])
+        .yielding(releasing_the_lock_of_the_entry_of("e"))
+        .expecting(consumer_of(event()));
+    let register = Method::new("Dispatcher", "register", 1).evaluate(Expression::lambda(lambda));
+
+    let verdicts = register.verdicts(&events());
+
+    assert_eq!(verdicts, releasing_through_a_typed_parameter());
+}
