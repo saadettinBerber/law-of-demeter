@@ -659,3 +659,106 @@ fn a_call_returning_a_subtype_of_the_expected_type_binds_through_the_supertype()
 
     assert_eq!(verdicts[1], closing_the_receipt());
 }
+
+fn registering_into(handler: TypeRef, extra: Vec<TypeShape>) -> Verdict {
+    let types = extra.into_iter().fold(shop(), Types::with_shape);
+    let handlers = generic(MAP, &[TypeRef::class("java.lang.String"), handler]);
+    let register = Method::new("Dispatcher", "register", 1).call(
+        Call::new(Expression::field("handlers", handlers), "put", 2)
+            .with(Expression::literal())
+            .with(Lambda::new(&["event"]).call(Call::new(
+                Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
+                "close",
+                3,
+            ))),
+    );
+    register.verdicts(&types)[1].clone()
+}
+
+fn handler_of_event(name: &str) -> TypeRef {
+    generic(name, &[TypeRef::class("Event")])
+}
+
+fn undecided_close() -> Verdict {
+    Verdict::violation(
+        "close",
+        3,
+        Reason::unresolved_type(None, Reason::return_of("getReceipt")),
+    )
+}
+
+#[test]
+fn an_abstract_method_inherited_from_a_super_interface_is_the_functional_method() {
+    let handler = interface("shop.Handler", &["T"]).extending(generic(CONSUMER, &[variable("T")]));
+
+    let verdict = registering_into(handler_of_event("shop.Handler"), vec![handler]);
+
+    assert_eq!(verdict, closing_the_receipt());
+}
+
+#[test]
+fn an_interface_with_two_abstract_methods_is_not_functional() {
+    let listener = interface("shop.Listener", &["T"])
+        .with_method(
+            MethodShape::new("accept")
+                .with_parameters(vec![variable("T")])
+                .as_abstract(),
+        )
+        .with_method(
+            MethodShape::new("reject")
+                .with_parameters(vec![variable("T")])
+                .as_abstract(),
+        );
+
+    let verdict = registering_into(handler_of_event("shop.Listener"), vec![listener]);
+
+    assert_eq!(verdict, undecided_close());
+}
+
+#[test]
+fn abstract_methods_of_object_do_not_count_against_a_functional_interface() {
+    let matcher = interface("shop.Matcher", &["T"])
+        .with_method(
+            MethodShape::new("accept")
+                .with_parameters(vec![variable("T")])
+                .as_abstract(),
+        )
+        .with_method(
+            MethodShape::new("equals")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .as_abstract(),
+        );
+
+    let verdict = registering_into(handler_of_event("shop.Matcher"), vec![matcher]);
+
+    assert_eq!(verdict, closing_the_receipt());
+}
+
+#[test]
+fn a_default_method_overriding_an_inherited_abstract_one_leaves_the_other_abstract_method() {
+    let relaxed = interface("shop.Relaxed", &["T"])
+        .extending(generic(CONSUMER, &[variable("T")]))
+        .with_method(MethodShape::new("accept").with_parameters(vec![variable("T")]))
+        .with_method(
+            MethodShape::new("handle")
+                .with_parameters(vec![variable("T")])
+                .as_abstract(),
+        );
+
+    let verdict = registering_into(handler_of_event("shop.Relaxed"), vec![relaxed]);
+
+    assert_eq!(verdict, closing_the_receipt());
+}
+
+#[test]
+fn a_class_with_one_abstract_method_is_not_functional() {
+    let task = class("shop.Task").with_type_parameter("T").with_method(
+        MethodShape::new("run")
+            .with_parameters(vec![variable("T")])
+            .as_abstract(),
+    );
+
+    let verdict = registering_into(handler_of_event("shop.Task"), vec![task]);
+
+    assert_eq!(verdict, undecided_close());
+}
