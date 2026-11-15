@@ -34,6 +34,7 @@
 | Uygun değil | 8. Tutan sınıfın getter'ıyla alınan nesneyle konuşmak | Raporlanır | ✅ |
 | Uygun değil | 9. Kendi metodunun döndürdüğü nesneyle konuşmak | Raporlanır | ✅ |
 | Uygun değil | 10. Akışın yabancıdan ürettiği elemanla konuşmak | Raporlanır | ✅ |
+| Uygun değil | 11. Yabancıyla metot referansıyla konuşmak | Raporlanır | ✅ |
 | Uygun | 1. Parametreden değer okumak | Raporlanmaz | ✅ |
 | Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ✅ |
 | Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ✅ |
@@ -227,6 +228,23 @@ void charge(int amount) {
 - **Not:** Lambda ile yazılsa da sonuç aynı: `map(order -> order.getCustomer())`. Eleman f'nin içinde oluşturulursa arkadaş kalır: `map(order -> new Receipt(order))`. `filter` gibi elemanı değiştirmeyen adımlar akışın durumunu korur: Uygun 5.
 
 - **Örnek projede:** [`BillingService.java:15`](examples/shop/src/main/java/shop/service/BillingService.java#L15), [`BillingService.java:19`](examples/shop/src/main/java/shop/service/BillingService.java#L19)
+
+</details>
+
+<details>
+<summary><strong>11. Yabancıyla metot referansıyla konuşmak</strong></summary>
+
+```java
+List<Wallet> wallets() {
+    return orders.stream().map(Order::getCustomer).map(Customer::getWallet).toList();
+}
+```
+
+- **Neden:** `Customer::getWallet`, `customer -> customer.getWallet()` lambdasıyla aynı çağrıyı yapar. Akışın elemanları `getCustomer()` çağrısından gelen yabancılardır; yabancının metodunu referansla çağırmak da kuralı çiğner. `getWallet` raporlanır. `Order::getCustomer` ise arkadaş olan siparişlerde çağrıldığı için uygundur.
+
+- **Not:** İç içe çağrıda da sonuç aynı: `collect(Collectors.groupingBy(Customer::getWallet))`. `wallet::withdraw` gibi bağlı referans `wallet.withdraw(...)` gibi, `Optional::of` gibi statik referans statik çağrı gibi yargılanır. `Order::new` çağrı sayılmaz.
+
+- **Örnek projede:** [`ReportingService.java:44`](examples/shop/src/main/java/shop/service/ReportingService.java#L44)
 
 </details>
 
