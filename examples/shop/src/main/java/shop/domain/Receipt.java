@@ -8,6 +8,10 @@ public class Receipt {
         this.order = order;
     }
 
+    public Order getOrder() {
+        return order;
+    }
+
     public void close() {
         closed = true;
     }

@@ -14,4 +14,24 @@ public class EventDispatcher {
     public void dispatch(String type, Event event) {
         handlers.get(type).accept(event);
     }
+
+    private Consumer<Event> onShipped;
+
+    public void listen(Event event) {
+        Consumer<Event> handler = e -> e.getReceipt().getOrder().ship();
+        handler.accept(event);
+        onShipped = e -> e.getReceipt().getOrder().ship();
+    }
+
+    public Consumer<Event> shipper() {
+        return e -> e.getReceipt().getOrder().ship();
+    }
+
+    public Worker worker() {
+        return new Worker(e -> e.getReceipt().getOrder().ship());
+    }
+
+    public void listenTyped() {
+        Consumer<Event> typed = (Event e) -> e.getReceipt().getOrder().ship();
+    }
 }

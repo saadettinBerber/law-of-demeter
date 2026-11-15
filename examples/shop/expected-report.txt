@@ -1,4 +1,4 @@
-İhlaller (20):
+İhlaller (30):
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  İhlal: getEntry() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  İhlal: getPosting() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -9,6 +9,16 @@ src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService
 src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  applyDiscount()  İhlal: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/DiscountService.java:14  shop.service.DiscountService.discount  applyDiscount()  İhlal: findLine() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  close()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/OrderService.java:52  shop.service.OrderService.move  setAddress()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/OrderService.java:56  shop.service.OrderService.addLine  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List<shop.domain.OrderLine>): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  applyDiscount()  İhlal: line lambda parametresi: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -20,7 +30,7 @@ src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  length()  İhlal: getOutline() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Uygun çağrılar (98):
+Uygun çağrılar (105):
 src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Event.java:15  shop.domain.Event.acknowledge  close()  Uygun: receipt sınıfın alanı
@@ -59,6 +69,12 @@ src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  of()  Uygun: java.util.Map tipi üzerinde statik çağrı
 src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  get()  Uygun: handlers sınıfın alanı
 src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  accept()  Uygun: handlers sınıfın alanı
+src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getReceipt()  Uygun: e f'ye argüman olarak verildi
+src/main/java/shop/service/EventDispatcher.java:22  shop.service.EventDispatcher.listen  accept()  Uygun: handler yerel değişkeni: f'nin içinde oluşturulan nesne (java.util.function.Consumer<shop.domain.Event>)
+src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  getReceipt()  Uygun: e f'ye argüman olarak verildi
+src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  getReceipt()  Uygun: e f'ye argüman olarak verildi
+src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  getReceipt()  Uygun: e lambda parametresi: f'nin içinde oluşturulan nesne (shop.service.Worker)
+src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  getReceipt()  Uygun: e f'ye argüman olarak verildi
 src/main/java/shop/service/OrderService.java:22  shop.service.OrderService.canShip  getStatus()  Uygun: order f'ye argüman olarak verildi
 src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  plus()  Uygun: issuedAt f'ye argüman olarak verildi
 src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  truncatedTo()  Uygun: issuedAt f'ye argüman olarak verildi
@@ -119,29 +135,30 @@ src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService
 src/main/java/shop/service/ShippingService.java:24  shop.service.ShippingService.keyOf  getId()  Uygun: customer f'ye argüman olarak verildi
 src/main/java/shop/service/ShippingService.java:24  shop.service.ShippingService.keyOf  getValue()  Uygun: shop.domain.CustomerId bir değer
 src/main/java/shop/service/ShippingService.java:28  shop.service.ShippingService.log  add()  Uygun: journal sınıfın alanı
+src/main/java/shop/service/Worker.java:14  shop.service.Worker.run  accept()  Uygun: task sınıfın alanı
 
 Hibrit sınıflar (1):
 src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
 
 Özet:
-  Dosya: 42
-  Metot: 114
-  Çağrı: 118 (uygun 98, ihlal 20, belirsiz 0)
+  Dosya: 43
+  Metot: 121
+  Çağrı: 135 (uygun 105, ihlal 30, belirsiz 0)
   Hibrit sınıf: 1
   Kaynak hatası: 0
   Tip okuma hatası: 0
 
 İhlal nedenleri:
-  19  Döndürülen nesne f'nin arkadaşı değil
+  29  Döndürülen nesne f'nin arkadaşı değil
   1  Döndürülen koleksiyon değiştiriliyor
 
 Uygun nedenleri:
-  30  Argüman
-  30  Sınıfın alanı
+  34  Argüman
+  31  Sınıfın alanı
   8  Statik çağrının sonucu
+  7  Metotta oluşturulan nesne
   7  Statik çağrı
   5  Kendi nesnesi
-  5  Metotta oluşturulan nesne
   4  Konteyner
   3  Veri yapısı
   2  Değer
