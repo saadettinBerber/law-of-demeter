@@ -85,6 +85,8 @@ mod nested;
 #[cfg(test)]
 mod scenarios;
 #[cfg(test)]
+mod targets;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod varargs;

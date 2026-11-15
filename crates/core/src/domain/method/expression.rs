@@ -36,6 +36,7 @@ pub enum Expression {
         name: String,
         candidates: Vec<TypeRef>,
     },
+    Lambda(Box<Lambda>),
 }
 
 impl Expression {
@@ -93,6 +94,10 @@ impl Expression {
             target: Box::new(target),
             name: name.to_owned(),
         }
+    }
+
+    pub fn lambda(lambda: Lambda) -> Self {
+        Self::Lambda(Box::new(lambda))
     }
 
     pub fn cast(type_ref: TypeRef, operand: Expression) -> Self {
@@ -155,6 +160,7 @@ impl Expression {
                     subject: Subject { standing, type_ref },
                 }
             }
+            Self::Lambda(lambda) => lambda.judge_value(context),
             Self::Cast { type_ref, operand } => {
                 let judged = operand.judge_expecting(context, Some(Target::of(type_ref)));
                 Judged {
@@ -498,18 +504,44 @@ impl Lambda {
             });
             inner.bind(parameter, subject.declared_as(declared.get(index)));
         }
-        let mut verdicts = self.body.judge(&mut inner);
-        let yielded = self.result.as_ref().map(|result| {
-            let judged = result.judge(&inner);
-            verdicts.extend(judged.verdicts);
-            judged.subject
-        });
+        let (verdicts, yielded) = self.judge_body(inner);
         Produced {
             verdicts,
             result: yielded
                 .as_ref()
                 .and_then(|subject| subject.type_ref.clone()),
             standing: yielded.map(|subject| subject.standing),
+        }
+    }
+
+    fn judge_body(&self, mut inner: Context) -> (Vec<Verdict>, Option<Subject>) {
+        let mut verdicts = self.body.judge(&mut inner);
+        let yielded = self.result.as_ref().map(|result| {
+            let judged = result.judge(&inner);
+            verdicts.extend(judged.verdicts);
+            judged.subject
+        });
+        (verdicts, yielded)
+    }
+
+    fn judge_value(&self, context: &Context) -> Judged {
+        let mut inner = context.clone();
+        for parameter in &self.parameters {
+            inner.bind(
+                parameter,
+                Subject::friend(
+                    Reason::parameter(parameter),
+                    TypeRef::class("java.lang.Object"),
+                ),
+            );
+        }
+        let (verdicts, _) = self.judge_body(inner);
+        Judged {
+            verdicts,
+            subject: Subject {
+                standing: Standing::Friend(Reason::Literal),
+                type_ref: None,
+            },
         }
     }
 }
