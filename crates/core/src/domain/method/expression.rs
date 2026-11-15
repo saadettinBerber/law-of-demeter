@@ -4,7 +4,7 @@ use super::block::Block;
 use super::call::Call;
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject};
-use crate::domain::classification::Types;
+use crate::domain::classification::{FunctionalMethod, Types};
 use crate::domain::type_shape::TypeRef;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -214,7 +214,7 @@ impl Creation {
         let verdicts = self
             .arguments
             .iter()
-            .flat_map(|argument| argument.judge(context, &created))
+            .flat_map(|argument| argument.judge(context, &created, None))
             .collect();
         Judged {
             verdicts,
@@ -256,10 +256,15 @@ impl Argument {
         }
     }
 
-    pub(super) fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
+    pub(super) fn judge(
+        &self,
+        context: &Context,
+        feed: &Subject,
+        functional: Option<&FunctionalMethod>,
+    ) -> Vec<Verdict> {
         match self {
             Self::Value(value) => value.judge(context).verdicts,
-            Self::Lambda(lambda) => lambda.judge(context, feed),
+            Self::Lambda(lambda) => lambda.judge(context, feed, functional),
             Self::MethodReference(reference) => reference.target.judge(context).verdicts,
         }
     }
@@ -326,15 +331,25 @@ impl Lambda {
         self
     }
 
-    pub(super) fn judge(&self, context: &Context, feed: &Subject) -> Vec<Verdict> {
+    pub(super) fn judge(
+        &self,
+        context: &Context,
+        feed: &Subject,
+        functional: Option<&FunctionalMethod>,
+    ) -> Vec<Verdict> {
+        let declared = functional
+            .map(|functional| functional.parameters.as_slice())
+            .filter(|parameters| parameters.len() == self.parameters.len())
+            .unwrap_or_default();
         let mut inner = context.clone();
-        for parameter in &self.parameters {
-            inner.bind(
-                parameter,
-                feed.element(context.types, |feed| {
-                    Reason::lambda_parameter(parameter, feed)
-                }),
-            );
+        for (index, parameter) in self.parameters.iter().enumerate() {
+            let subject = feed.element(context.types, |feed| {
+                Reason::lambda_parameter(parameter, feed)
+            });
+            let known = declared
+                .get(index)
+                .filter(|type_ref| !matches!(type_ref, TypeRef::Variable(_)));
+            inner.bind(parameter, subject.declared_as(known));
         }
         self.body.judge(&mut inner)
     }

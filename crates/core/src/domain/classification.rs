@@ -1,3 +1,4 @@
+mod functional;
 mod invocation;
 mod jdk;
 mod naming;
@@ -6,6 +7,7 @@ pub use naming::{is_factory_method, is_repository_query};
 
 use std::collections::{HashMap, HashSet};
 
+pub(crate) use functional::FunctionalMethod;
 pub(crate) use invocation::Invocation;
 
 use super::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
@@ -435,12 +437,18 @@ fn class_name(type_ref: &TypeRef) -> Option<&str> {
     }
 }
 
-fn is_exposed(method: &MethodShape) -> bool {
-    let is_object_method = matches!(
+fn is_object_method(method: &MethodShape) -> bool {
+    matches!(
         (method.name(), method.parameters().len()),
         ("equals", 1) | ("hashCode" | "toString", 0)
-    );
-    method.is_public() && !method.is_static() && !is_object_method && method.name() != "<init>"
+    )
+}
+
+fn is_exposed(method: &MethodShape) -> bool {
+    method.is_public()
+        && !method.is_static()
+        && !is_object_method(method)
+        && method.name() != "<init>"
 }
 
 fn is_to_builder(class: &TypeShape, method: &MethodShape) -> bool {

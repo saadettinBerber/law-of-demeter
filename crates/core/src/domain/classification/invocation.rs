@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use super::{Types, class_name, substitute};
+use super::{FunctionalMethod, Types, class_name, substitute};
 use crate::domain::type_shape::{MethodShape, TypeRef};
 
 pub(crate) struct Invocation {
+    parameters: Vec<TypeRef>,
     returns: Option<TypeRef>,
     free: Vec<String>,
     bindings: HashMap<String, TypeRef>,
@@ -12,6 +13,7 @@ pub(crate) struct Invocation {
 impl Invocation {
     pub(crate) fn unknown() -> Self {
         Self {
+            parameters: Vec::new(),
             returns: None,
             free: Vec::new(),
             bindings: HashMap::new(),
@@ -37,19 +39,36 @@ impl Invocation {
             .filter(|(name, _)| !free.contains(name))
             .map(|(name, type_ref)| (name.clone(), type_ref.clone()))
             .collect();
+        let parameters: Vec<_> = method
+            .parameters()
+            .iter()
+            .map(|parameter| substitute(parameter, &class_bindings))
+            .collect();
         let mut invocation = Self {
+            parameters,
             returns: method
                 .returns()
                 .map(|returned| substitute(returned, &class_bindings)),
             free,
             bindings: HashMap::new(),
         };
-        for (parameter, value) in method.parameters().iter().zip(values) {
-            if let Some(value) = value {
-                invocation.unify(types, &substitute(parameter, &class_bindings), value);
+        for (index, value) in values.iter().enumerate() {
+            if let (Some(parameter), Some(value)) =
+                (invocation.parameters.get(index).cloned(), value)
+            {
+                invocation.unify(types, &parameter, value);
             }
         }
         invocation
+    }
+
+    pub(crate) fn functional_method(
+        &self,
+        types: &Types,
+        index: usize,
+    ) -> Option<FunctionalMethod> {
+        let parameter = self.parameters.get(index)?;
+        types.functional_method(&substitute(parameter, &self.bindings))
     }
 
     pub(crate) fn returns(&self) -> Option<TypeRef> {

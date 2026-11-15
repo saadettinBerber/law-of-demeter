@@ -66,10 +66,17 @@ impl Call {
                         .types
                         .invocation(receiver_type, &self.name, &value_types)
                 });
-        for (argument, value) in self.arguments.iter().zip(values) {
+        for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
                 Some(judged) => verdicts.extend(judged.verdicts),
-                None => verdicts.extend(argument.judge(context, &receiver.subject)),
+                None => {
+                    let functional = invocation.functional_method(context.types, index);
+                    verdicts.extend(argument.judge(
+                        context,
+                        &receiver.subject,
+                        functional.as_ref(),
+                    ));
+                }
             }
         }
         verdicts.push(self.verdict(context, &receiver.subject));

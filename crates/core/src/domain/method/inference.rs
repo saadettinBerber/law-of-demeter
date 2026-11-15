@@ -8,6 +8,8 @@ const CONSUMER: &str = "java.util.function.Consumer";
 const COLLECTION: &str = "java.util.Collection";
 const ARRAY_LIST: &str = "java.util.ArrayList";
 const STREAMS: &str = "shop.Streams";
+const MAP: &str = "java.util.Map";
+const BI_CONSUMER: &str = "java.util.function.BiConsumer";
 
 fn class(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -46,7 +48,39 @@ fn shop() -> Types {
         .with_shape(interface(STREAM, &["T"]).with_method(
             MethodShape::new("forEach").with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
         ))
-        .with_shape(interface(CONSUMER, &["T"]))
+        .with_shape(
+            interface(CONSUMER, &["T"]).with_method(
+                MethodShape::new("accept")
+                    .with_parameters(vec![variable("T")])
+                    .as_abstract(),
+            ),
+        )
+        .with_shape(
+            interface(BI_CONSUMER, &["T", "U"]).with_method(
+                MethodShape::new("accept")
+                    .with_parameters(vec![variable("T"), variable("U")])
+                    .as_abstract(),
+            ),
+        )
+        .with_shape(
+            interface(MAP, &["K", "V"])
+                .with_method(
+                    MethodShape::new("put")
+                        .with_parameters(vec![variable("K"), variable("V")])
+                        .returning(variable("V")),
+                )
+                .with_method(
+                    MethodShape::new("forEach").with_parameters(vec![generic(
+                        BI_CONSUMER,
+                        &[variable("K"), variable("V")],
+                    )]),
+                ),
+        )
+        .with_shape(
+            class("Event")
+                .with_method(MethodShape::new("getReceipt").returning(TypeRef::class("Receipt"))),
+        )
+        .with_shape(class("Receipt").with_method(MethodShape::new("close")))
         .with_shape(interface(COLLECTION, &["E"]))
         .with_shape(
             class(ARRAY_LIST)
@@ -66,7 +100,12 @@ fn shop() -> Types {
             class("Order")
                 .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer"))),
         )
-        .with_shape(class("Customer").with_method(MethodShape::new("rename")))
+        .with_shape(
+            class("Customer")
+                .with_method(MethodShape::new("rename"))
+                .with_method(MethodShape::new("getWallet").returning(TypeRef::class("Wallet"))),
+        )
+        .with_shape(class("Wallet").with_method(MethodShape::new("withdraw")))
 }
 
 fn customer_of(variable: &str, line: usize) -> Call {
@@ -128,5 +167,53 @@ fn the_type_argument_of_a_generic_method_comes_through_the_supertype_of_the_argu
     assert_eq!(
         verdicts[2],
         Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
+    );
+}
+
+#[test]
+fn a_lambda_parameter_takes_its_type_from_the_functional_interface_the_parameter_declares() {
+    let handlers = generic(
+        MAP,
+        &[
+            TypeRef::class("java.lang.String"),
+            generic(CONSUMER, &[TypeRef::class("Event")]),
+        ],
+    );
+    let register = Method::new("Dispatcher", "register", 1).call(
+        Call::new(Expression::field("handlers", handlers), "put", 2)
+            .with(Expression::literal())
+            .with(Lambda::new(&["event"]).call(Call::new(
+                Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
+                "close",
+                3,
+            ))),
+    );
+
+    let verdicts = register.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("close", 3, Reason::return_of("getReceipt"))
+    );
+}
+
+#[test]
+fn each_lambda_parameter_takes_the_type_at_its_position_in_the_functional_interface() {
+    let ledger = generic(MAP, &[TypeRef::class("Customer"), order()]);
+    let audit = Method::new("Auditor", "audit", 1).call(
+        Call::new(Expression::field("ledger", ledger), "forEach", 2).with(
+            Lambda::new(&["customer", "order"]).call(Call::new(
+                Expression::return_of(Call::new(Expression::local("customer"), "getWallet", 3)),
+                "withdraw",
+                3,
+            )),
+        ),
+    );
+
+    let verdicts = audit.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("withdraw", 3, Reason::return_of("getWallet"))
     );
 }
