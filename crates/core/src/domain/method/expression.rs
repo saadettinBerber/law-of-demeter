@@ -301,14 +301,20 @@ impl MethodReference {
 
     fn judge(&self, context: &Context, functional: Option<&FunctionalMethod>) -> Produced {
         let target = self.target.judge(context);
-        let result = functional.and_then(|functional| self.result_type(context.types, functional));
+        let result = functional
+            .and_then(|functional| self.result_type(context.types, &target.subject, functional));
         Produced {
             verdicts: target.verdicts,
             result,
         }
     }
 
-    fn result_type(&self, types: &Types, functional: &FunctionalMethod) -> Option<TypeRef> {
+    fn result_type(
+        &self,
+        types: &Types,
+        target: &Subject,
+        functional: &FunctionalMethod,
+    ) -> Option<TypeRef> {
         match &self.target {
             Expression::StaticType(created) if self.name == "new" => Some(created.clone()),
             Expression::StaticType(owner) => {
@@ -320,7 +326,9 @@ impl MethodReference {
                     types.return_type_on(owner, &self.name, functional.parameters.len())
                 })
             }
-            _ => None,
+            _ => target.type_ref.as_ref().and_then(|target_type| {
+                types.return_type_on(target_type, &self.name, functional.parameters.len())
+            }),
         }
     }
 }
