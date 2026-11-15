@@ -1,4 +1,4 @@
-İhlaller (30):
+İhlaller (31):
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  İhlal: getEntry() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  İhlal: getPosting() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -28,9 +28,10 @@ src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.p
 src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.payFromCustomer  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  rename()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  length()  İhlal: getOutline() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getWallet()  İhlal: Customer::getWallet metot referansı: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Uygun çağrılar (105):
+Uygun çağrılar (119):
 src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Event.java:15  shop.domain.Event.acknowledge  close()  Uygun: receipt sınıfın alanı
@@ -43,6 +44,7 @@ src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getE
 src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getMemo()  Uygun: statement f'ye argüman olarak verildi
 src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getText()  Uygun: shop.ledger.Memo bir veri yapısı
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  stream()  Uygun: orders sınıfın alanı
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getCustomer()  Uygun: Order::getCustomer metot referansı: orders sınıfın alanı
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  map()  Uygun: orders sınıfın alanı
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  forEach()  Uygun: java.util.stream.Stream<shop.domain.Customer> bir konteyner
 src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  stream()  Uygun: orders sınıfın alanı
@@ -54,6 +56,7 @@ src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.c
 src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  close()  Uygun: receipt lambda parametresi: f'nin içinde oluşturulan nesne (shop.domain.Receipt)
 src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  forEach()  Uygun: f'nin içinde oluşturulan nesne (shop.domain.Receipt)
 src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  stream()  Uygun: batch f'ye argüman olarak verildi
+src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  isPaid()  Uygun: Order::isPaid metot referansı: batch f'ye argüman olarak verildi
 src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  filter()  Uygun: batch f'ye argüman olarak verildi
 src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  count()  Uygun: batch f'ye argüman olarak verildi
 src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  getCart()  Uygun: session f'ye argüman olarak verildi
@@ -118,6 +121,7 @@ src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  getCustomer()  Uygun: order lambda parametresi: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  forEach()  Uygun: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  of()  Uygun: java.util.stream.Stream tipi üzerinde statik çağrı
+src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  stream()  Uygun: Optional::stream metot referansı: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  flatMap()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  toList()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
 src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  collect()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
@@ -128,6 +132,17 @@ src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  get()  Uygun: shapes f'ye argüman olarak verildi
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  getOutline()  Uygun: shapes f'ye argüman olarak verildi
 src/main/java/shop/service/ReportingService.java:40  shop.service.ReportingService.paidName  name()  Uygun: PAID() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  stream()  Uygun: java.util.Arrays tipi üzerinde statik çağrı
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getCustomer()  Uygun: Order::getCustomer metot referansı: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Uygun: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Uygun: java.util.stream.Stream<shop.domain.Customer> bir konteyner
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  toList()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  collect()  Uygun: java.util.stream.Stream<shop.domain.Wallet> bir konteyner
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  stream()  Uygun: wallets f'ye argüman olarak verildi
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  of()  Uygun: java.util.Optional tipi üzerinde statik çağrı
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  map()  Uygun: wallets f'ye argüman olarak verildi
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  println()  Uygun: out() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  forEach()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getOrder()  Uygun: event f'ye argüman olarak verildi
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  log()  Uygun: f'nin kendi nesnesi
 src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService.cityOf  getAddress()  Uygun: request f'ye argüman olarak verildi
@@ -142,24 +157,24 @@ src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: dav
 
 Özet:
   Dosya: 43
-  Metot: 121
-  Çağrı: 135 (uygun 105, ihlal 30, belirsiz 0)
+  Metot: 123
+  Çağrı: 150 (uygun 119, ihlal 31, belirsiz 0)
   Hibrit sınıf: 1
   Kaynak hatası: 0
   Tip okuma hatası: 0
 
 İhlal nedenleri:
-  29  Döndürülen nesne f'nin arkadaşı değil
+  30  Döndürülen nesne f'nin arkadaşı değil
   1  Döndürülen koleksiyon değiştiriliyor
 
 Uygun nedenleri:
-  34  Argüman
-  31  Sınıfın alanı
-  8  Statik çağrının sonucu
+  37  Argüman
+  32  Sınıfın alanı
+  13  Statik çağrının sonucu
+  10  Statik çağrı
   7  Metotta oluşturulan nesne
-  7  Statik çağrı
+  6  Konteyner
   5  Kendi nesnesi
-  4  Konteyner
   3  Veri yapısı
   2  Değer
   2  Kütüphane tipi

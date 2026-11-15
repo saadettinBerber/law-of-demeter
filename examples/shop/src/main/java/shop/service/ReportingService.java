@@ -39,4 +39,12 @@ public class ReportingService {
     public String paidName() {
         return PAID.name();
     }
+
+    public List<Wallet> walletsOf(Order[] batch) {
+        return Arrays.stream(batch).map(Order::getCustomer).map(Customer::getWallet).collect(Collectors.toList());
+    }
+
+    public void printAll(List<Wallet> wallets) {
+        wallets.stream().map(Optional::of).forEach(System.out::println);
+    }
 }
