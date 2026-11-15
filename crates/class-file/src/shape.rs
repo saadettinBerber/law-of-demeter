@@ -136,10 +136,13 @@ fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShap
     }
     let descriptor = method.descriptor.to_string();
     let text = signature_of(&method.attributes).unwrap_or(&descriptor);
-    let (parameters, returns) = signature::method_types(text)
+    let signature = signature::method_signature(text)
         .map_err(|error| format!("method {}: {error}", method.name))?;
-    let mut shape = MethodShape::new(&method.name).with_parameters(parameters);
-    if let Some(returns) = returns {
+    let mut shape = MethodShape::new(&method.name).with_parameters(signature.parameters);
+    for name in signature.type_parameters {
+        shape = shape.with_type_parameter(&name);
+    }
+    if let Some(returns) = signature.returns {
         shape = shape.returning(returns);
     }
     if method.access_flags.contains(MethodAccessFlags::STATIC) {

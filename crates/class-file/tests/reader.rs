@@ -516,6 +516,7 @@ fn reads_methods_with_their_own_type_parameters_and_leaves_out_bridges() {
     assert_eq!(
         convert,
         MethodShape::new("convert")
+            .with_type_parameter("R")
             .with_parameters(vec![TypeRef::generic(
                 "java.util.function.Function",
                 vec![TypeRef::variable("T"), TypeRef::variable("R")]
@@ -526,6 +527,25 @@ fn reads_methods_with_their_own_type_parameters_and_leaves_out_bridges() {
         method_names(&catalog),
         ["find", "findAll", "convert", "rethrow"]
     );
+}
+
+#[test]
+fn a_method_type_parameter_keeps_its_name_without_the_bound() {
+    let catalog = shape("shop.Catalog");
+
+    let rethrow = method(&catalog, "rethrow");
+
+    assert_eq!(rethrow.type_parameters(), ["X"]);
+    assert_eq!(rethrow.parameters(), [TypeRef::variable("X")]);
+}
+
+#[test]
+fn a_method_without_type_parameters_lists_none() {
+    let catalog = shape("shop.Catalog");
+
+    let find = method(&catalog, "find");
+
+    assert!(find.type_parameters().is_empty());
 }
 
 #[test]

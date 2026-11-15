@@ -439,3 +439,50 @@ fn the_real_jdk_ct_sym_fields_know_whether_they_are_final() {
 
     assert_final_flags_of_the_real_jdk(&reading);
 }
+
+fn methods_named<'a>(reading: &'a Reading, type_name: &str, name: &str) -> Vec<&'a MethodShape> {
+    shape(reading, type_name)
+        .methods()
+        .iter()
+        .filter(|method| method.name() == name)
+        .collect()
+}
+
+fn assert_generic_methods_of_the_real_jdk(reading: &Reading) {
+    let stream_map = methods_named(reading, "java.util.stream.Stream", "map");
+    let map_of = methods_named(reading, "java.util.Map", "of");
+    assert_eq!(stream_map.len(), 1);
+    assert_eq!(stream_map[0].type_parameters(), ["R"]);
+    assert_eq!(
+        stream_map[0].parameters(),
+        [TypeRef::generic(
+            "java.util.function.Function",
+            vec![TypeRef::variable("T"), TypeRef::variable("R")]
+        )]
+    );
+    assert!(
+        map_of
+            .iter()
+            .any(|method| method.parameters().len() == 2 && method.type_parameters() == ["K", "V"])
+    );
+}
+
+#[test]
+fn the_real_jdk_runtime_image_methods_carry_type_parameters() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap();
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_generic_methods_of_the_real_jdk(&reading);
+}
+
+#[test]
+fn the_real_jdk_ct_sym_methods_carry_type_parameters() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap() - 1;
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_generic_methods_of_the_real_jdk(&reading);
+}

@@ -7,9 +7,15 @@ pub(crate) fn field_type(text: &str) -> Result<TypeRef, String> {
     Ok(type_ref)
 }
 
-pub(crate) fn method_types(text: &str) -> Result<(Vec<TypeRef>, Option<TypeRef>), String> {
+pub(crate) struct MethodSignature {
+    pub(crate) type_parameters: Vec<String>,
+    pub(crate) parameters: Vec<TypeRef>,
+    pub(crate) returns: Option<TypeRef>,
+}
+
+pub(crate) fn method_signature(text: &str) -> Result<MethodSignature, String> {
     let mut parser = Parser::new(text);
-    parser.type_parameters()?;
+    let type_parameters = parser.type_parameters()?;
     parser.expect('(')?;
     let mut parameters = Vec::new();
     while !parser.consume(')') {
@@ -24,7 +30,11 @@ pub(crate) fn method_types(text: &str) -> Result<(Vec<TypeRef>, Option<TypeRef>)
         parser.type_ref()?;
     }
     parser.finish()?;
-    Ok((parameters, returns))
+    Ok(MethodSignature {
+        type_parameters,
+        parameters,
+        returns,
+    })
 }
 
 pub(crate) struct ClassSignature {
