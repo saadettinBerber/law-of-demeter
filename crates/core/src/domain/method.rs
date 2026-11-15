@@ -84,6 +84,8 @@ mod inference;
 #[cfg(test)]
 mod nested;
 #[cfg(test)]
+mod references;
+#[cfg(test)]
 mod scenarios;
 #[cfg(test)]
 mod targets;

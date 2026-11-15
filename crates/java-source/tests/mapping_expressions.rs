@@ -277,7 +277,7 @@ fn a_method_reference_argument_keeps_its_target_and_name() {
     let mapped = method_f(source);
 
     let for_each = |line, target, name| {
-        call(get("lines", line), "forEach", line).with(MethodReference::new(target, name))
+        call(get("lines", line), "forEach", line).with(MethodReference::new(target, name, line))
     };
     assert_eq!(
         mapped,

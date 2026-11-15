@@ -117,6 +117,7 @@ fn a_variable_arity_method_matches_more_arguments_than_it_has_parameters() {
             .with(MethodReference::new(
                 Expression::static_type(TypeRef::class(OPTIONAL)),
                 "stream",
+                2,
             ))
             .then("toList", 2)
             .then("get", 2)

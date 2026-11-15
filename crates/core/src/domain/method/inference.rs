@@ -489,6 +489,7 @@ fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
     let charge = mapping_orders_with(MethodReference::new(
         Expression::static_type(order()),
         "getCustomer",
+        2,
     ));
 
     let verdicts = charge.verdicts(&shop());
@@ -504,6 +505,7 @@ fn a_constructor_reference_yields_the_type_it_creates() {
     let charge = mapping_orders_with(MethodReference::new(
         Expression::static_type(TypeRef::class("Customer")),
         "new",
+        2,
     ));
 
     let verdicts = charge.verdicts(&shop());
@@ -519,14 +521,17 @@ fn a_method_reference_to_a_static_method_yields_what_the_method_returns() {
     let charge = mapping_orders_with(MethodReference::new(
         Expression::static_type(TypeRef::class("Customers")),
         "of",
+        2,
     ));
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(
-        verdicts,
-        charging_the_customers_a_friend_made(Reason::static_result("of"))
+    let mut expected = charging_the_customers_a_friend_made(Reason::static_result("of")).to_vec();
+    expected.insert(
+        1,
+        Verdict::allowed("of", 2, Reason::static_type(TypeRef::class("Customers"))),
     );
+    assert_eq!(verdicts, expected);
 }
 
 #[test]
@@ -534,6 +539,7 @@ fn a_method_reference_on_an_expression_yields_what_the_method_of_its_type_return
     let charge = mapping_orders_with(MethodReference::new(
         Expression::field("registry", TypeRef::class("Registry")),
         "lookup",
+        2,
     ));
 
     let verdicts = charge.verdicts(&shop());
@@ -1003,6 +1009,7 @@ fn a_method_reference_to_a_factory_method_of_a_friend_yields_friends() {
     let print = orders_then_print(MethodReference::new(
         Expression::static_type(order()),
         "newReceipt",
+        2,
     ));
 
     let verdicts = print.verdicts(&shop());
@@ -1022,6 +1029,7 @@ fn a_method_reference_to_an_unknown_method_yields_strangers() {
     let print = orders_then_print(MethodReference::new(
         Expression::static_type(order()),
         "missing",
+        2,
     ));
 
     let verdicts = print.verdicts(&shop());

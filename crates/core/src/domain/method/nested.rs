@@ -191,6 +191,7 @@ fn mapped_customers() -> Call {
     orders_stream().then("map", 2).with(MethodReference::new(
         Expression::static_type(order()),
         "getCustomer",
+        2,
     ))
 }
 
@@ -260,6 +261,7 @@ fn grouping_by_status(downstream: Option<Call>) -> Call {
     let grouping = collectors_call("groupingBy").with(MethodReference::new(
         Expression::static_type(order()),
         "getStatus",
+        2,
     ));
     match downstream {
         Some(call) => grouping.with(Expression::return_of(call)),

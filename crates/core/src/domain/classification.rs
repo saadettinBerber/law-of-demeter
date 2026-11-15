@@ -228,6 +228,14 @@ impl Types {
         element_type(&container).cloned()
     }
 
+    pub(crate) fn declares_static(&self, owner: &TypeRef, method: &str) -> bool {
+        self.ancestors(owner)
+            .iter()
+            .filter_map(|ancestor| self.shape(class_name(ancestor)?))
+            .flat_map(|shape| shape.methods())
+            .any(|candidate| candidate.is_static() && candidate.name() == method)
+    }
+
     pub fn is_fluent(&self, type_name: &str, method: &str, argument_count: usize) -> bool {
         let overloads = self.overloads(type_name, method, argument_count);
         !overloads.is_empty()

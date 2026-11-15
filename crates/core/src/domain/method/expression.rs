@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use super::arguments::{judge_arguments, judge_values, value_types};
 use super::block::Block;
-use super::call::{Call, standing_after_call};
+use super::call::{Call, Called, standing_after_call, verdict_on};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{FunctionalMethod, Types};
@@ -361,13 +361,15 @@ impl Argument {
 pub struct MethodReference {
     target: Expression,
     name: String,
+    line: usize,
 }
 
 impl MethodReference {
-    pub fn new(target: Expression, name: &str) -> Self {
+    pub fn new(target: Expression, name: &str, line: usize) -> Self {
         Self {
             target,
             name: name.to_owned(),
+            line,
         }
     }
 
@@ -378,13 +380,29 @@ impl MethodReference {
         functional: Option<&FunctionalMethod>,
     ) -> Produced {
         let target = self.target.judge(context);
+        let mut verdicts = target.verdicts;
+        if self.is_static(context.types) {
+            verdicts.push(verdict_on(
+                context,
+                &target.subject,
+                &Called {
+                    name: &self.name,
+                    line: self.line,
+                    argument_count: functional.map_or(0, |functional| functional.parameters.len()),
+                },
+            ));
+        }
         let result = functional
             .map(|functional| self.result(context.types, feed, &target.subject, functional));
         Produced {
-            verdicts: target.verdicts,
+            verdicts,
             result: result.as_ref().and_then(|subject| subject.type_ref.clone()),
             standing: result.map(|subject| subject.standing),
         }
+    }
+
+    fn is_static(&self, types: &Types) -> bool {
+        matches!(&self.target, Expression::StaticType(owner) if types.declares_static(owner, &self.name))
     }
 
     fn result(
