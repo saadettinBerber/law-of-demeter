@@ -20,7 +20,7 @@
 
 - ❌ Henüz davranmıyor.
 
-- Her senaryo, Java kaynağından karara uçtan uca bir testle sınanır.
+- Her senaryo, Java kaynağından karara uçtan uca bir testle sınanır. Ayrıca [`examples/shop`](examples/shop) örnek projesinde gerçek kod olarak durur; proje Maven ile derlenir, araçtan geçirilir ve rapor [beklenen raporla](examples/shop/expected-report.txt) karşılaştırılır.
 
 | Bölüm | Senaryo | Beklenen | Durum |
 |---|---|---|---|
@@ -67,6 +67,8 @@ void pay(Order order, int amount) {
 
 - **Neden:** `getCustomer()`'ın döndürdüğü müşteri f'nin arkadaşı değil. f, müşterinin ve cüzdanının yapısını bilmek zorunda kalıyor.
 
+- **Örnek projede:** [`PaymentService.java:13`](examples/shop/src/main/java/shop/service/PaymentService.java#L13)
+
 </details>
 
 <details>
@@ -81,6 +83,8 @@ void pay(Order order, int amount) {
 
 - **Neden:** Zinciri bölmek ilişkiyi değiştirmez. `customer` hâlâ başka bir nesneden alınmış bir yabancı.
 
+- **Örnek projede:** [`PaymentService.java:17-18`](examples/shop/src/main/java/shop/service/PaymentService.java#L17-L18)
+
 </details>
 
 <details>
@@ -94,6 +98,8 @@ void move(Order order, Address address) {
 
 - **Neden:** f, sahibine sormadan başka bir nesneye ait parçayı değiştiriyor. `Order` kendi kurallarını uygulayamıyor.
 
+- **Örnek projede:** [`OrderService.java:52`](examples/shop/src/main/java/shop/service/OrderService.java#L52)
+
 </details>
 
 <details>
@@ -106,6 +112,8 @@ void addLine(Order order, OrderLine line) {
 ```
 
 - **Neden:** Koleksiyon `Order`'ın iç yapısı. Satır sayısı sınırı gibi bir kural varsa atlanıyor.
+
+- **Örnek projede:** [`OrderService.java:56`](examples/shop/src/main/java/shop/service/OrderService.java#L56)
 
 </details>
 
@@ -133,6 +141,8 @@ class Account {
 
 - **Kütüphane üst sınıfı:** Setter'lar kütüphanedeki bir üst sınıftan geliyorsa sınıf hibrit sayılmaz. Karar yalnızca projenin kendi metotlarına bakar.
 
+- **Örnek projede:** [`Account.java:6-17`](examples/shop/src/main/java/shop/domain/Account.java#L6-L17), [`RefundService.java:30`](examples/shop/src/main/java/shop/service/RefundService.java#L30)
+
 </details>
 
 <details>
@@ -145,6 +155,8 @@ void discount(Order order, int rate) {
 ```
 
 - **Neden:** f, `Order`'ın iç nesnelerine tek tek uzanıyor. İndirim kuralı `Order`'ın dışına dağılıyor.
+
+- **Örnek projede:** [`OrderService.java:60`](examples/shop/src/main/java/shop/service/OrderService.java#L60)
 
 </details>
 
@@ -161,6 +173,8 @@ void onShipped(OrderShippedEvent event) {
 
 - **Not:** Olay değeri kendisi taşırsa sorun kalmaz: `event.getTotal()`.
 
+- **Örnek projede:** [`ShippingService.java:16`](examples/shop/src/main/java/shop/service/ShippingService.java#L16)
+
 </details>
 
 <details>
@@ -175,6 +189,8 @@ void checkout(Session session) {
 - **Neden:** `getCart()` ile alınan sepet `Session`'ın bir parçası. f sepete doğrudan uzanıyor; `Session`'ın sepet üzerindeki kuralları atlanabilir.
 
 - **Not:** Kural, `Session`'ın sepeti yalnızca saklayıp saklamadığını bilemez. Getter ile ulaşılan nesneyi her zaman yabancı sayar. f bunu sahibine söylemeli: `session.checkout()`. Depo sorgusu ayrı bir durum: Uygun 9.
+
+- **Örnek projede:** [`CheckoutService.java:16`](examples/shop/src/main/java/shop/service/CheckoutService.java#L16)
 
 </details>
 
@@ -191,6 +207,8 @@ void discount(String id, int rate) {
 
 - **Not:** Kural metodun gövdesine bakmaz; döndürülen nesne bir alandan gelse de yabancı sayılır. Adı `find` ile başlasa da depo sorgusu sayılmaz, çünkü depo sorgusunun alıcısı bir alan ya da parametre olmalı: Uygun 9.
 
+- **Örnek projede:** [`DiscountService.java:14`](examples/shop/src/main/java/shop/service/DiscountService.java#L14)
+
 </details>
 
 <details>
@@ -205,6 +223,8 @@ void charge(int amount) {
 - **Neden:** `orders` C'nin bir alanı; akışı da arkadaş. `map(Order::getCustomer)` ise her siparişin müşterisini döndürür ve müşteriler yabancıdır. f, `order.getCustomer().getWallet()` ile aynı yere uzanıyor; akış bunu gizlemez. `getWallet` ve `withdraw` raporlanır.
 
 - **Not:** Lambda ile yazılsa da sonuç aynı: `map(order -> order.getCustomer())`. Eleman f'nin içinde oluşturulursa arkadaş kalır: `map(order -> new Receipt(order))`. `filter` gibi elemanı değiştirmeyen adımlar akışın durumunu korur: Uygun 5.
+
+- **Örnek projede:** [`BillingService.java:15`](examples/shop/src/main/java/shop/service/BillingService.java#L15), [`BillingService.java:19`](examples/shop/src/main/java/shop/service/BillingService.java#L19)
 
 </details>
 
@@ -225,6 +245,8 @@ boolean canShip(Order order) {
 
 - **Neden:** `order` f'nin arkadaşı. Enum, sayı, metin ve zaman gibi değerler davranış taşımaz; onları okumak kuralı çiğnemez.
 
+- **Örnek projede:** [`OrderService.java:22`](examples/shop/src/main/java/shop/service/OrderService.java#L22)
+
 </details>
 
 <details>
@@ -237,6 +259,8 @@ Instant expiry(Instant issuedAt, Duration ttl) {
 ```
 
 - **Neden:** Zaman, süre ve sayı gibi değerlerin üzerinde işlem yapmak bir iç yapıya uzanmak değildir.
+
+- **Örnek projede:** [`OrderService.java:26`](examples/shop/src/main/java/shop/service/OrderService.java#L26)
 
 </details>
 
@@ -267,6 +291,8 @@ String keyOf(Customer customer) {
 
 - **Not:** Lombok `@Data` ile yazılmış DTO'lar da bu gruba girer.
 
+- **Örnek projede:** [`Connector.java:7`](examples/shop/src/main/java/shop/service/Connector.java#L7), [`ShippingService.java:20`](examples/shop/src/main/java/shop/service/ShippingService.java#L20), [`ShippingService.java:24`](examples/shop/src/main/java/shop/service/ShippingService.java#L24)
+
 </details>
 
 <details>
@@ -289,6 +315,8 @@ private Order(Builder builder) {
 
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
+- **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34), [`Order.java:72-101`](examples/shop/src/main/java/shop/domain/Order.java#L72-L101)
+
 </details>
 
 <details>
@@ -303,6 +331,8 @@ long paidCount(List<Order> orders) {
 - **Neden:** Stream adımları koleksiyonu dönüştürür; bir nesnenin iç yapısına uzanmaz.
 
 - **Not:** `map` elemanı bir yabancıyla değiştirirse akışın elemanları da yabancı olur: Uygun değil 10.
+
+- **Örnek projede:** [`BillingService.java:27`](examples/shop/src/main/java/shop/service/BillingService.java#L27)
 
 </details>
 
@@ -321,6 +351,8 @@ String greeting(String name) {
 
 - **Neden:** Factory'nin ve `new`'in döndürdüğü nesneler f'nin içinde oluşturulmuş sayılır; bunlar f'nin arkadaşı.
 
+- **Örnek projede:** [`ReportService.java:7`](examples/shop/src/main/java/shop/service/ReportService.java#L7), [`ReportService.java:11`](examples/shop/src/main/java/shop/service/ReportService.java#L11)
+
 </details>
 
 <details>
@@ -336,6 +368,8 @@ void notifyCustomer(Order order) {
 
 - **Not:** `notifier` C'nin bir alanı.
 
+- **Örnek projede:** [`RefundService.java:26`](examples/shop/src/main/java/shop/service/RefundService.java#L26)
+
 </details>
 
 <details>
@@ -349,6 +383,8 @@ void pay(int amount) {
 ```
 
 - **Neden:** `wallet` C'nin bir alanı, `audit()` C'nin kendi metodu.
+
+- **Örnek projede:** [`RefundService.java:21-22`](examples/shop/src/main/java/shop/service/RefundService.java#L21-L22)
 
 </details>
 
@@ -365,6 +401,8 @@ void dispatch(OrderId id) {
 
 - **Not:** `orders` C'nin bir alanı. Adı `find`, `load` ya da `fetch` ile başlayan metot depo sorgusu sayılır; alıcı bir alan ya da parametre olmalı.
 
+- **Örnek projede:** [`OrderService.java:38`](examples/shop/src/main/java/shop/service/OrderService.java#L38)
+
 </details>
 
 <details>
@@ -379,6 +417,8 @@ void checkout(String id) {
 - **Neden:** `carts` C'nin bir alanı. Koleksiyondan alınan eleman koleksiyonun durumunu korur; arkadaşın koleksiyonundaki eleman da arkadaştır.
 
 - **Not:** Döndürülen bir koleksiyondan alınan eleman yabancı kalır. `order.getLines().get(0).applyDiscount(rate)` raporlanır.
+
+- **Örnek projede:** [`CheckoutService.java:20`](examples/shop/src/main/java/shop/service/CheckoutService.java#L20), [`CheckoutService.java:24`](examples/shop/src/main/java/shop/service/CheckoutService.java#L24)
 
 </details>
 
@@ -395,6 +435,8 @@ void update() {
 
 - **Not:** Proje tipi, denetlenen kaynaklarda tanımlanan tiptir. Çok modüllü projede bütün modüllerin kaynakları verilmeli; yoksa diğer modüllerin tipleri kütüphane sayılır.
 
+- **Örnek projede:** [`PriceCache.java:16`](examples/shop/src/main/java/shop/service/PriceCache.java#L16)
+
 </details>
 
 <details>
@@ -407,6 +449,8 @@ boolean compatible(Order order, Version required) {
 ```
 
 - **Neden:** `Version`'ın bütün alanları final, setter'ı yok, `equals` ve `hashCode`'u tanımlı; bir değer nesnesi. Bir karşılaştırma metodu taşıması onu nesne yapmaz.
+
+- **Örnek projede:** [`OrderService.java:30`](examples/shop/src/main/java/shop/service/OrderService.java#L30), [`Version.java:6-12`](examples/shop/src/main/java/shop/domain/Version.java#L6-L12)
 
 </details>
 
@@ -422,6 +466,8 @@ class PaymentService extends BaseService {
 ```
 
 - **Neden:** `wallet`, `BaseService`'te tanımlı bir alan. C'nin üst sınıfından gelen alan, C'nin kendi alanı gibi arkadaştır.
+
+- **Örnek projede:** [`PaymentService.java:22`](examples/shop/src/main/java/shop/service/PaymentService.java#L22), [`BaseService.java:6`](examples/shop/src/main/java/shop/service/BaseService.java#L6)
 
 </details>
 
@@ -444,6 +490,8 @@ int totalOf(Order order) {
 
 - **Asıl sorun:** Hesap `Order`'a ait: `order.total()`. Bu durumun adı feature envy.
 
+- **Örnek projede:** [`OrderService.java:42`](examples/shop/src/main/java/shop/service/OrderService.java#L42)
+
 </details>
 
 <details>
@@ -460,5 +508,7 @@ void ship(Order order) {
 - **Neden:** `order` f'nin arkadaşı ve durum bir değer; Law of Demeter çiğnenmiyor.
 
 - **Asıl sorun:** Karar `Order`'ın içinde olmalı: `order.ship()`. Bu durumun adı Tell-Don't-Ask. Bulmak tahmine dayandığı ve çok yanlış alarm ürettiği için bu kural raporlamaz.
+
+- **Örnek projede:** [`OrderService.java:46-47`](examples/shop/src/main/java/shop/service/OrderService.java#L46-L47)
 
 </details>
