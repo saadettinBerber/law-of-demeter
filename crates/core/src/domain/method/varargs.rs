@@ -132,6 +132,15 @@ fn a_variable_arity_method_matches_more_arguments_than_it_has_parameters() {
         verdicts,
         [
             Verdict::allowed("of", 2, Reason::static_type(TypeRef::class(STREAM))),
+            Verdict::allowed(
+                "stream",
+                2,
+                Reason::method_reference(
+                    TypeRef::class(OPTIONAL),
+                    "stream",
+                    Reason::static_result("of")
+                )
+            ),
             Verdict::allowed("flatMap", 2, Reason::static_result("of")),
             Verdict::allowed("toList", 2, Reason::static_result("of")),
             Verdict::allowed("get", 2, Reason::static_result("of")),

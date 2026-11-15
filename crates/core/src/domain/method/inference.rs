@@ -494,10 +494,16 @@ fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
 
     let verdicts = charge.verdicts(&shop());
 
-    assert_eq!(
-        verdicts,
-        charging_the_customers_a_stranger_returned("getCustomer")
+    let mut expected = charging_the_customers_a_stranger_returned("getCustomer").to_vec();
+    expected.insert(
+        1,
+        Verdict::allowed(
+            "getCustomer",
+            2,
+            Reason::method_reference(order(), "getCustomer", Reason::parameter("orders")),
+        ),
     );
+    assert_eq!(verdicts, expected);
 }
 
 #[test]
@@ -1015,7 +1021,7 @@ fn a_method_reference_to_a_factory_method_of_a_friend_yields_friends() {
     let verdicts = print.verdicts(&shop());
 
     assert_eq!(
-        verdicts[2],
+        verdicts[3],
         Verdict::allowed(
             "print",
             3,
@@ -1035,7 +1041,7 @@ fn a_method_reference_to_an_unknown_method_yields_strangers() {
     let verdicts = print.verdicts(&shop());
 
     assert_eq!(
-        verdicts[2],
+        verdicts[3],
         Verdict::violation(
             "print",
             3,

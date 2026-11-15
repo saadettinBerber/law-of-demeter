@@ -339,6 +339,14 @@ fn charging_the_customers_a_stream_mapped_from_the_orders_field(
     verdicts
 }
 
+fn referencing(type_name: &str, method: &str, line: usize, feed: Reason) -> Verdict {
+    Verdict::allowed(
+        method,
+        line,
+        Reason::method_reference(TypeRef::class(type_name), method, feed),
+    )
+}
+
 #[test]
 fn violation_10_talking_to_an_element_a_stream_mapped_from_a_stranger() {
     let snippet = "void charge(int amount) {\n    orders.stream().map(Order::getCustomer).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
@@ -353,7 +361,12 @@ fn violation_10_talking_to_an_element_a_stream_mapped_from_a_stranger() {
 
     assert_eq!(
         verdicts,
-        charging_the_customers_a_stream_mapped_from_the_orders_field(vec![])
+        charging_the_customers_a_stream_mapped_from_the_orders_field(vec![referencing(
+            "Order",
+            "getCustomer",
+            3,
+            Reason::field("orders")
+        )])
     );
 }
 
@@ -1144,7 +1157,12 @@ fn inference_3_the_result_of_a_method_reference_types_the_next_lambda_parameter(
 
     assert_eq!(
         verdicts,
-        charging_the_wallets_of_customers_mapped_from_a_stranger(vec![])
+        charging_the_wallets_of_customers_mapped_from_a_stranger(vec![referencing(
+            "Order",
+            "getCustomer",
+            3,
+            Reason::parameter("orders")
+        )])
     );
 }
 
@@ -1396,6 +1414,12 @@ fn variable_arity_1_a_stream_of_several_arguments_gets_its_element_type() {
                 3,
                 Reason::static_type(TypeRef::class("java.util.stream.Stream"))
             ),
+            referencing(
+                "java.util.Optional",
+                "stream",
+                3,
+                Reason::static_result("of")
+            ),
             Verdict::allowed("flatMap", 3, Reason::static_result("of")),
             Verdict::allowed("toList", 3, Reason::static_result("of")),
             Verdict::allowed("get", 3, Reason::static_result("of")),
@@ -1513,6 +1537,7 @@ fn nested_generic_1_a_collected_list_of_mapped_customers_keeps_them_strangers() 
         verdicts,
         [
             Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            referencing("Order", "getCustomer", 3, Reason::parameter("orders")),
             Verdict::allowed("map", 3, Reason::parameter("orders")),
             Verdict::allowed("toList", 3, collectors_type()),
             Verdict::allowed(
@@ -1578,6 +1603,7 @@ fn nested_generic_3_a_lambda_grouping_mapped_customers_receives_strangers() {
         verdicts,
         [
             Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            referencing("Order", "getCustomer", 3, Reason::parameter("orders")),
             Verdict::allowed("map", 3, Reason::parameter("orders")),
             Verdict::violation(
                 "getWallet",
@@ -1640,6 +1666,7 @@ fn nested_generic_5_a_method_reference_grouping_types_the_groups() {
         verdicts,
         [
             Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            referencing("Order", "getStatus", 3, Reason::parameter("orders")),
             Verdict::allowed("groupingBy", 3, collectors_type()),
             Verdict::allowed("collect", 3, Reason::parameter("orders")),
             Verdict::allowed("get", 3, Reason::parameter("orders")),

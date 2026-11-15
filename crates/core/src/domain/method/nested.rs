@@ -195,6 +195,14 @@ fn mapped_customers() -> Call {
     ))
 }
 
+fn getting_the_customers_of_the_orders() -> Verdict {
+    Verdict::allowed(
+        "getCustomer",
+        2,
+        Reason::method_reference(order(), "getCustomer", Reason::parameter("orders")),
+    )
+}
+
 fn stranger_customers() -> Reason {
     Reason::return_of("getCustomer")
 }
@@ -221,6 +229,7 @@ fn a_collector_without_arguments_gets_its_element_type_from_the_stream_collectin
         verdicts,
         [
             Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            getting_the_customers_of_the_orders(),
             Verdict::allowed("map", 2, Reason::parameter("orders")),
             Verdict::allowed("toList", 2, collectors_static()),
             Verdict::allowed(
@@ -287,6 +296,11 @@ fn collecting_a_stream_by_a_method_reference_types_the_groups() {
         verdicts,
         [
             Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "getStatus",
+                2,
+                Reason::method_reference(order(), "getStatus", Reason::parameter("orders"))
+            ),
             Verdict::allowed("groupingBy", 2, collectors_static()),
             Verdict::allowed("collect", 2, Reason::parameter("orders")),
             Verdict::allowed("get", 2, Reason::parameter("orders")),
@@ -341,6 +355,7 @@ fn a_lambda_in_a_nested_call_takes_the_standing_of_the_stranger_elements_it_rece
         verdicts,
         [
             Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            getting_the_customers_of_the_orders(),
             Verdict::allowed("map", 2, Reason::parameter("orders")),
             Verdict::violation(
                 "getWallet",

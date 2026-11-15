@@ -352,7 +352,7 @@ impl Argument {
                 }
             }
             Self::Lambda(lambda) => lambda.judge(context, feed, functional, outer),
-            Self::MethodReference(reference) => reference.judge(context, feed, functional),
+            Self::MethodReference(reference) => reference.judge(context, feed, functional, outer),
         }
     }
 }
@@ -378,22 +378,29 @@ impl MethodReference {
         context: &Context,
         feed: &Subject,
         functional: Option<&FunctionalMethod>,
+        outer: &Subject,
     ) -> Produced {
+        let types = context.types;
         let target = self.target.judge(context);
         let mut verdicts = target.verdicts;
-        if self.is_static(context.types) {
-            verdicts.push(verdict_on(
-                context,
-                &target.subject,
-                &Called {
-                    name: &self.name,
-                    line: self.line,
-                    argument_count: functional.map_or(0, |functional| functional.parameters.len()),
-                },
-            ));
-        }
-        let result = functional
-            .map(|functional| self.result(context.types, feed, &target.subject, functional));
+        let arity = functional.map_or(0, |functional| functional.parameters.len());
+        let result = match &self.target {
+            _ if self.name == "new" => functional.map(|_| self.constructed(types, &target.subject)),
+            Expression::StaticType(owner) if types.declares_static(owner, &self.name) => {
+                verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
+                functional.map(|_| self.static_result(types, owner, arity))
+            }
+            Expression::StaticType(owner) => {
+                let element = self.element(types, feed, outer, functional);
+                let receiver = element
+                    .clone()
+                    .through(|feed| Reason::method_reference(owner.clone(), &self.name, feed));
+                let arguments = arity.saturating_sub(1);
+                verdicts.push(verdict_on(context, &receiver, &self.called(arguments)));
+                functional.map(|_| self.on(types, &element, arguments))
+            }
+            _ => functional.map(|_| self.on(types, &target.subject, arity)),
+        };
         Produced {
             verdicts,
             result: result.as_ref().and_then(|subject| subject.type_ref.clone()),
@@ -401,52 +408,41 @@ impl MethodReference {
         }
     }
 
-    fn is_static(&self, types: &Types) -> bool {
-        matches!(&self.target, Expression::StaticType(owner) if types.declares_static(owner, &self.name))
-    }
-
-    fn result(
-        &self,
-        types: &Types,
-        feed: &Subject,
-        target: &Subject,
-        functional: &FunctionalMethod,
-    ) -> Subject {
-        let arguments = functional.parameters.len();
-        match &self.target {
-            Expression::StaticType(created) if self.name == "new" => {
-                Subject::friend(Reason::created(created.clone()), created.clone())
-            }
-            Expression::StaticType(owner) => self
-                .on_first_parameter(types, feed, functional)
-                .or_else(|| {
-                    types
-                        .return_type_on(owner, &self.name, arguments)
-                        .map(|type_ref| {
-                            Subject::friend(Reason::static_result(&self.name), type_ref)
-                        })
-                })
-                .unwrap_or_else(|| self.unresolved()),
-            _ => self.on(types, target, arguments),
+    fn called(&self, argument_count: usize) -> Called<'_> {
+        Called {
+            name: &self.name,
+            line: self.line,
+            argument_count,
         }
     }
 
-    fn on_first_parameter(
+    fn element(
         &self,
         types: &Types,
         feed: &Subject,
-        functional: &FunctionalMethod,
-    ) -> Option<Subject> {
-        let (first, rest) = functional.parameters.split_first()?;
-        let type_ref = types.return_type_on(first, &self.name, rest.len())?;
-        let element = Subject {
-            standing: feed.standing.clone(),
-            type_ref: Some(first.clone()),
-        };
-        Some(Subject {
-            standing: standing_after_call(types, &element, &self.name, rest.len(), false),
-            type_ref: Some(type_ref),
-        })
+        outer: &Subject,
+        functional: Option<&FunctionalMethod>,
+    ) -> Subject {
+        let known = functional.and_then(|functional| functional.parameters.first());
+        element_feed(types, outer, feed, known)
+            .element(types, |reason| reason)
+            .declared_as(known)
+    }
+
+    fn constructed(&self, types: &Types, target: &Subject) -> Subject {
+        match &self.target {
+            Expression::StaticType(created) => {
+                Subject::friend(Reason::created(created.clone()), created.clone())
+            }
+            _ => self.on(types, target, 0),
+        }
+    }
+
+    fn static_result(&self, types: &Types, owner: &TypeRef, arguments: usize) -> Subject {
+        types
+            .return_type_on(owner, &self.name, arguments)
+            .map(|type_ref| Subject::friend(Reason::static_result(&self.name), type_ref))
+            .unwrap_or_else(|| self.unresolved())
     }
 
     fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Subject {
