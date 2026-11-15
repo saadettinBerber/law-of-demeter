@@ -110,11 +110,14 @@ fn a_return_inside_a_lambda_does_not_take_the_return_type_of_the_method() {
         f(2).call(call(lines, "map", 3).with(Lambda::new(&["line"]).yielding(
             Expression::return_of(call(Expression::local("line"), "price", 4))
         )))
-        .call(call(order(), "wallet", 7))
         .assign(
             "supplier",
             TypeRef::generic("Supplier", vec![class("Wallet")]),
-            Expression::literal()
+            Expression::lambda(Lambda::new(&[]).yielding(Expression::return_of(call(
+                order(),
+                "wallet",
+                7
+            ))))
         )
         .call(call(order(), "next", 9).expecting(class("Order")))
     );

@@ -271,31 +271,6 @@ fn a_block_lambda_that_does_not_end_in_a_return_value_yields_nothing() {
 }
 
 #[test]
-fn a_lambda_that_is_not_an_argument_runs_inline_with_friendly_parameters() {
-    let source = "class OrderService {\n void f(Order order) {\n  var run = (Customer c) -> c.getWallet().pay();\n  var plain = x -> x.go();\n }\n}";
-
-    let mapped = method_f(source);
-
-    assert_eq!(
-        mapped,
-        f(2).assign("c", class("Customer"), parameter("c", class("Customer")))
-            .call(call(
-                Expression::return_of(call(Expression::local("c"), "getWallet", 3)),
-                "pay",
-                3
-            ))
-            .assign_var("run", Expression::literal())
-            .assign(
-                "x",
-                class("java.lang.Object"),
-                parameter("x", class("java.lang.Object"))
-            )
-            .call(call(Expression::local("x"), "go", 4))
-            .assign_var("plain", Expression::literal())
-    );
-}
-
-#[test]
 fn a_method_reference_argument_keeps_its_target_and_name() {
     let source = "class OrderService {\n void f(Order order) {\n  order.lines().forEach(this::go);\n  order.lines().forEach(Order::go);\n  order.lines().forEach(order::go);\n  order.lines().forEach(order.getCustomer()::notify);\n  order.lines().forEach(Order::new);\n }\n}";
 

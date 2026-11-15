@@ -10,7 +10,7 @@ use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
 use super::steps::is_quiet;
-use super::types::{named_type, object};
+use super::types::named_type;
 
 impl MethodMapper<'_> {
     pub(super) fn expression(&mut self, expression: &model::Expression) -> Expression {
@@ -50,10 +50,7 @@ impl MethodMapper<'_> {
             model::Expression::Cast { target, operand } => {
                 Expression::cast(self.type_ref_or_object(target), self.expression(operand))
             }
-            model::Expression::Lambda(lambda) => {
-                self.inline_lambda(lambda);
-                Expression::literal()
-            }
+            model::Expression::Lambda(lambda) => Expression::lambda(self.lambda(lambda)),
             model::Expression::MethodReference { target, .. } => {
                 let target = self.expression(target);
                 if is_quiet(&target) {
@@ -148,32 +145,26 @@ impl MethodMapper<'_> {
         let result = result.map(|result| self.expression(result));
         self.returns = outer_returns;
         let mapped = mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names));
+        let mapped = lambda
+            .parameters
+            .iter()
+            .filter_map(|parameter| {
+                Some((parameter, self.type_ref(parameter.declared_type.as_ref()?)?))
+            })
+            .fold(mapped, |mapped, (parameter, declared)| {
+                mapped.declaring(&parameter.name, declared)
+            });
         match result {
             Some(value) => mapped.yielding(value),
             None => mapped,
         }
-    }
-
-    fn inline_lambda(&mut self, lambda: &model::Lambda) {
-        for parameter in &lambda.parameters {
-            let declared = parameter
-                .declared_type
-                .as_ref()
-                .map_or_else(object, |declared| self.type_ref_or_object(declared));
-            self.locals
-                .insert(parameter.name.clone(), Some(declared.clone()));
-            let value = Expression::parameter(&parameter.name, declared.clone());
-            self.steps.assign(&parameter.name, Some(declared), value);
-        }
-        let outer_returns = self.returns.take();
-        self.statements(&lambda.body);
-        self.returns = outer_returns;
     }
 }
 
 pub(super) fn expecting(value: Expression, type_ref: TypeRef) -> Expression {
     match value {
         Expression::ReturnOf(call) => Expression::return_of(call.expecting(type_ref)),
+        Expression::Lambda(lambda) => Expression::lambda(lambda.expecting(type_ref)),
         other => other,
     }
 }
