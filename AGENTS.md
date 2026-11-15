@@ -50,6 +50,8 @@ Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README
 
 - Lint: `cargo clippy --workspace --all-targets -- -D warnings`
 
+- Örnek projeler (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
+
 ## Test Driven Development
 
 ---
