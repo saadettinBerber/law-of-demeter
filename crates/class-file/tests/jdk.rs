@@ -516,3 +516,49 @@ fn the_real_jdk_ct_sym_methods_know_whether_they_are_abstract() {
 
     assert_abstract_flags_of_the_real_jdk(&reading);
 }
+
+fn assert_varargs_flags_of_the_real_jdk(reading: &Reading) {
+    let stream_of = methods_named(reading, "java.util.stream.Stream", "of");
+    let format = methods_named(reading, "java.lang.String", "format");
+    let array_of = stream_of
+        .iter()
+        .find(|method| matches!(method.parameters(), [TypeRef::Array(_)]))
+        .expect("Stream.of with an array parameter");
+    let single_of = stream_of
+        .iter()
+        .find(|method| matches!(method.parameters(), [TypeRef::Variable(_)]))
+        .expect("Stream.of with one element");
+    let text_format = format
+        .iter()
+        .find(|method| {
+            method.parameters()
+                == [
+                    TypeRef::class("java.lang.String"),
+                    TypeRef::array(TypeRef::class("java.lang.Object")),
+                ]
+        })
+        .expect("String.format(String, Object[])");
+    assert!(array_of.is_varargs());
+    assert!(!single_of.is_varargs());
+    assert!(text_format.is_varargs());
+}
+
+#[test]
+fn the_real_jdk_runtime_image_methods_know_whether_they_are_varargs() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap();
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_varargs_flags_of_the_real_jdk(&reading);
+}
+
+#[test]
+fn the_real_jdk_ct_sym_methods_know_whether_they_are_varargs() {
+    let Some(jdk) = real_jdk() else { return };
+    let release = jdk.feature_version().unwrap() - 1;
+
+    let reading = jdk.types(release).unwrap();
+
+    assert_varargs_flags_of_the_real_jdk(&reading);
+}

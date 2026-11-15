@@ -576,6 +576,31 @@ fn an_abstract_class_method_is_abstract_and_its_implementation_is_not() {
 }
 
 #[test]
+fn a_method_ending_in_a_variable_arity_parameter_is_varargs() {
+    let invoice = shape("shop.Invoice");
+
+    let describe = method(&invoice, "describe");
+
+    assert!(describe.is_varargs());
+    assert_eq!(
+        describe.parameters(),
+        [
+            TypeRef::class("java.lang.String"),
+            TypeRef::array(TypeRef::class("java.lang.Object"))
+        ]
+    );
+}
+
+#[test]
+fn a_method_with_a_plain_array_parameter_is_not_varargs() {
+    let invoice = shape("shop.Invoice");
+
+    let label = method(&invoice, "label");
+
+    assert!(!label.is_varargs());
+}
+
+#[test]
 fn reads_every_type_of_a_jar_file() {
     let shapes = read_types(&[jar()]).unwrap();
 
