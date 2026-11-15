@@ -2210,3 +2210,39 @@ fn a_non_public_equals_does_not_make_a_class_a_value() {
 
     assert_eq!(classification, Classification::Object);
 }
+
+#[test]
+fn a_generated_protected_can_equal_is_not_behavior() {
+    let address = TypeShape::new("Address", TypeKind::Class)
+        .with_method(getter("getCity", "city").generated())
+        .with_method(setter("setCity", "city").generated())
+        .with_method(
+            MethodShape::new("equals")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .generated(),
+        )
+        .with_method(MethodShape::new("hashCode").returning(int()).generated())
+        .with_method(MethodShape::new("toString").returning(string()).generated())
+        .with_method(
+            MethodShape::new("canEqual")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .returning(TypeRef::primitive("boolean"))
+                .not_public()
+                .generated(),
+        );
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn a_can_equal_with_other_parameters_is_behavior() {
+    let address = TypeShape::new("Address", TypeKind::Class)
+        .with_method(getter("getCity", "city"))
+        .with_method(MethodShape::new("canEqual").not_public());
+
+    let classification = classify(address);
+
+    assert_eq!(classification, Classification::Object);
+}

@@ -449,7 +449,7 @@ fn class_name(type_ref: &TypeRef) -> Option<&str> {
 fn is_object_method(method: &MethodShape) -> bool {
     matches!(
         (method.name(), method.parameters().len()),
-        ("equals", 1) | ("hashCode" | "toString", 0)
+        ("equals" | "canEqual", 1) | ("hashCode" | "toString", 0)
     )
 }
 
