@@ -311,10 +311,14 @@ impl MethodReference {
     fn result_type(&self, types: &Types, functional: &FunctionalMethod) -> Option<TypeRef> {
         match &self.target {
             Expression::StaticType(created) if self.name == "new" => Some(created.clone()),
-            Expression::StaticType(_) => {
-                let first = functional.parameters.first()?;
-                let rest = functional.parameters.len() - 1;
-                types.return_type_on(first, &self.name, rest)
+            Expression::StaticType(owner) => {
+                let on_first = functional
+                    .parameters
+                    .split_first()
+                    .and_then(|(first, rest)| types.return_type_on(first, &self.name, rest.len()));
+                on_first.or_else(|| {
+                    types.return_type_on(owner, &self.name, functional.parameters.len())
+                })
             }
             _ => None,
         }

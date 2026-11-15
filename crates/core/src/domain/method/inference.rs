@@ -130,6 +130,14 @@ fn shop() -> Types {
             ),
         )
         .with_shape(
+            class("Customers").with_method(
+                MethodShape::new("of")
+                    .as_static()
+                    .with_parameters(vec![order()])
+                    .returning(TypeRef::class("Customer")),
+            ),
+        )
+        .with_shape(
             class("Order")
                 .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer"))),
         )
@@ -426,6 +434,18 @@ fn a_constructor_reference_yields_the_type_it_creates() {
     let charge = mapping_orders_with(MethodReference::new(
         Expression::static_type(TypeRef::class("Customer")),
         "new",
+    ));
+
+    let verdicts = charge.verdicts(&shop());
+
+    assert_eq!(verdicts, charging_the_mapped_customers());
+}
+
+#[test]
+fn a_method_reference_to_a_static_method_yields_what_the_method_returns() {
+    let charge = mapping_orders_with(MethodReference::new(
+        Expression::static_type(TypeRef::class("Customers")),
+        "of",
     ));
 
     let verdicts = charge.verdicts(&shop());
