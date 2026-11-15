@@ -25,7 +25,7 @@ impl Types {
             for method in shape
                 .methods()
                 .iter()
-                .filter(|method| !method.is_static() && !is_object_method(method))
+                .filter(|method| !is_object_method(method))
             {
                 declared
                     .entry((method.name(), method.parameters().len()))

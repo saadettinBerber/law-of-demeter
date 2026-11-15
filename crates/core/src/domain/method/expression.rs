@@ -387,17 +387,13 @@ impl Lambda {
     ) -> Produced {
         let declared = functional
             .map(|functional| functional.parameters.as_slice())
-            .filter(|parameters| parameters.len() == self.parameters.len())
             .unwrap_or_default();
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
             let subject = feed.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });
-            let known = declared
-                .get(index)
-                .filter(|type_ref| !matches!(type_ref, TypeRef::Variable(_)));
-            inner.bind(parameter, subject.declared_as(known));
+            inner.bind(parameter, subject.declared_as(declared.get(index)));
         }
         let mut verdicts = self.body.judge(&mut inner);
         let result = self.result.as_ref().and_then(|result| {
