@@ -47,7 +47,12 @@ fn method(shape: &TypeShape, name: &str) -> MethodShape {
 }
 
 fn method_names(shape: &TypeShape) -> Vec<&str> {
-    shape.methods().iter().map(MethodShape::name).collect()
+    shape
+        .methods()
+        .iter()
+        .map(MethodShape::name)
+        .filter(|name| *name != "<init>")
+        .collect()
 }
 
 #[test]
@@ -229,7 +234,7 @@ fn reads_generic_signatures_of_interface_methods() {
 }
 
 #[test]
-fn leaves_out_constructors_initializers_bridges_and_synthetic_methods() {
+fn leaves_out_initializers_bridges_and_synthetic_methods() {
     let order = shape("shop.Order");
     let status = shape("shop.Status");
 
@@ -247,6 +252,45 @@ fn leaves_out_constructors_initializers_bridges_and_synthetic_methods() {
         ]
     );
     assert_eq!(method_names(&status), ["values", "valueOf"]);
+}
+
+fn constructors(shape: &TypeShape) -> Vec<&MethodShape> {
+    shape
+        .methods()
+        .iter()
+        .filter(|method| method.name() == "<init>")
+        .collect()
+}
+
+#[test]
+fn reads_a_constructor_as_an_init_method_with_its_parameters() {
+    let order = shape("shop.Order");
+
+    assert_eq!(
+        constructors(&order),
+        [&MethodShape::new("<init>").with_parameters(vec![TypeRef::class("shop.Customer")])]
+    );
+}
+
+#[test]
+fn reads_the_generic_and_variable_arity_parameters_of_constructors() {
+    let dispatcher = shape("shop.Dispatcher");
+
+    assert_eq!(
+        constructors(&dispatcher),
+        [
+            &MethodShape::new("<init>").with_parameters(vec![TypeRef::generic(
+                "java.util.function.Consumer",
+                vec![TypeRef::variable("T")]
+            )]),
+            &MethodShape::new("<init>")
+                .with_parameters(vec![
+                    TypeRef::class("java.lang.String"),
+                    TypeRef::array(TypeRef::class("java.lang.Runnable"))
+                ])
+                .as_varargs(),
+        ]
+    );
 }
 
 fn generated_method_names(shape: &TypeShape) -> Vec<&str> {
@@ -1052,7 +1096,7 @@ fn equal_type_names_keep_the_order_of_the_inputs() {
     let method_counts: Vec<usize> = reading
         .shapes
         .iter()
-        .map(|shape| shape.methods().len())
+        .map(|shape| method_names(shape).len())
         .collect();
     let expected: Vec<usize> = (0..40).map(|index| 2 - index % 2).collect();
     assert_eq!(method_counts, expected);

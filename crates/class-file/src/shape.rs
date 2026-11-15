@@ -131,7 +131,7 @@ fn field_of(field: &FieldInfo) -> Result<Option<FieldShape>, String> {
 
 fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShape>, String> {
     let skipped = MethodAccessFlags::SYNTHETIC | MethodAccessFlags::BRIDGE;
-    if method.access_flags.intersects(skipped) || ["<init>", "<clinit>"].contains(&&*method.name) {
+    if method.access_flags.intersects(skipped) || &*method.name == "<clinit>" {
         return Ok(None);
     }
     let descriptor = method.descriptor.to_string();

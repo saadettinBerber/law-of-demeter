@@ -42,7 +42,12 @@ fn shape<'a>(reading: &'a Reading, name: &str) -> &'a TypeShape {
 }
 
 fn method_names(shape: &TypeShape) -> Vec<&str> {
-    shape.methods().iter().map(MethodShape::name).collect()
+    shape
+        .methods()
+        .iter()
+        .map(MethodShape::name)
+        .filter(|name| *name != "<init>")
+        .collect()
 }
 
 fn error_of(result: Result<Reading, Error>) -> Error {
@@ -223,6 +228,7 @@ fn jdk_types_keep_their_generic_signatures() {
     assert_eq!(
         pair.methods()
             .iter()
+            .filter(|method| method.name() != "<init>")
             .map(|method| method.returns().cloned())
             .collect::<Vec<_>>(),
         [
