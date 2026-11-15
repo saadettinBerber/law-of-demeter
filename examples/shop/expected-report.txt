@@ -1,4 +1,6 @@
-İhlaller (18):
+İhlaller (20):
+src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  İhlal: getEntry() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  İhlal: getPosting() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -18,7 +20,7 @@ src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  length()  İhlal: getOutline() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Uygun çağrılar (95):
+Uygun çağrılar (98):
 src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Event.java:15  shop.domain.Event.acknowledge  close()  Uygun: receipt sınıfın alanı
@@ -27,6 +29,9 @@ src/main/java/shop/domain/Order.java:59  shop.domain.Order.addLine  add()  Uygun
 src/main/java/shop/domain/Order.java:63  shop.domain.Order.ship  isPaid()  Uygun: f'nin kendi nesnesi
 src/main/java/shop/domain/Order.java:64  shop.domain.Order.ship  markShipped()  Uygun: f'nin kendi nesnesi
 src/main/java/shop/domain/Session.java:21  shop.domain.Session.checkout  checkout()  Uygun: cart sınıfın alanı
+src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getEntry()  Uygun: statement f'ye argüman olarak verildi
+src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getMemo()  Uygun: statement f'ye argüman olarak verildi
+src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getText()  Uygun: shop.ledger.Memo bir veri yapısı
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  stream()  Uygun: orders sınıfın alanı
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  map()  Uygun: orders sınıfın alanı
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  forEach()  Uygun: java.util.stream.Stream<shop.domain.Customer> bir konteyner
@@ -119,27 +124,27 @@ Hibrit sınıflar (1):
 src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
 
 Özet:
-  Dosya: 37
-  Metot: 103
-  Çağrı: 113 (uygun 95, ihlal 18, belirsiz 0)
+  Dosya: 42
+  Metot: 114
+  Çağrı: 118 (uygun 98, ihlal 20, belirsiz 0)
   Hibrit sınıf: 1
   Kaynak hatası: 0
   Tip okuma hatası: 0
 
 İhlal nedenleri:
-  17  Döndürülen nesne f'nin arkadaşı değil
+  19  Döndürülen nesne f'nin arkadaşı değil
   1  Döndürülen koleksiyon değiştiriliyor
 
 Uygun nedenleri:
+  30  Argüman
   30  Sınıfın alanı
-  28  Argüman
   8  Statik çağrının sonucu
   7  Statik çağrı
   5  Kendi nesnesi
   5  Metotta oluşturulan nesne
   4  Konteyner
+  3  Veri yapısı
   2  Değer
   2  Kütüphane tipi
-  2  Veri yapısı
   1  Depo sorgusunun sonucu
   1  Factory'nin sonucu
