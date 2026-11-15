@@ -627,3 +627,35 @@ fn a_class_argument_fits_an_object_parameter() {
         Verdict::violation("rename", 2, Reason::return_of("quote"))
     );
 }
+
+#[test]
+fn a_call_returning_a_subtype_of_the_expected_type_binds_through_the_supertype() {
+    let lists = class("Lists").with_method(
+        MethodShape::new("listOf")
+            .as_static()
+            .with_type_parameter("T")
+            .with_parameters(vec![variable("T")])
+            .returning(generic(ARRAY_LIST, &[variable("T")])),
+    );
+    let handlers = generic(COLLECTION, &[generic(CONSUMER, &[TypeRef::class("Event")])]);
+    let register = Method::new("Dispatcher", "register", 1).assign(
+        "handlers",
+        handlers,
+        Expression::return_of(
+            Call::new(
+                Expression::static_type(TypeRef::class("Lists")),
+                "listOf",
+                2,
+            )
+            .with(Lambda::new(&["event"]).call(Call::new(
+                Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
+                "close",
+                3,
+            ))),
+        ),
+    );
+
+    let verdicts = register.verdicts(&shop().with_shape(lists));
+
+    assert_eq!(verdicts[1], closing_the_receipt());
+}

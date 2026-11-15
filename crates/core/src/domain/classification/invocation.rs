@@ -103,21 +103,9 @@ impl Invocation {
             (TypeRef::Array(declared), TypeRef::Array(actual)) => {
                 self.unify(types, declared, actual);
             }
-            (
-                TypeRef::Class {
-                    name: declared_name,
-                    arguments: declared_arguments,
-                },
-                TypeRef::Class { .. },
-            ) => {
-                let matching = types
-                    .ancestors(actual)
-                    .into_iter()
-                    .find(|ancestor| class_name(ancestor) == Some(declared_name));
-                if let Some(TypeRef::Class {
-                    arguments: actual_arguments,
-                    ..
-                }) = matching
+            (TypeRef::Class { .. }, TypeRef::Class { .. }) => {
+                if let Some((declared_arguments, actual_arguments)) =
+                    common_arguments(types, declared, actual)
                 {
                     for (declared, actual) in declared_arguments.iter().zip(&actual_arguments) {
                         self.unify(types, declared, actual);
@@ -178,4 +166,38 @@ fn accepts(types: &Types, parameter: &TypeRef, value: &TypeRef) -> bool {
                     .any(|ancestor| ancestor == name || types.shape(ancestor).is_none())
         }
     }
+}
+
+fn common_arguments(
+    types: &Types,
+    declared: &TypeRef,
+    actual: &TypeRef,
+) -> Option<(Vec<TypeRef>, Vec<TypeRef>)> {
+    let (declared_name, declared_arguments) = class_parts(declared)?;
+    let (actual_name, actual_arguments) = class_parts(actual)?;
+    match arguments_in_ancestors(types, actual, declared_name) {
+        Some(actual_arguments) => Some((declared_arguments.to_vec(), actual_arguments)),
+        None => arguments_in_ancestors(types, declared, actual_name)
+            .map(|declared_arguments| (declared_arguments, actual_arguments.to_vec())),
+    }
+}
+
+fn class_parts(type_ref: &TypeRef) -> Option<(&str, &[TypeRef])> {
+    match type_ref {
+        TypeRef::Class { name, arguments } => Some((name, arguments)),
+        TypeRef::Primitive(_) | TypeRef::Array(_) | TypeRef::Variable(_) => None,
+    }
+}
+
+fn arguments_in_ancestors(types: &Types, type_ref: &TypeRef, name: &str) -> Option<Vec<TypeRef>> {
+    types
+        .ancestors(type_ref)
+        .into_iter()
+        .find_map(|ancestor| match ancestor {
+            TypeRef::Class {
+                name: ancestor_name,
+                arguments,
+            } if ancestor_name == name => Some(arguments),
+            _ => None,
+        })
 }
