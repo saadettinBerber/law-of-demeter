@@ -865,12 +865,35 @@ fn int_consumer() -> TypeShape {
 }
 
 fn stream() -> TypeShape {
-    interface("java.util.stream.Stream", &["T"]).with_method(
-        MethodShape::new("forEach").with_parameters(vec![generic_of(
+    interface("java.util.stream.Stream", &["T"])
+        .with_method(MethodShape::new("forEach").with_parameters(vec![generic_of(
             "java.util.function.Consumer",
             &[variable("T")],
-        )]),
+        )]))
+        .with_method(
+            MethodShape::new("map")
+                .with_type_parameter("R")
+                .with_parameters(vec![generic_of(
+                    "java.util.function.Function",
+                    &[variable("T"), variable("R")],
+                )])
+                .returning(stream_of(variable("R"))),
+        )
+}
+
+fn function() -> TypeShape {
+    interface("java.util.function.Function", &["T", "R"]).with_method(
+        MethodShape::new("apply")
+            .with_parameters(vec![variable("T")])
+            .returning(variable("R"))
+            .as_abstract(),
     )
+}
+
+fn list() -> TypeShape {
+    interface("java.util.List", &["E"])
+        .with_method(MethodShape::new("stream").returning(stream_of(variable("E"))))
+        .with_method(returning("get", 1, variable("E")))
 }
 
 fn jdk_streams() -> Types {
@@ -880,6 +903,8 @@ fn jdk_streams() -> Types {
         .with_shape(int_consumer())
         .with_shape(stream())
         .with_shape(consumer())
+        .with_shape(function())
+        .with_shape(list())
         .with_shape(map())
 }
 
@@ -889,7 +914,12 @@ fn customer_catalog() -> Types {
             class("Order")
                 .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer"))),
         )
-        .with_shape(class("Customer").with_method(MethodShape::new("rename")))
+        .with_shape(
+            class("Customer")
+                .with_method(MethodShape::new("rename"))
+                .with_method(MethodShape::new("getWallet").returning(TypeRef::class("Wallet"))),
+        )
+        .with_shape(class("Wallet").with_method(MethodShape::new("withdraw")))
 }
 
 #[test]
@@ -1003,4 +1033,61 @@ fn inference_2_the_declared_type_of_a_field_types_the_lambda_parameter() {
     );
 
     assert_eq!(verdicts, closing_the_record_of_the_event());
+}
+
+fn charging_the_wallets_of_the_mapped_customers(first: Vec<Verdict>) -> Vec<Verdict> {
+    let orders = Reason::parameter("orders");
+    let mut verdicts = vec![Verdict::allowed("stream", 3, orders.clone())];
+    verdicts.extend(first);
+    verdicts.extend([
+        Verdict::allowed("map", 3, orders.clone()),
+        Verdict::allowed(
+            "getWallet",
+            3,
+            Reason::lambda_parameter("customer", orders.clone()),
+        ),
+        Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        Verdict::allowed("forEach", 3, orders),
+    ]);
+    verdicts
+}
+
+#[test]
+fn inference_3_the_result_of_a_method_reference_types_the_next_lambda_parameter() {
+    let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(Order::getCustomer).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "",
+        snippet,
+        "charge",
+        &customer_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        charging_the_wallets_of_the_mapped_customers(vec![])
+    );
+}
+
+#[test]
+fn inference_3_the_result_of_a_lambda_types_the_next_lambda_parameter() {
+    let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(order -> order.getCustomer()).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.List;",
+        "",
+        snippet,
+        "charge",
+        &customer_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        charging_the_wallets_of_the_mapped_customers(vec![Verdict::allowed(
+            "getCustomer",
+            3,
+            Reason::lambda_parameter("order", Reason::parameter("orders"))
+        )])
+    );
 }
