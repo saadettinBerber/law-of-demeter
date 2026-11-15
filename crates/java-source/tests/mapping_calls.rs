@@ -196,3 +196,18 @@ fn a_method_called_on_a_created_object_has_the_creation_as_receiver() {
         )
     );
 }
+
+#[test]
+fn a_name_from_on_demand_static_imports_carries_their_types_as_candidates_in_order() {
+    let source = "import static x.Y.*;\nimport static java.lang.Math.*;\nclass OrderService {\n void f(Order order) {\n  order.go(PAID);\n  PAID.name();\n }\n}";
+
+    let mapped = method_f(source);
+
+    let paid = || Expression::unresolved_among("PAID", vec![class("x.Y"), class("java.lang.Math")]);
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4)
+            .call(call(parameter("order", class("Order")), "go", 5).with(paid()))
+            .call(call(paid(), "name", 6))
+    );
+}
