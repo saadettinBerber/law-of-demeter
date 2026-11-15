@@ -27,4 +27,4 @@
 | Değişken sayıda argüman alan generic metodu çöz: `Stream.of(first, second)`. | Yapılmadı |
 | İç içe generic çağrıyı çöz: `collect(Collectors.groupingBy(Order::getStatus))`. | Yapılmadı |
 | Değişkene atanan ya da yapıcıya verilen lambdanın parametre tipini bul: `Consumer<Event> handler = e -> ...`. | Yapılmadı |
-| Statik import ile gelen enum sabitlerini çöz. | Yapılmadı |
+| Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
