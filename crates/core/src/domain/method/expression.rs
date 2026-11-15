@@ -218,13 +218,18 @@ impl Creation {
         let verdicts = self
             .arguments
             .iter()
-            .flat_map(|argument| argument.judge(context, &created, None))
+            .flat_map(|argument| argument.judge(context, &created, None).verdicts)
             .collect();
         Judged {
             verdicts,
             subject: created,
         }
     }
+}
+
+pub(super) struct Produced {
+    pub(super) verdicts: Vec<Verdict>,
+    pub(super) result: Option<TypeRef>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -265,11 +270,20 @@ impl Argument {
         context: &Context,
         feed: &Subject,
         functional: Option<&FunctionalMethod>,
-    ) -> Vec<Verdict> {
+    ) -> Produced {
         match self {
-            Self::Value(value) => value.judge(context).verdicts,
+            Self::Value(value) => {
+                let judged = value.judge(context);
+                Produced {
+                    verdicts: judged.verdicts,
+                    result: judged.subject.type_ref,
+                }
+            }
             Self::Lambda(lambda) => lambda.judge(context, feed, functional),
-            Self::MethodReference(reference) => reference.target.judge(context).verdicts,
+            Self::MethodReference(reference) => Produced {
+                verdicts: reference.target.judge(context).verdicts,
+                result: None,
+            },
         }
     }
 }
@@ -340,7 +354,7 @@ impl Lambda {
         context: &Context,
         feed: &Subject,
         functional: Option<&FunctionalMethod>,
-    ) -> Vec<Verdict> {
+    ) -> Produced {
         let declared = functional
             .map(|functional| functional.parameters.as_slice())
             .filter(|parameters| parameters.len() == self.parameters.len())
@@ -356,9 +370,11 @@ impl Lambda {
             inner.bind(parameter, subject.declared_as(known));
         }
         let mut verdicts = self.body.judge(&mut inner);
-        if let Some(result) = &self.result {
-            verdicts.extend(result.judge(&inner).verdicts);
-        }
-        verdicts
+        let result = self.result.as_ref().and_then(|result| {
+            let judged = result.judge(&inner);
+            verdicts.extend(judged.verdicts);
+            judged.subject.type_ref
+        });
+        Produced { verdicts, result }
     }
 }

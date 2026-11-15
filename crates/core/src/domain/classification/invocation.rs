@@ -69,6 +69,15 @@ impl Invocation {
         self
     }
 
+    pub(crate) fn yielded(&mut self, types: &Types, index: usize, result: Option<&TypeRef>) {
+        let returned = self
+            .functional_method(types, index)
+            .and_then(|functional| functional.returns);
+        if let Some((returned, result)) = returned.zip(result) {
+            self.unify(types, &returned, result);
+        }
+    }
+
     pub(crate) fn functional_method(
         &self,
         types: &Types,

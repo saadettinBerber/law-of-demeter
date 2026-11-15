@@ -53,17 +53,15 @@ impl Call {
             .map(|argument| argument.judge_value(context))
             .collect();
         let expected = self.expected.as_ref().or(expected);
-        let invocation = self.invocation(context.types, &receiver.subject, &values, expected);
+        let mut invocation = self.invocation(context.types, &receiver.subject, &values, expected);
         for (index, (argument, value)) in self.arguments.iter().zip(values).enumerate() {
             match value {
                 Some(judged) => verdicts.extend(judged.verdicts),
                 None => {
                     let functional = invocation.functional_method(context.types, index);
-                    verdicts.extend(argument.judge(
-                        context,
-                        &receiver.subject,
-                        functional.as_ref(),
-                    ));
+                    let produced = argument.judge(context, &receiver.subject, functional.as_ref());
+                    verdicts.extend(produced.verdicts);
+                    invocation.yielded(context.types, index, produced.result.as_ref());
                 }
             }
         }

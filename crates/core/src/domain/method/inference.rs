@@ -335,3 +335,51 @@ fn the_expression_a_lambda_yields_is_judged_like_a_statement() {
         ]
     );
 }
+
+fn withdrawing_from_the_wallet_of(variable: &str) -> Lambda {
+    Lambda::new(&[variable]).call(Call::new(
+        Expression::return_of(Call::new(Expression::local(variable), "getWallet", 3)),
+        "withdraw",
+        3,
+    ))
+}
+
+#[test]
+fn the_type_argument_of_a_generic_method_comes_from_the_result_of_a_lambda() {
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    let charge = Method::new("Billing", "charge", 1).call(
+        Call::new(orders, "stream", 2)
+            .then("map", 2)
+            .with(
+                Lambda::new(&["order"]).yielding(Expression::return_of(Call::new(
+                    Expression::local("order"),
+                    "getCustomer",
+                    2,
+                ))),
+            )
+            .then("forEach", 3)
+            .with(withdrawing_from_the_wallet_of("customer")),
+    );
+
+    let verdicts = charge.verdicts(&shop());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "getCustomer",
+                2,
+                Reason::lambda_parameter("order", Reason::parameter("orders"))
+            ),
+            Verdict::allowed("map", 2, Reason::parameter("orders")),
+            Verdict::allowed(
+                "getWallet",
+                3,
+                Reason::lambda_parameter("customer", Reason::parameter("orders"))
+            ),
+            Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+            Verdict::allowed("forEach", 3, Reason::parameter("orders")),
+        ]
+    );
+}
