@@ -71,7 +71,15 @@ impl Call {
             outer,
         );
         verdicts.extend(judged.verdicts);
-        verdicts.push(self.verdict(context, &receiver.subject));
+        verdicts.push(verdict_on(
+            context,
+            &receiver.subject,
+            &Called {
+                name: &self.name,
+                line: self.line,
+                argument_count: self.arguments.len(),
+            },
+        ));
         let type_ref = invocation.returns();
         let mapped = judged.mapped.filter(|_| {
             Self::is_container(context.types, receiver.subject.type_ref.as_ref())
@@ -111,62 +119,62 @@ impl Call {
             })
             .expecting(types, expected)
     }
+}
 
-    fn verdict(&self, context: &Context, receiver: &Subject) -> Verdict {
-        match &receiver.standing {
-            Standing::Friend(reason) => Verdict::allowed(&self.name, self.line, reason.clone()),
-            Standing::Stranger(source) => {
-                self.stranger_verdict(context, receiver.type_ref.as_ref(), source)
-            }
+pub(super) struct Called<'a> {
+    pub(super) name: &'a str,
+    pub(super) line: usize,
+    pub(super) argument_count: usize,
+}
+
+pub(super) fn verdict_on(context: &Context, receiver: &Subject, called: &Called) -> Verdict {
+    match &receiver.standing {
+        Standing::Friend(reason) => Verdict::allowed(called.name, called.line, reason.clone()),
+        Standing::Stranger(source) => {
+            stranger_verdict(context, called, receiver.type_ref.as_ref(), source)
         }
     }
+}
 
-    fn stranger_verdict(
-        &self,
-        context: &Context,
-        type_ref: Option<&TypeRef>,
-        source: &Reason,
-    ) -> Verdict {
-        let types = context.types;
-        let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
-        match classified {
-            Some((Classification::Container, type_ref)) if is_mutator(&self.name) => {
-                Verdict::violation(
-                    &self.name,
-                    self.line,
-                    Reason::container_mutation(type_ref.clone(), source.clone()),
-                )
-            }
-            Some((
-                classification @ (Classification::Value | Classification::Container),
-                type_ref,
-            )) => Verdict::allowed(
-                &self.name,
-                self.line,
+fn stranger_verdict(
+    context: &Context,
+    called: &Called,
+    type_ref: Option<&TypeRef>,
+    source: &Reason,
+) -> Verdict {
+    let types = context.types;
+    let (name, line) = (called.name, called.line);
+    let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
+    match classified {
+        Some((Classification::Container, type_ref)) if is_mutator(name) => Verdict::violation(
+            name,
+            line,
+            Reason::container_mutation(type_ref.clone(), source.clone()),
+        ),
+        Some((classification @ (Classification::Value | Classification::Container), type_ref)) => {
+            Verdict::allowed(
+                name,
+                line,
                 Reason::classified(classification, type_ref.clone()),
-            ),
-            Some((_, type_ref)) if is_library(context, type_ref) => {
-                Verdict::allowed(&self.name, self.line, Reason::library(type_ref.clone()))
-            }
-            Some((Classification::DataStructure, type_ref)) => Verdict::allowed(
-                &self.name,
-                self.line,
-                Reason::classified(Classification::DataStructure, type_ref.clone()),
-            ),
-            Some((_, type_ref)) if self.is_fluent_on(types, type_ref) => {
-                Verdict::allowed(&self.name, self.line, Reason::fluent(type_ref.clone()))
-            }
-            Some((Classification::Unknown, _)) | None => Verdict::violation(
-                &self.name,
-                self.line,
-                Reason::unresolved_type(type_ref.cloned(), source.clone()),
-            ),
-            Some(_) => Verdict::violation(&self.name, self.line, source.clone()),
+            )
         }
-    }
-
-    fn is_fluent_on(&self, types: &Types, type_ref: &TypeRef) -> bool {
-        is_fluent(types, type_ref, &self.name, self.arguments.len())
+        Some((_, type_ref)) if is_library(context, type_ref) => {
+            Verdict::allowed(name, line, Reason::library(type_ref.clone()))
+        }
+        Some((Classification::DataStructure, type_ref)) => Verdict::allowed(
+            name,
+            line,
+            Reason::classified(Classification::DataStructure, type_ref.clone()),
+        ),
+        Some((_, type_ref)) if is_fluent(types, type_ref, name, called.argument_count) => {
+            Verdict::allowed(name, line, Reason::fluent(type_ref.clone()))
+        }
+        Some((Classification::Unknown, _)) | None => Verdict::violation(
+            name,
+            line,
+            Reason::unresolved_type(type_ref.cloned(), source.clone()),
+        ),
+        Some(_) => Verdict::violation(name, line, source.clone()),
     }
 }
 
