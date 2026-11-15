@@ -421,6 +421,172 @@ fn a_bare_name_that_no_superclass_declares_stays_unresolved() {
     );
 }
 
+fn constants() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("Status", TypeKind::Enum)
+                .with_field(FieldShape::new("PAID", TypeRef::class("Status")).as_static()),
+        )
+        .with_shape(
+            class("Limits")
+                .with_field(FieldShape::new("LIMIT", TypeRef::class("Wallet")).as_static())
+                .with_field(FieldShape::new("current", TypeRef::class("Wallet"))),
+        )
+        .with_shape(
+            class("Thresholds")
+                .with_field(FieldShape::new("LIMIT", TypeRef::class("Customer")).as_static()),
+        )
+        .with_shape(class("SubLimits").with_superclass(TypeRef::class("Limits")))
+        .with_shape(class("Wallet").with_method(returning(
+            "getOwner",
+            0,
+            TypeRef::class("Customer"),
+        )))
+        .with_shape(class("Customer").with_method(MethodShape::new("rename")))
+}
+
+fn among(name: &str, candidates: &[&str]) -> Expression {
+    Expression::unresolved_among(
+        name,
+        candidates
+            .iter()
+            .map(|owner| TypeRef::class(owner))
+            .collect(),
+    )
+}
+
+fn limit_owner_renamed(candidates: &[&str]) -> Method {
+    Method::new("Billing", "audit", 1)
+        .call(Call::new(among("LIMIT", candidates), "getOwner", 2).then("rename", 2))
+}
+
+#[test]
+fn a_bare_name_that_a_candidate_declares_as_a_static_field_is_a_friend() {
+    let name =
+        Method::new("Shipping", "nameOf", 1).call(Call::new(among("PAID", &["Status"]), "name", 2));
+
+    let verdicts = name.verdicts(&constants());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("name", 2, Reason::static_result("PAID"))]
+    );
+}
+
+#[test]
+fn the_first_candidate_that_declares_the_static_field_decides_its_type() {
+    let first = limit_owner_renamed(&["Limits", "Thresholds"]);
+    let second = limit_owner_renamed(&["Thresholds", "Limits"]);
+
+    let from_first = first.verdicts(&constants());
+    let from_second = second.verdicts(&constants());
+
+    assert_eq!(
+        from_first,
+        [
+            Verdict::allowed("getOwner", 2, Reason::static_result("LIMIT")),
+            Verdict::violation("rename", 2, Reason::return_of("getOwner")),
+        ]
+    );
+    assert_eq!(
+        from_second,
+        [
+            Verdict::allowed("getOwner", 2, Reason::static_result("LIMIT")),
+            Verdict::violation(
+                "rename",
+                2,
+                Reason::unresolved_type(None, Reason::return_of("getOwner"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_candidate_that_does_not_declare_the_name_is_skipped() {
+    let name = Method::new("Shipping", "nameOf", 1).call(Call::new(
+        among("PAID", &["Limits", "Missing", "Status"]),
+        "name",
+        2,
+    ));
+
+    let verdicts = name.verdicts(&constants());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("name", 2, Reason::static_result("PAID"))]
+    );
+}
+
+#[test]
+fn a_static_field_a_candidate_inherits_counts() {
+    let audit = limit_owner_renamed(&["SubLimits"]);
+
+    let verdicts = audit.verdicts(&constants());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("rename", 2, Reason::return_of("getOwner"))
+    );
+}
+
+#[test]
+fn an_instance_field_of_a_candidate_does_not_count() {
+    let name = Method::new("Billing", "audit", 1).call(Call::new(
+        among("current", &["Limits"]),
+        "getOwner",
+        2,
+    ));
+
+    let verdicts = name.verdicts(&constants());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "getOwner",
+            2,
+            Reason::unresolved_type(None, Reason::unresolved_name("current"))
+        )]
+    );
+}
+
+#[test]
+fn a_bare_name_no_candidate_declares_stays_unresolved() {
+    let name = Method::new("Shipping", "nameOf", 1).call(Call::new(
+        among("SHIPPED", &["Status", "Missing"]),
+        "name",
+        2,
+    ));
+
+    let verdicts = name.verdicts(&constants());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "name",
+            2,
+            Reason::unresolved_type(None, Reason::unresolved_name("SHIPPED"))
+        )]
+    );
+}
+
+#[test]
+fn a_field_of_the_own_type_wins_over_the_candidates() {
+    let types = constants()
+        .with_shape(class("Billing").with_field(FieldShape::new("PAID", TypeRef::class("Wallet"))));
+    let name = Method::new("Billing", "nameOf", 1).call(Call::new(
+        among("PAID", &["Status"]),
+        "getOwner",
+        2,
+    ));
+
+    let verdicts = name.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("getOwner", 2, Reason::field("PAID"))]
+    );
+}
+
 #[test]
 fn a_lambda_parameter_fed_by_an_unresolved_name_is_unresolved() {
     let reason = Reason::lambda_parameter("item", Reason::unresolved_name("items"));

@@ -5,7 +5,7 @@ use super::call::{Call, standing_after_call};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject};
 use crate::domain::classification::{FunctionalMethod, Types};
-use crate::domain::type_shape::TypeRef;
+use crate::domain::type_shape::{FieldShape, TypeRef};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
@@ -32,7 +32,10 @@ pub enum Expression {
         target: Box<Expression>,
         name: String,
     },
-    Unresolved(String),
+    Unresolved {
+        name: String,
+        candidates: Vec<TypeRef>,
+    },
 }
 
 impl Expression {
@@ -75,7 +78,14 @@ impl Expression {
     }
 
     pub fn unresolved(name: &str) -> Self {
-        Self::Unresolved(name.to_owned())
+        Self::unresolved_among(name, Vec::new())
+    }
+
+    pub fn unresolved_among(name: &str, candidates: Vec<TypeRef>) -> Self {
+        Self::Unresolved {
+            name: name.to_owned(),
+            candidates,
+        }
     }
 
     pub fn field_of(target: Expression, name: &str) -> Self {
@@ -126,17 +136,7 @@ impl Expression {
                     type_ref: None,
                 },
             },
-            Self::Unresolved(name) => Judged::quiet(
-                class_name(&context.this_type)
-                    .and_then(|owner| field_type(context.types, owner, name))
-                    .map_or_else(
-                        || Subject {
-                            standing: Standing::Stranger(Reason::unresolved_name(name)),
-                            type_ref: None,
-                        },
-                        |type_ref| Subject::friend(Reason::field(name), type_ref),
-                    ),
-            ),
+            Self::Unresolved { name, candidates } => judge_unresolved(context, name, candidates),
             Self::FieldOf { target, name } => {
                 let judged = target.judge(context);
                 let standing = if matches!(**target, Self::StaticType(_)) {
@@ -173,7 +173,37 @@ fn class_name(type_ref: &TypeRef) -> Option<&str> {
     }
 }
 
+fn judge_unresolved(context: &Context, name: &str, candidates: &[TypeRef]) -> Judged {
+    let own =
+        class_name(&context.this_type).and_then(|owner| field_type(context.types, owner, name));
+    if let Some(type_ref) = own {
+        return Judged::quiet(Subject::friend(Reason::field(name), type_ref));
+    }
+    let declaring = candidates
+        .iter()
+        .find(|candidate| declares_static_field(context.types, candidate, name));
+    match declaring {
+        Some(owner) => {
+            Expression::field_of(Expression::static_type(owner.clone()), name).judge(context)
+        }
+        None => Judged::quiet(Subject {
+            standing: Standing::Stranger(Reason::unresolved_name(name)),
+            type_ref: None,
+        }),
+    }
+}
+
+fn declares_static_field(types: &Types, owner: &TypeRef, name: &str) -> bool {
+    class_name(owner)
+        .and_then(|owner| find_field(types, owner, name))
+        .is_some_and(FieldShape::is_static)
+}
+
 fn field_type(types: &Types, owner: &str, name: &str) -> Option<TypeRef> {
+    find_field(types, owner, name).map(|field| field.type_ref().clone())
+}
+
+fn find_field<'t>(types: &'t Types, owner: &str, name: &str) -> Option<&'t FieldShape> {
     let mut pending = vec![owner];
     let mut seen = HashSet::new();
     while let Some(current) = pending.pop() {
@@ -184,7 +214,7 @@ fn field_type(types: &Types, owner: &str, name: &str) -> Option<TypeRef> {
             continue;
         };
         if let Some(field) = shape.fields().iter().find(|field| field.name() == name) {
-            return Some(field.type_ref().clone());
+            return Some(field);
         }
         pending.extend(shape.supertypes().iter().filter_map(class_name));
     }

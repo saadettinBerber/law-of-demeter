@@ -93,7 +93,7 @@ pub(super) fn is_quiet(value: &Expression) -> bool {
         | Expression::Parameter { .. }
         | Expression::Field { .. }
         | Expression::StaticType(_)
-        | Expression::Unresolved(_) => true,
+        | Expression::Unresolved { .. } => true,
         Expression::Operation(operands) => operands.iter().all(is_quiet),
         Expression::FieldOf { target, .. } => is_quiet(target),
         _ => false,
