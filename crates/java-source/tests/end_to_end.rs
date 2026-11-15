@@ -290,6 +290,31 @@ fn violation_8_talking_to_the_object_a_holder_getter_returned() {
 }
 
 #[test]
+fn violation_9_talking_to_the_object_an_own_method_returned() {
+    let types = Types::new()
+        .with_shape(
+            class("C").with_method(
+                MethodShape::new("findLine")
+                    .with_parameters(vec![TypeRef::class("java.lang.String")])
+                    .returning(TypeRef::class("OrderLine")),
+            ),
+        )
+        .with_shape(class("OrderLine").with_method(MethodShape::new("applyDiscount")));
+    let members = "OrderLine findLine(String id) { return null; }";
+    let snippet = "void discount(String id, int rate) {\n    findLine(id).applyDiscount(rate);\n}";
+
+    let verdicts = verdicts_in_c("", members, snippet, "discount", &types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("findLine", 3, Reason::This),
+            Verdict::violation("applyDiscount", 3, Reason::return_of("findLine")),
+        ]
+    );
+}
+
+#[test]
 fn allowed_1_reading_a_value_from_a_parameter() {
     let snippet = "boolean canShip(Order order) {\n    return order.getStatus() == Status.PAID;\n}";
 
