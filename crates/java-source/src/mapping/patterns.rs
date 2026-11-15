@@ -4,7 +4,6 @@ use crate::{self as model, PatternBinding, Switch};
 
 use super::MethodMapper;
 use super::steps::is_quiet;
-use super::types::type_ref_or_object;
 
 const SUBJECT: &str = "<subject>";
 
@@ -55,7 +54,7 @@ impl MethodMapper<'_> {
 
     fn bind(&mut self, subject: &Expression, bindings: &[PatternBinding]) {
         for binding in bindings {
-            let declared = type_ref_or_object(&binding.declared_type);
+            let declared = self.type_ref_or_object(&binding.declared_type);
             self.locals
                 .insert(binding.name.clone(), Some(declared.clone()));
             let value = Expression::cast(declared.clone(), subject.clone());

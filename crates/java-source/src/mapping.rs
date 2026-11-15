@@ -10,10 +10,10 @@ use std::path::Path;
 use law_of_demeter_core::domain::method::Method;
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
-use crate::{Class, Method as ParsedMethod, ParseError, SourceFile, parse_with};
+use crate::{Class, DeclaredType, Method as ParsedMethod, ParseError, SourceFile, parse_with};
 
 use steps::Steps;
-use types::{object, type_ref, type_ref_or_object};
+use types::{Bounds, object};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappedFile {
@@ -54,6 +54,7 @@ struct MethodMapper<'a> {
     file: &'a SourceFile,
     class: &'a Class,
     method: &'a ParsedMethod,
+    bounds: Bounds,
     parameters: HashMap<&'a str, TypeRef>,
     locals: HashMap<String, Option<TypeRef>>,
     returns: Option<TypeRef>,
@@ -62,6 +63,7 @@ struct MethodMapper<'a> {
 
 impl<'a> MethodMapper<'a> {
     fn new(file: &'a SourceFile, class: &'a Class, method: &'a ParsedMethod) -> Self {
+        let bounds = bounds_of(file, class, method);
         Self {
             file,
             class,
@@ -72,12 +74,16 @@ impl<'a> MethodMapper<'a> {
                 .map(|parameter| {
                     (
                         parameter.name.as_str(),
-                        type_ref_or_object(&parameter.declared_type),
+                        types::type_ref_or_object(&parameter.declared_type, &bounds),
                     )
                 })
                 .collect(),
             locals: HashMap::new(),
-            returns: method.returns.as_ref().and_then(type_ref),
+            returns: method
+                .returns
+                .as_ref()
+                .and_then(|returns| types::type_ref(returns, &bounds)),
+            bounds,
             steps: Steps::default(),
         }
     }
@@ -95,6 +101,14 @@ impl<'a> MethodMapper<'a> {
         self.steps.into_method(method)
     }
 
+    fn type_ref(&self, declared: &DeclaredType) -> Option<TypeRef> {
+        types::type_ref(declared, &self.bounds)
+    }
+
+    fn type_ref_or_object(&self, declared: &DeclaredType) -> TypeRef {
+        types::type_ref_or_object(declared, &self.bounds)
+    }
+
     fn parameter_type(&self, name: &str) -> TypeRef {
         self.parameters.get(name).cloned().unwrap_or_else(object)
     }
@@ -110,7 +124,9 @@ impl<'a> MethodMapper<'a> {
                     .iter()
                     .find(|candidate| candidate.name == field)
             })
-            .map_or_else(object, |field| type_ref_or_object(&field.declared_type))
+            .map_or_else(object, |field| {
+                self.type_ref_or_object(&field.declared_type)
+            })
     }
 
     fn captured_type(&self, name: &str) -> TypeRef {
@@ -119,7 +135,39 @@ impl<'a> MethodMapper<'a> {
             .iter()
             .rfind(|variable| variable.name == name)
             .map_or_else(object, |variable| {
-                type_ref_or_object(&variable.declared_type)
+                self.type_ref_or_object(&variable.declared_type)
             })
     }
+}
+
+fn bounds_of(file: &SourceFile, class: &Class, method: &ParsedMethod) -> Bounds {
+    let mut enclosing = Vec::new();
+    let mut current = Some(class);
+    while let Some(found) = current {
+        enclosing.push(found);
+        current = found.outer.as_ref().and_then(|outer| {
+            file.classes
+                .iter()
+                .find(|candidate| &candidate.name == outer)
+        });
+    }
+    enclosing
+        .iter()
+        .rev()
+        .flat_map(|found| &found.type_parameters)
+        .chain(&method.type_parameters)
+        .fold(Bounds::new(), |mut bounds, parameter| {
+            match &parameter.bound {
+                Some(bound) => {
+                    bounds.insert(
+                        parameter.name.clone(),
+                        types::type_ref_or_object(bound, &Bounds::new()),
+                    );
+                }
+                None => {
+                    bounds.remove(&parameter.name);
+                }
+            }
+            bounds
+        })
 }

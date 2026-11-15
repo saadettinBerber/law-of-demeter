@@ -5,7 +5,6 @@ use crate::{Catch, Expression, LocalVariable, Statement};
 
 use super::MethodMapper;
 use super::expressions::expecting;
-use super::types::{type_ref, type_ref_or_object};
 
 impl MethodMapper<'_> {
     pub(super) fn statements(&mut self, statements: &[Statement]) {
@@ -51,8 +50,10 @@ impl MethodMapper<'_> {
                 body,
             } => {
                 let iterable = self.expression(iterable);
-                self.locals
-                    .insert(variable.name.clone(), type_ref(&variable.declared_type));
+                self.locals.insert(
+                    variable.name.clone(),
+                    self.type_ref(&variable.declared_type),
+                );
                 self.steps.for_each(&variable.name, iterable);
                 self.statements(body);
             }
@@ -95,7 +96,7 @@ impl MethodMapper<'_> {
     }
 
     fn local(&mut self, local: &LocalVariable) {
-        let declared = type_ref(&local.declared_type);
+        let declared = self.type_ref(&local.declared_type);
         self.locals.insert(local.name.clone(), declared.clone());
         let Some(initializer) = &local.initializer else {
             return;
@@ -106,7 +107,7 @@ impl MethodMapper<'_> {
 
     fn catch(&mut self, caught: &Catch) {
         let declared = match caught.types.as_slice() {
-            [only] => type_ref_or_object(only),
+            [only] => self.type_ref_or_object(only),
             _ => TypeRef::class("java.lang.Throwable"),
         };
         let value = Value::parameter(&caught.name, declared.clone());

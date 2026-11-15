@@ -10,7 +10,7 @@ use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
 use super::steps::is_quiet;
-use super::types::{named_type, object, type_ref_or_object};
+use super::types::{named_type, object};
 
 impl MethodMapper<'_> {
     pub(super) fn expression(&mut self, expression: &model::Expression) -> Expression {
@@ -45,7 +45,7 @@ impl MethodMapper<'_> {
                 Expression::operation(operands.collect())
             }
             model::Expression::Cast { target, operand } => {
-                Expression::cast(type_ref_or_object(target), self.expression(operand))
+                Expression::cast(self.type_ref_or_object(target), self.expression(operand))
             }
             model::Expression::Lambda(lambda) => {
                 self.inline_lambda(lambda);
@@ -64,7 +64,7 @@ impl MethodMapper<'_> {
             } => self.instance_of(operand, bindings),
             model::Expression::Switch(switch) => self.switch(switch),
             model::Expression::ClassLiteral(named) => Expression::cast(
-                TypeRef::generic("java.lang.Class", vec![type_ref_or_object(named)]),
+                TypeRef::generic("java.lang.Class", vec![self.type_ref_or_object(named)]),
                 Expression::literal(),
             ),
             model::Expression::Literal => Expression::literal(),
@@ -87,7 +87,7 @@ impl MethodMapper<'_> {
     }
 
     fn creation(&mut self, created: &model::New) -> Expression {
-        let mut creation = Creation::new(type_ref_or_object(&created.created));
+        let mut creation = Creation::new(self.type_ref_or_object(&created.created));
         for argument in &created.arguments {
             creation = creation.with(self.argument(argument));
         }
@@ -147,7 +147,7 @@ impl MethodMapper<'_> {
             let declared = parameter
                 .declared_type
                 .as_ref()
-                .map_or_else(object, type_ref_or_object);
+                .map_or_else(object, |declared| self.type_ref_or_object(declared));
             self.locals
                 .insert(parameter.name.clone(), Some(declared.clone()));
             let value = Expression::parameter(&parameter.name, declared.clone());
