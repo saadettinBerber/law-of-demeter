@@ -1329,3 +1329,98 @@ fn on_demand_static_names_3_a_name_no_imported_type_declares_stays_unresolved() 
         )]
     );
 }
+
+fn variable_arity_catalog() -> Types {
+    let element = || variable("T");
+    let static_of = |parameter: TypeRef| {
+        MethodShape::new("of")
+            .as_static()
+            .with_type_parameter("T")
+            .with_parameters(vec![parameter])
+            .returning(stream_of(element()))
+    };
+    let streams = stream()
+        .with_method(static_of(element()))
+        .with_method(static_of(TypeRef::array(element())).as_varargs())
+        .with_method(
+            MethodShape::new("flatMap")
+                .with_type_parameter("R")
+                .with_parameters(vec![generic_of(
+                    "java.util.function.Function",
+                    &[element(), stream_of(variable("R"))],
+                )])
+                .returning(stream_of(variable("R"))),
+        )
+        .with_method(
+            MethodShape::new("toList").returning(generic_of("java.util.List", &[element()])),
+        );
+    let string = class("java.lang.String")
+        .with_method(
+            MethodShape::new("format")
+                .as_static()
+                .as_varargs()
+                .with_parameters(vec![
+                    TypeRef::class("java.lang.String"),
+                    TypeRef::array(TypeRef::class("java.lang.Object")),
+                ])
+                .returning(TypeRef::class("java.lang.String")),
+        )
+        .with_method(MethodShape::new("trim").returning(TypeRef::class("java.lang.String")))
+        .with_method(MethodShape::new("isEmpty").returning(TypeRef::primitive("boolean")));
+    customer_catalog()
+        .with_shape(streams)
+        .with_shape(
+            interface("java.util.Optional", &["T"])
+                .with_method(MethodShape::new("stream").returning(stream_of(variable("T")))),
+        )
+        .with_shape(string)
+}
+
+#[test]
+fn variable_arity_1_a_stream_of_several_arguments_gets_its_element_type() {
+    let snippet = "void notify(Optional<Order> first, Optional<Order> second, Optional<Order> third) {\n    Stream.of(first, second, third).flatMap(Optional::stream).toList().get(0).getCustomer().rename();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.Optional; import java.util.stream.Stream;",
+        "",
+        snippet,
+        "notify",
+        &variable_arity_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "of",
+                3,
+                Reason::static_type(TypeRef::class("java.util.stream.Stream"))
+            ),
+            Verdict::allowed("flatMap", 3, Reason::static_result("of")),
+            Verdict::allowed("toList", 3, Reason::static_result("of")),
+            Verdict::allowed("get", 3, Reason::static_result("of")),
+            Verdict::allowed("getCustomer", 3, Reason::static_result("of")),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+        ]
+    );
+}
+
+#[test]
+fn variable_arity_2_a_formatted_string_gets_its_return_type() {
+    let snippet = "boolean blank(Order first, Order second) {\n    return String.format(\"%s %s\", first, second).trim().isEmpty();\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "blank", &variable_arity_catalog());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "format",
+                3,
+                Reason::static_type(TypeRef::class("java.lang.String"))
+            ),
+            Verdict::allowed("trim", 3, Reason::static_result("format")),
+            Verdict::allowed("isEmpty", 3, Reason::static_result("format")),
+        ]
+    );
+}
