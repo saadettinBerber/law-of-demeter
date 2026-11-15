@@ -1247,3 +1247,85 @@ fn inference_4_counter_case_an_unbounded_type_variable_stays_unresolved() {
         ]
     );
 }
+
+fn constants_catalog() -> Types {
+    Types::new()
+        .with_shape(
+            TypeShape::new("shop.Status", TypeKind::Enum)
+                .with_field(FieldShape::new("PAID", TypeRef::class("shop.Status")).as_static()),
+        )
+        .with_shape(
+            class("shop.Colors")
+                .with_field(FieldShape::new("RED", TypeRef::class("shop.Colors")).as_static()),
+        )
+        .with_shape(
+            class("shop.Limits")
+                .with_field(FieldShape::new("LIMIT", TypeRef::class("Wallet")).as_static()),
+        )
+        .with_shape(
+            class("Wallet")
+                .with_method(MethodShape::new("getOwner").returning(TypeRef::class("Customer"))),
+        )
+        .with_shape(class("Customer").with_method(MethodShape::new("rename")))
+}
+
+#[test]
+fn on_demand_static_names_1_a_constant_of_the_imported_type_is_a_friend() {
+    let snippet = "String label() {\n    return PAID.name();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import static shop.Status.*;",
+        "",
+        snippet,
+        "label",
+        &constants_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("name", 3, Reason::static_result("PAID"))]
+    );
+}
+
+#[test]
+fn on_demand_static_names_2_the_first_import_that_declares_the_constant_decides_its_type() {
+    let snippet = "void audit() {\n    LIMIT.getOwner().rename();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import static shop.Colors.*; import static shop.Limits.*;",
+        "",
+        snippet,
+        "audit",
+        &constants_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getOwner", 3, Reason::static_result("LIMIT")),
+            Verdict::violation("rename", 3, Reason::return_of("getOwner")),
+        ]
+    );
+}
+
+#[test]
+fn on_demand_static_names_3_a_name_no_imported_type_declares_stays_unresolved() {
+    let snippet = "String label() {\n    return SHIPPED.name();\n}";
+
+    let verdicts = verdicts_in_c(
+        "import static shop.Status.*; import static shop.Colors.*;",
+        "",
+        snippet,
+        "label",
+        &constants_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [Verdict::violation(
+            "name",
+            3,
+            Reason::unresolved_type(None, Reason::unresolved_name("SHIPPED"))
+        )]
+    );
+}
