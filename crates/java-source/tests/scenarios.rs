@@ -217,12 +217,12 @@ fn violation_6_reaching_into_the_elements_of_an_inner_collection() {
             name: "line".to_owned(),
             declared_type: None,
         }],
-        body: vec![run(call(
+        body: vec![Statement::Return(Some(call(
             Expression::LambdaParameter("line".to_owned()),
             "applyDiscount",
             vec![parameter("rate")],
             3,
-        ))],
+        )))],
     });
     assert_eq!(
         method.body,

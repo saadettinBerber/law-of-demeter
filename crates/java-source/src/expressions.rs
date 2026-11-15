@@ -253,7 +253,7 @@ impl Reader<'_> {
         }
         let body = match node.child_by_field_name("body") {
             Some(body) if body.kind() == "block" => self.block_statements(body, scope),
-            Some(body) => vec![Statement::Expression(self.expression(body, scope))],
+            Some(body) => vec![Statement::Return(Some(self.expression(body, scope)))],
             None => Vec::new(),
         };
         scope.close_frame();

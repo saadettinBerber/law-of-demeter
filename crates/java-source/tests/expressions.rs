@@ -80,12 +80,12 @@ fn a_lambda_has_parameters_that_hide_everything_else() {
                     name: "line".to_owned(),
                     declared_type: None
                 }],
-                body: vec![Statement::Expression(call(
+                body: vec![Statement::Return(Some(call(
                     Expression::LambdaParameter("line".to_owned()),
                     "applyDiscount",
                     vec![parameter("rate")],
                     3
-                ))],
+                )))],
             })],
             3
         ))]
@@ -277,5 +277,38 @@ fn a_class_literal_keeps_the_type_it_names() {
     assert_eq!(
         initializer_of(&body[1..]),
         Expression::ClassLiteral(DeclaredType::array(DeclaredType::class("shop.Order")))
+    );
+}
+
+#[test]
+fn an_expression_body_returns_its_value_while_a_block_keeps_its_statements() {
+    let body = body_of(
+        "void f(Order order) {\n run(x -> order.get(x));\n run(x -> { order.put(x); });\n}",
+    );
+
+    let bodies: Vec<Vec<Statement>> = body
+        .iter()
+        .map(|statement| match statement {
+            Statement::Expression(Expression::Call(call)) => match &call.arguments[0] {
+                Expression::Lambda(lambda) => lambda.body.clone(),
+                other => panic!("expected a lambda, got {other:?}"),
+            },
+            other => panic!("expected a call, got {other:?}"),
+        })
+        .collect();
+    let on_x = |name: &str, line| {
+        call(
+            parameter("order"),
+            name,
+            vec![Expression::LambdaParameter("x".to_owned())],
+            line,
+        )
+    };
+    assert_eq!(
+        bodies,
+        [
+            vec![Statement::Return(Some(on_x("get", 3)))],
+            vec![Statement::Expression(on_x("put", 4))],
+        ]
     );
 }
