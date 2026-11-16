@@ -345,3 +345,25 @@ fn the_parameter_types_of_a_lambda_do_not_leak_into_the_next_one() {
             .call(second)
     );
 }
+
+#[test]
+fn a_default_method_overriding_an_inherited_abstract_one_leaves_a_single_abstract_method() {
+    let action = interface("Action", &[]).with_method(MethodShape::new("run").as_abstract());
+    let task = interface("Task", &[])
+        .extending(class("Action"))
+        .with_method(MethodShape::new("run"))
+        .with_method(accepting(vec![customer()]));
+    let types = world().with_shape(action).with_shape(task);
+    let body = "Task run = c -> c.getWallet().pay();";
+
+    let mapped = mapped_in(&types, "", body);
+
+    assert_eq!(
+        mapped,
+        f(2).assign(
+            "run",
+            class("Task"),
+            Expression::lambda(payer().resolving("c", customer()))
+        )
+    );
+}
