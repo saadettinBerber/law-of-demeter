@@ -44,7 +44,7 @@
 | [Tip çıkarımı için güvenlik ağı kur: domain'deki çıkarım testlerinden Java kaynağıyla karşılığı olmayanları java-source'ta uçtan uca test olarak yaz.](SCENARIOS.md) | Yapıldı |
 | [Kaynak okuyucu port'u tip şekillerini ve platformu da versin; Java adapter'ı tipleri çözebilsin.](README.md#mimari) | Yapıldı |
 | [Domain modeline çözülmüş tip alanları ekle: çağrının dönüş tipi, lambda parametresinin tipi; alan doluysa domain onu kullansın, boşsa kendi çıkarımını sürdürsün.](README.md#mimari) | Yapıldı |
-| [Generic olmayan çağrının dönüş tipini adapter bulsun: üst tiplerde ve kök tipte arama, argüman sayısına göre metot.](README.md#mimari) | Yapılmadı |
+| [Generic olmayan çağrının dönüş tipini adapter bulsun: üst tiplerde ve kök tipte arama, argüman sayısına göre metot.](README.md#mimari) | Yapıldı |
 | [Generic sınıfın tip argümanlarını adapter yerine koysun: `List<Order>.get()` → `Order`.](README.md#mimari) | Yapılmadı |
 | [Aşırı yükleme seçimini adapter yapsın: argüman tiplerine göre doğru metot.](README.md#mimari) | Yapılmadı |
 | [Değişken sayıda argümanı adapter çözsün: `Stream.of(a, b)`, `String.format("%s %s", a, b)`.](README.md#mimari) | Yapılmadı |
