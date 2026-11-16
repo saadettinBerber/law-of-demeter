@@ -10,9 +10,9 @@ use nesting::{
     IMPORTS, collected_chain, nested_collectors, nested_lambda_collectors, snippet, world,
 };
 
-const BUDGET: Duration = Duration::from_secs(3);
+const THREE_SECONDS: Duration = Duration::from_secs(3);
 
-fn judges_within_budget(statement: String) -> bool {
+fn judges_within(limit: Duration, statement: String) -> bool {
     let (done, finished) = mpsc::channel();
     thread::Builder::new()
         .stack_size(256 * 1024 * 1024)
@@ -21,20 +21,20 @@ fn judges_within_budget(statement: String) -> bool {
             let _ = done.send(());
         })
         .unwrap();
-    finished.recv_timeout(BUDGET).is_ok()
+    finished.recv_timeout(limit).is_ok()
 }
 
 #[test]
-fn collectors_nested_twenty_four_levels_deep_with_references_are_judged_within_budget() {
-    assert!(judges_within_budget(nested_collectors(24)));
+fn collectors_nested_twenty_four_levels_deep_with_references_are_judged_within_three_seconds() {
+    assert!(judges_within(THREE_SECONDS, nested_collectors(24)));
 }
 
 #[test]
-fn collectors_nested_twenty_four_levels_deep_with_lambdas_are_judged_within_budget() {
-    assert!(judges_within_budget(nested_lambda_collectors(24)));
+fn collectors_nested_twenty_four_levels_deep_with_lambdas_are_judged_within_three_seconds() {
+    assert!(judges_within(THREE_SECONDS, nested_lambda_collectors(24)));
 }
 
 #[test]
 fn a_long_chain_of_collected_streams_is_judged_in_linear_time() {
-    assert!(judges_within_budget(collected_chain(300)));
+    assert!(judges_within(THREE_SECONDS, collected_chain(300)));
 }

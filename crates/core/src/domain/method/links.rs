@@ -402,18 +402,20 @@ fn a_method_reference_takes_its_resolved_input_type_when_its_functional_paramete
     )));
 }
 
-fn judged_within_budget(grouping: Call) -> bool {
+const THREE_SECONDS: Duration = Duration::from_secs(3);
+
+fn judged_within(limit: Duration, grouping: Call) -> bool {
     let (done, finished) = mpsc::channel();
     thread::spawn(move || {
         let group = Method::new("Billing", "group", 1).call(orders_collected_by(grouping));
         group.verdicts(&collecting());
         let _ = done.send(());
     });
-    finished.recv_timeout(Duration::from_secs(3)).is_ok()
+    finished.recv_timeout(limit).is_ok()
 }
 
 #[test]
-fn collectors_nested_twenty_four_levels_deep_are_judged_within_the_budget() {
+fn collectors_nested_twenty_four_levels_deep_are_judged_within_three_seconds() {
     let nested = (0..24).fold(collectors_call("toList"), |inner, _| {
         collectors_call("groupingBy")
             .with(MethodReference::new(
@@ -424,7 +426,7 @@ fn collectors_nested_twenty_four_levels_deep_are_judged_within_the_budget() {
             .with(Expression::return_of(inner))
     });
 
-    assert!(judged_within_budget(nested));
+    assert!(judged_within(THREE_SECONDS, nested));
 }
 
 fn orders_a_stranger_returned() -> Expression {

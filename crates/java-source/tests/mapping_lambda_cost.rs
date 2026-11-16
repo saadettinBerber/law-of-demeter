@@ -40,9 +40,9 @@ fn world() -> Types {
         .with_shape(node)
 }
 
-const BUDGET: Duration = Duration::from_secs(3);
+const THREE_SECONDS: Duration = Duration::from_secs(3);
 
-fn maps_within_budget(body: String) -> bool {
+fn maps_within(limit: Duration, body: String) -> bool {
     let (done, finished) = mpsc::channel();
     thread::Builder::new()
         .stack_size(256 * 1024 * 1024)
@@ -52,7 +52,7 @@ fn maps_within_budget(body: String) -> bool {
             let _ = done.send(());
         })
         .unwrap();
-    finished.recv_timeout(BUDGET).is_ok()
+    finished.recv_timeout(limit).is_ok()
 }
 
 fn chain(length: usize) -> String {
@@ -69,10 +69,10 @@ fn nested(depth: usize) -> String {
 
 #[test]
 fn a_long_chain_of_lambda_calls_maps_in_linear_time() {
-    assert!(maps_within_budget(chain(600)));
+    assert!(maps_within(THREE_SECONDS, chain(600)));
 }
 
 #[test]
 fn deeply_nested_lambda_calls_map_in_linear_time() {
-    assert!(maps_within_budget(nested(24)));
+    assert!(maps_within(THREE_SECONDS, nested(24)));
 }
