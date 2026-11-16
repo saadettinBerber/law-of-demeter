@@ -11,32 +11,25 @@ Araç, kod yazan her ajana sınır koymak için yazıldı: yapay zekâ ajanları
 - **Çıkış kodu sınırı çizer:** İhlal ya da hibrit sınıf varsa araç 1 ile çıkar. Ajan bu sonucu başarısız bir test gibi ele alır.
 - **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir; ajan neyi neden düzelteceğini bilir.
 
-Kurulum, komut, seçenekler ve çıkış kodları [Kullanım](#kullanım) bölümünde.
+Ayrıntılar [Kullanım](#kullanım) bölümünde.
 
 ## Neden Law of Demeter?
 
-Bir metot başka nesnelerin içine uzandıkça daha çok şeye bağımlı olur. `order.getCustomer().getWallet().withdraw(amount)` yazan metot yalnızca siparişi değil, müşteriyi ve cüzdanı da tanır. Aradaki yapı değişince o da değişir.
+Bir metot başka nesnelerin içine uzandıkça daha çok şeye bağımlı olur. `order.getCustomer().getWallet().withdraw(amount)` yazan metot yalnızca siparişi değil, müşteriyi ve cüzdanı da tanır; aradaki yapı değişince o da değişir. Law of Demeter bu bağımlılığı sınırlar: metot yalnızca yakın çevresindeki nesnelerle konuşur.
 
-Law of Demeter bu bağımlılığı sınırlar: metot yalnızca yakın çevresindeki nesnelerle konuşur.
-
-- **Değişiklik yerinde kalır:** Bir nesnenin iç yapısı değişince yalnızca onu doğrudan kullananlar etkilenir; değişiklik zincir boyunca projeye yayılmaz.
-- **Kapsülleme korunur:** Nesne verisini dışarı vermez, işi kendisi yapar. Kontroller tek yerde, verinin sahibinde kalır.
+- **Değişiklik yerinde kalır:** İç yapı değişince yalnızca nesneyi doğrudan kullananlar etkilenir.
+- **Kapsülleme korunur:** Nesne verisini vermez, işi kendisi yapar; kontroller verinin sahibinde kalır.
 - **Test kolaylaşır:** Metot yalnızca arkadaşlarını kullandığı için testte sahte nesne döndüren sahte nesneler kurmak gerekmez.
 - **Kod kolay okunur:** Metodu anlamak için uzaktaki sınıfların iç yapısını bilmek gerekmez.
 
-Zincirleri gözle aramak büyük projede zordur ve her zincir ihlal değildir: veri yapısında, akıcı zincirde ya da Java koleksiyonlarında zincir serbesttir. Araç bu ayrımı derlenmiş sınıflardan okuduğu tip bilgisiyle yapar.
+Zincirleri gözle ayırmak zordur, çünkü her zincir ihlal değildir: veri yapısında, akıcı zincirde ya da Java koleksiyonlarında zincir serbesttir. Araç bu ayrımı derlenmiş sınıflardan okuduğu tip bilgisiyle yapar.
 
 ## Kural
 
 <details>
 <summary><strong>Law of Demeter nedir?</strong></summary>
 
-Kural iki kısaltmayla anlatılır:
-
-- **C:** Bir sınıf.
-- **f:** C sınıfındaki bir metot.
-
-f yalnızca şu nesnelerin metotlarını çağırabilir:
+C bir sınıf, f de C'deki bir metot. f yalnızca şu nesnelerin metotlarını çağırabilir:
 
 - C'nin kendisi
 - f'nin içinde oluşturulan bir nesne
