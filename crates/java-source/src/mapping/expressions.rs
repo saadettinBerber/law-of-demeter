@@ -5,7 +5,6 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
-use super::steps::is_quiet;
 use super::types::named_type;
 
 impl MethodMapper<'_> {
@@ -51,13 +50,9 @@ impl MethodMapper<'_> {
             model::Expression::Lambda(lambda) => {
                 Expression::lambda(self.lambda(lambda, None).lambda)
             }
-            model::Expression::MethodReference { target, .. } => {
-                let target = self.expression(target);
-                if is_quiet(&target) {
-                    Expression::literal()
-                } else {
-                    Expression::operation(vec![target])
-                }
+            model::Expression::MethodReference { target, name, line } => {
+                let reference = MethodReference::new(self.expression(target), name, *line);
+                Expression::method_reference(reference)
             }
             model::Expression::InstanceOf {
                 operand, bindings, ..
@@ -180,6 +175,9 @@ pub(super) fn expecting(value: Expression, type_ref: TypeRef) -> Expression {
     match value {
         Expression::ReturnOf(call) => Expression::return_of(call.expecting(type_ref)),
         Expression::Lambda(lambda) => Expression::lambda(lambda.expecting(type_ref)),
+        Expression::MethodReference(reference) => {
+            Expression::method_reference(reference.expecting(type_ref))
+        }
         other => other,
     }
 }

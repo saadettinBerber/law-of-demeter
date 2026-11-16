@@ -284,3 +284,44 @@ fn a_bound_reference_on_a_static_field_is_allowed_as_the_call_on_it_would_be() {
         Verdict::allowed("println", 3, Reason::static_field("out"))
     );
 }
+
+#[test]
+fn an_unbound_reference_in_value_position_is_allowed_like_the_equivalent_lambda() {
+    let snippet = "void charge() {\n    Function<Order, Customer> get = Order::getCustomer;\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "charge", &streams());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "getCustomer",
+            3,
+            Reason::method_reference(order(), "getCustomer", Reason::Literal)
+        )]
+    );
+}
+
+#[test]
+fn a_reference_on_a_stranger_in_value_position_is_a_violation_like_the_equivalent_lambda() {
+    let snippet = "void charge(Order order) {\n    Consumer<Wallet> run = order.getCustomer().getWallet()::withdraw;\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "charge", &streams());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getCustomer", 3, Reason::parameter("order")),
+            Verdict::violation("getWallet", 3, Reason::return_of("getCustomer")),
+            Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        ]
+    );
+}
+
+#[test]
+fn a_returned_reference_on_this_is_allowed_like_the_equivalent_lambda() {
+    let members = "Function<Order, Customer> charge() {\n    return this::handle;\n}\nCustomer handle(Order order) { return null; }";
+
+    let verdicts = verdicts_in_c("", members, "", "charge", &streams());
+
+    assert_eq!(verdicts, [Verdict::allowed("handle", 2, Reason::This)]);
+}

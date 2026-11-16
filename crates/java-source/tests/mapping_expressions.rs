@@ -290,18 +290,20 @@ fn a_method_reference_argument_keeps_its_target_and_name() {
 }
 
 #[test]
-fn a_method_reference_outside_an_argument_is_a_literal_unless_its_target_has_calls() {
+fn a_method_reference_outside_an_argument_stays_a_value_with_its_target() {
     let source = "class OrderService {\n void f(Order order) {\n  Runnable a = this::go;\n  Runnable b = order.getCustomer()::notify;\n }\n}";
 
     let mapped = method_f(source);
 
+    let reference =
+        |target, name, line| Expression::method_reference(MethodReference::new(target, name, line));
     assert_eq!(
         mapped,
-        f(2).assign("a", class("Runnable"), Expression::literal())
+        f(2).assign("a", class("Runnable"), reference(Expression::This, "go", 3))
             .assign(
                 "b",
                 class("Runnable"),
-                Expression::operation(vec![get("getCustomer", 4)])
+                reference(get("getCustomer", 4), "notify", 4)
             )
     );
 }
