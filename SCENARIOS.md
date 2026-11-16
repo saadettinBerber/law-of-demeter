@@ -52,6 +52,25 @@
 | Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ✅ |
 
+<details>
+<summary><strong>13. Yıldızlı statik importla gelen çağrının sonucuyla konuşmak</strong></summary>
+
+```java
+import static shop.domain.Defaults.*;
+
+void deposit(int amount) {
+    guest().getWallet().deposit(amount);
+}
+```
+
+- **Neden:** `guest()` C'nin kendi metodu değil; `Defaults` tipinden yıldızlı statik importla gelir. Statik çağrının sonucu arkadaştır, bu yüzden `getWallet` uygundur. `getWallet()` ise `Customer`'ın alanını döndürür ve o `Wallet` f'nin arkadaşı değil. `deposit` raporlanır.
+
+- **Not:** Çağrının hangi tipe ait olduğunu, adı ve argüman sayısıyla eşleşen statik metodu bildiren tek import'un tipi belirler. İki import aynı adı ve argüman sayısını bildirirse Java derleyicisi de belirsizlik hatası verir; araç çağrıyı çözmez ve alıcıyı kendi nesnesi sayar. Çevreleyen sınıfın metodu çağrılırsa alıcı yine kendi nesnesidir; yalnızca dönüş tipi bulunur.
+
+- **Örnek projede:** [`GuestService.java:7`](examples/shop/src/main/java/shop/service/GuestService.java#L7)
+
+</details>
+
 ## Uygun değil
 
 ---
