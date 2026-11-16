@@ -16,9 +16,9 @@ pub use error::ParseError;
 pub use mapping::{MappedFile, map_source};
 pub use model::{
     Call, Catch, Class, ClassKind, ClassOrigin, DeclaredType, Expression, Field,
-    INSTANCE_INITIALIZER, ImplicitTarget, Import, Lambda, LambdaParameter, LocalVariable, Method,
-    New, Parameter, PatternBinding, STATIC_INITIALIZER, SourceFile, Statement, Switch,
-    SwitchBranch, TypeName, TypeParameter,
+    INSTANCE_INITIALIZER, ImplicitTarget, Import, Lambda, LambdaParameter, LiteralType,
+    LocalVariable, Method, New, Parameter, PatternBinding, STATIC_INITIALIZER, SourceFile,
+    Statement, Switch, SwitchBranch, TypeName, TypeParameter,
 };
 pub use platform::java_platform;
 

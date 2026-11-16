@@ -67,7 +67,7 @@ impl MethodMapper<'_> {
                 TypeRef::generic("java.lang.Class", vec![self.type_ref_or_object(named)]),
                 Expression::literal(),
             ),
-            model::Expression::Literal => Expression::literal(),
+            model::Expression::Literal(_) => Expression::literal(),
         }
     }
 

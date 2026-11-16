@@ -1,6 +1,8 @@
 mod support;
 
-use law_of_demeter_java_source::{Catch, DeclaredType, Expression, LocalVariable, Statement};
+use law_of_demeter_java_source::{
+    Catch, DeclaredType, Expression, LiteralType, LocalVariable, Statement,
+};
 use support::{body_of, call, local, parameter};
 
 fn go(receiver: Expression, line: usize) -> Statement {
@@ -49,7 +51,7 @@ fn a_for_loop_keeps_init_condition_update_and_body() {
             init: vec![Statement::Local(LocalVariable {
                 name: "i".to_owned(),
                 declared_type: DeclaredType::primitive("int"),
-                initializer: Some(Expression::Literal),
+                initializer: Some(Expression::Literal(LiteralType::Int)),
                 line: 3,
             })],
             condition: Some(call(parameter("order"), "more", vec![local("i")], 3)),

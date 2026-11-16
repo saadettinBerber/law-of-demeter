@@ -1,8 +1,8 @@
 mod support;
 
 use law_of_demeter_java_source::{
-    Call, Class, ClassKind, ClassOrigin, DeclaredType, Expression, ImplicitTarget, LocalVariable,
-    Method, New, STATIC_INITIALIZER, Statement, parse_with,
+    Call, Class, ClassKind, ClassOrigin, DeclaredType, Expression, ImplicitTarget, LiteralType,
+    LocalVariable, Method, New, STATIC_INITIALIZER, Statement, parse_with,
 };
 use support::{KNOWN_TYPES, call, field, parameter, type_ref, unresolved};
 
@@ -329,7 +329,12 @@ fn enum_constant_bodies_are_anonymous_subclasses_of_the_enum() {
         constants,
         [
             initialized("RED", vec![], "shop.Color$1", 2),
-            initialized("GREEN", vec![Expression::Literal], "shop.Color$2", 3),
+            initialized(
+                "GREEN",
+                vec![Expression::Literal(LiteralType::Int)],
+                "shop.Color$2",
+                3
+            ),
         ]
     );
 }

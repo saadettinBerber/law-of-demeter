@@ -1,7 +1,7 @@
 mod support;
 
 use law_of_demeter_java_source::{
-    DeclaredType, Expression, Method, Parameter, Statement, TypeName, parse_with,
+    DeclaredType, Expression, LiteralType, Method, Parameter, Statement, TypeName, parse_with,
 };
 use support::{KNOWN_TYPES, call, created, field, local, method_in, own_call, parameter, type_ref};
 
@@ -193,7 +193,7 @@ fn violation_5_a_hybrid_class_with_lombok_annotations() {
                     condition: Expression::Operation(vec![parameter("amount"), field("balance")]),
                     then_branch: vec![run(created(
                         "java.lang.IllegalStateException",
-                        vec![Expression::Literal],
+                        vec![Expression::Literal(LiteralType::String)],
                         11
                     ))],
                     else_branch: vec![],
@@ -507,7 +507,7 @@ fn allowed_6_a_factory_and_new_objects() {
                 call(
                     created("java.lang.StringBuilder", vec![], 6),
                     "append",
-                    vec![Expression::Literal],
+                    vec![Expression::Literal(LiteralType::String)],
                     6
                 ),
                 "append",

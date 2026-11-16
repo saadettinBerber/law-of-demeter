@@ -192,8 +192,20 @@ pub enum Expression {
     },
     Switch(Switch),
     ClassLiteral(DeclaredType),
-    Literal,
+    Literal(LiteralType),
     Operation(Vec<Expression>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiteralType {
+    Int,
+    Long,
+    Float,
+    Double,
+    Boolean,
+    Char,
+    String,
+    Null,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

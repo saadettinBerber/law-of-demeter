@@ -4,7 +4,7 @@ use tree_sitter::Node;
 
 use crate::model::{
     Call, ClassKind, ClassOrigin, DeclaredType, Expression, ImplicitTarget, Lambda,
-    LambdaParameter, New, PatternBinding, Statement, Switch, SwitchBranch, TypeName,
+    LambdaParameter, LiteralType, New, PatternBinding, Statement, Switch, SwitchBranch, TypeName,
 };
 use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
@@ -31,7 +31,7 @@ impl Reader<'_> {
             "switch_expression" => Expression::Switch(self.switch(node, scope)),
             "instanceof_expression" => self.instance_of(node, scope),
             "class_literal" => self.class_literal(node, scope),
-            kind if is_literal(kind) => Expression::Literal,
+            kind if is_literal(kind) => Expression::Literal(literal_type(kind, self.text.of(node))),
             _ => Expression::Operation(self.operands(node, scope)),
         }
     }
@@ -331,7 +331,7 @@ impl Reader<'_> {
     fn class_literal(&self, node: Node, scope: &Scope) -> Expression {
         named_children(node)
             .first()
-            .map_or(Expression::Literal, |named| {
+            .map_or(Expression::Literal(LiteralType::Null), |named| {
                 Expression::ClassLiteral(self.declared_type(*named, scope))
             })
     }
@@ -482,6 +482,33 @@ fn declaring_class(
             return Some(owner.to_owned());
         }
         owner = owner.rsplit_once('$')?.0;
+    }
+}
+
+fn literal_type(kind: &str, text: &str) -> LiteralType {
+    match kind {
+        "true" | "false" => LiteralType::Boolean,
+        "character_literal" => LiteralType::Char,
+        "null_literal" => LiteralType::Null,
+        "decimal_floating_point_literal" | "hex_floating_point_literal" => floating_type(text),
+        kind if kind.ends_with("_integer_literal") => integer_type(text),
+        _ => LiteralType::String,
+    }
+}
+
+fn integer_type(text: &str) -> LiteralType {
+    if text.ends_with(['l', 'L']) {
+        LiteralType::Long
+    } else {
+        LiteralType::Int
+    }
+}
+
+fn floating_type(text: &str) -> LiteralType {
+    if text.ends_with(['f', 'F']) {
+        LiteralType::Float
+    } else {
+        LiteralType::Double
     }
 }
 

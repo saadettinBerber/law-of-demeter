@@ -1,8 +1,8 @@
 mod support;
 
 use law_of_demeter_java_source::{
-    Class, DeclaredType, Expression, INSTANCE_INITIALIZER, Method, STATIC_INITIALIZER, Statement,
-    parse_with,
+    Class, DeclaredType, Expression, INSTANCE_INITIALIZER, LiteralType, Method, STATIC_INITIALIZER,
+    Statement, parse_with,
 };
 use support::{KNOWN_TYPES, call, created, field, own_call, type_ref};
 
@@ -171,7 +171,10 @@ fn enum_constants_with_arguments_are_initialized_in_the_static_method() {
                     2
                 )
             ),
-            initialization("BLUE", created("shop.Color", vec![Expression::Literal], 2)),
+            initialization(
+                "BLUE",
+                created("shop.Color", vec![Expression::Literal(LiteralType::Int)], 2)
+            ),
         ])
     );
 }

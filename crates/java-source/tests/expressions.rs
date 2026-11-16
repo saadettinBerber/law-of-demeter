@@ -1,7 +1,7 @@
 mod support;
 
 use law_of_demeter_java_source::{
-    DeclaredType, Expression, Lambda, LambdaParameter, LocalVariable, Statement,
+    DeclaredType, Expression, Lambda, LambdaParameter, LiteralType, LocalVariable, Statement,
 };
 use support::{body_of, call, created, field, local, own_call, parameter, type_ref};
 
@@ -35,7 +35,7 @@ fn a_call_on_a_new_object_has_the_new_object_as_receiver() {
                 call(
                     created("java.lang.StringBuilder", vec![], 3),
                     "append",
-                    vec![Expression::Literal],
+                    vec![Expression::Literal(LiteralType::String)],
                     3
                 ),
                 "append",
@@ -264,7 +264,10 @@ fn literals_text_blocks_and_array_creation_are_kept_minimal() {
         "void f(Order a) {\n var t = \"\"\"\n hi\n \"\"\";\n var n = new int[a.size()];\n var m = a.id() + 1;\n}",
     );
 
-    assert_eq!(initializer_of(&body), Expression::Literal);
+    assert_eq!(
+        initializer_of(&body),
+        Expression::Literal(LiteralType::String)
+    );
     let Statement::Local(array) = &body[1] else {
         panic!("expected a local");
     };

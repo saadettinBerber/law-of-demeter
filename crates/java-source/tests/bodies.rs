@@ -1,6 +1,6 @@
 mod support;
 
-use law_of_demeter_java_source::{DeclaredType, Expression, LocalVariable, Statement};
+use law_of_demeter_java_source::{DeclaredType, Expression, LiteralType, LocalVariable, Statement};
 use support::{body_of, call, field, local, own_call, parameter, type_ref, unresolved};
 
 fn expression_statement(expression: Expression) -> Statement {
@@ -110,7 +110,7 @@ fn a_declaration_with_several_names_gives_several_locals_and_none_needs_an_initi
             Statement::Local(LocalVariable {
                 name: "b".to_owned(),
                 declared_type: DeclaredType::primitive("int"),
-                initializer: Some(Expression::Literal),
+                initializer: Some(Expression::Literal(LiteralType::Int)),
                 line: 3,
             }),
         ]
