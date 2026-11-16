@@ -97,6 +97,18 @@ pub(super) fn substitute(type_ref: &TypeRef, binding: &dyn Fn(&str) -> Option<Ty
     }
 }
 
+pub(super) fn erased(type_ref: &TypeRef, bound: &dyn Fn(&str) -> Option<TypeRef>) -> TypeRef {
+    match type_ref {
+        TypeRef::Variable(name) => bound(name).map_or_else(
+            || TypeRef::class(OBJECT),
+            |declared| erased(&declared, bound),
+        ),
+        TypeRef::Array(element) => TypeRef::array(erased(element, bound)),
+        TypeRef::Class { name, .. } => TypeRef::class(name),
+        TypeRef::Primitive(_) => type_ref.clone(),
+    }
+}
+
 fn erase(type_ref: &TypeRef) -> TypeRef {
     class_name(type_ref).map_or_else(|| type_ref.clone(), TypeRef::class)
 }

@@ -2510,3 +2510,48 @@ fn on_demand_static_methods_3_an_enclosing_class_method_is_a_call_on_the_own_obj
         ]
     );
 }
+
+fn raw_box_catalog() -> Types {
+    let names = TypeRef::generic("java.util.List", vec![TypeRef::class("java.lang.String")]);
+    shop_with_objects().with_shape(
+        class("Box")
+            .with_type_parameter("T")
+            .with_type_parameter_bound("T", TypeRef::class("Customer"))
+            .with_method(MethodShape::new("get").returning(TypeRef::variable("T")))
+            .with_method(MethodShape::new("names").returning(names)),
+    )
+}
+
+#[test]
+fn raw_receiver_1_a_bounded_type_variable_returned_by_a_raw_receiver_is_its_bound() {
+    let snippet = "void audit(Box box) {\n    box.get().rename();\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "audit", &raw_box_catalog());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("get", 3, Reason::parameter("box")),
+            Verdict::violation("rename", 3, Reason::return_of("get")),
+        ]
+    );
+}
+
+#[test]
+fn raw_receiver_2_a_parameterized_type_returned_by_a_raw_receiver_is_its_raw_class() {
+    let snippet = "void audit(Box box) {\n    box.names().size();\n}";
+
+    let verdicts = verdicts_in_c("", "", snippet, "audit", &raw_box_catalog());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("names", 3, Reason::parameter("box")),
+            Verdict::allowed(
+                "size",
+                3,
+                Reason::classified(Classification::Container, TypeRef::class("java.util.List"))
+            ),
+        ]
+    );
+}

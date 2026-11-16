@@ -7,7 +7,9 @@ use crate::{self as model, ImplicitTarget, TypeName};
 use super::MethodMapper;
 use super::inference::{Bindings, apply_bindings, bind_results, complete};
 use super::lambdas::functional_method;
-use super::lineage::{Ancestor, arguments_of, class_name, has_variable, lineage, substitute};
+use super::lineage::{
+    Ancestor, arguments_of, class_name, erased, has_variable, lineage, substitute,
+};
 use super::links::Declared;
 use super::memo::address;
 use super::overloads::{ArgumentType, Selection, Signature, select};
@@ -384,7 +386,7 @@ impl Candidate<'_> {
         Signature {
             parameters: self.parameters(),
             variable_arity: self.method.is_varargs(),
-            free: self.method.type_parameters().to_vec(),
+            free: self.own_variables(),
         }
     }
 
@@ -398,7 +400,7 @@ impl Candidate<'_> {
             parameters,
             bindings,
             returned: self.returned(),
-            free: self.method.type_parameters().to_vec(),
+            free: self.own_variables(),
             bounds: self.declared_bounds(),
             results: Vec::new(),
             declared: Some(Declared::of(
@@ -411,32 +413,53 @@ impl Candidate<'_> {
     }
 
     fn declared_bounds(&self) -> Bindings {
-        self.method
-            .type_parameters()
-            .iter()
+        self.own_variables()
+            .into_iter()
             .filter_map(|name| {
-                Some((
-                    name.clone(),
-                    self.method.type_parameter_bound(name)?.clone(),
-                ))
+                let bound = self.method.type_parameter_bound(&name)?.clone();
+                Some((name, bound))
             })
             .collect()
     }
 
     fn returned(&self) -> Option<TypeRef> {
-        let returned = self.method.returns()?;
-        if self.ancestor.erased && !self.method.is_static() && mentions_generics(returned) {
-            return None;
-        }
-        Some(self.specialize(returned))
+        Some(self.specialize(self.method.returns()?))
     }
 
     fn specialize(&self, type_ref: &TypeRef) -> TypeRef {
+        if self.is_raw_member() {
+            return erased(type_ref, &|name| self.declared_bound(name));
+        }
         let own = self.method.type_parameters();
         let shadowed = |name: &str| own.iter().any(|variable| variable == name);
         substitute(type_ref, &|name| {
             self.ancestor.bound(name).filter(|_| !shadowed(name))
         })
+    }
+
+    fn own_variables(&self) -> Vec<String> {
+        if self.is_raw_member() {
+            return Vec::new();
+        }
+        self.method.type_parameters().to_vec()
+    }
+
+    fn is_raw_member(&self) -> bool {
+        self.ancestor.erased && !self.method.is_static() && self.method.name() != CONSTRUCTOR_NAME
+    }
+
+    fn declared_bound(&self, name: &str) -> Option<TypeRef> {
+        let own = self
+            .method
+            .type_parameters()
+            .iter()
+            .any(|variable| variable == name);
+        let bound = if own {
+            self.method.type_parameter_bound(name)
+        } else {
+            self.ancestor.shape.type_parameter_bound(name)
+        };
+        bound.cloned()
     }
 }
 
@@ -481,13 +504,4 @@ fn agreed_return(candidates: &[&Candidate]) -> Option<TypeRef> {
         .iter()
         .all(|candidate| candidate.returned().as_ref() == Some(&returned));
     agreed.then_some(returned)
-}
-
-fn mentions_generics(type_ref: &TypeRef) -> bool {
-    match type_ref {
-        TypeRef::Variable(_) => true,
-        TypeRef::Array(element) => mentions_generics(element),
-        TypeRef::Class { arguments, .. } => !arguments.is_empty(),
-        TypeRef::Primitive(_) => false,
-    }
 }

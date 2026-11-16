@@ -477,7 +477,7 @@ fn type_arguments_are_carried_through_the_supertypes_of_the_receiver() {
 }
 
 #[test]
-fn a_raw_receiver_leaves_a_call_returning_a_type_variable_unresolved() {
+fn a_raw_receiver_gives_a_call_returning_a_type_variable_the_object_type() {
     let source = "import java.util.List;\nclass OrderService {\n void f(List orders) {\n  orders.get(0).go();\n }\n}";
     let types = shop().with_shape(list_shape());
 
@@ -488,6 +488,7 @@ fn a_raw_receiver_leaves_a_call_returning_a_type_variable_unresolved() {
         Method::new("OrderService", "f", 3).call(
             call(parameter("orders", class("java.util.List")), "get", 4)
                 .with(Expression::literal())
+                .returning(class("java.lang.Object"))
                 .then("go", 4)
         )
     );
@@ -521,7 +522,7 @@ fn a_method_type_variable_shadowing_the_class_one_stays_open() {
 }
 
 #[test]
-fn a_raw_receiver_leaves_a_call_returning_a_parameterized_type_unresolved() {
+fn a_raw_receiver_gives_a_call_returning_a_parameterized_type_the_raw_class() {
     let source = "import java.util.List;\nclass OrderService {\n void f(List orders) {\n  orders.names().go();\n }\n}";
     let names = TypeRef::generic("java.util.List", vec![class("java.lang.String")]);
     let types = shop().with_shape(
@@ -534,8 +535,185 @@ fn a_raw_receiver_leaves_a_call_returning_a_parameterized_type_unresolved() {
 
     assert_eq!(
         mapped,
-        Method::new("OrderService", "f", 3)
-            .call(call(parameter("orders", class("java.util.List")), "names", 4).then("go", 4))
+        Method::new("OrderService", "f", 3).call(
+            call(parameter("orders", class("java.util.List")), "names", 4)
+                .returning(class("java.util.List"))
+                .then("go", 4)
+        )
+    );
+}
+
+fn bounded_box() -> TypeShape {
+    shape("Box")
+        .with_type_parameter("T")
+        .with_type_parameter_bound("T", class("Shape"))
+}
+
+#[test]
+fn a_raw_receiver_gives_a_call_returning_a_bounded_type_variable_its_bound() {
+    let source = "class OrderService {\n void f(Box box) {\n  box.get().go();\n }\n}";
+    let types = shop().with_shape(
+        bounded_box().with_method(MethodShape::new("get").returning(TypeRef::variable("T"))),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(parameter("box", class("Box")), "get", 3)
+                .returning(class("Shape"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_raw_receiver_erases_a_generic_bound_to_its_raw_class() {
+    let source = "class OrderService {\n void f(Box box) {\n  box.get().go();\n }\n}";
+    let comparable = TypeRef::generic("java.lang.Comparable", vec![TypeRef::variable("T")]);
+    let types = shop().with_shape(
+        shape("Box")
+            .with_type_parameter("T")
+            .with_type_parameter_bound("T", comparable)
+            .with_method(MethodShape::new("get").returning(TypeRef::variable("T"))),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(parameter("box", class("Box")), "get", 3)
+                .returning(class("java.lang.Comparable"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_raw_receiver_erases_the_element_of_a_returned_array() {
+    let source = "class OrderService {\n void f(Box box) {\n  box.all().go();\n }\n}";
+    let types = shop()
+        .with_shape(bounded_box().with_method(
+            MethodShape::new("all").returning(TypeRef::array(TypeRef::variable("T"))),
+        ));
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(parameter("box", class("Box")), "all", 3)
+                .returning(TypeRef::array(class("Shape")))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_raw_receiver_erases_the_own_type_variable_of_a_generic_method() {
+    let source = "class OrderService {\n void f(Box box) {\n  box.convert(1).go();\n }\n}";
+    let types = shop().with_shape(
+        shape("Box").with_type_parameter("T").with_method(
+            MethodShape::new("convert")
+                .with_type_parameter("R")
+                .with_parameters(vec![TypeRef::variable("R")])
+                .returning(TypeRef::variable("R")),
+        ),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(parameter("box", class("Box")), "convert", 3)
+                .with(Expression::literal())
+                .returning(class("java.lang.Object"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_raw_receiver_erases_the_own_type_variable_of_a_generic_method_to_its_bound() {
+    let source = "class OrderService {\n void f(Box box) {\n  box.convert(1).go();\n }\n}";
+    let types = shop().with_shape(
+        shape("Box").with_type_parameter("T").with_method(
+            MethodShape::new("convert")
+                .with_type_parameter("R")
+                .with_type_parameter_bound("R", class("Shape"))
+                .with_parameters(vec![TypeRef::variable("R")])
+                .returning(TypeRef::variable("R")),
+        ),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(parameter("box", class("Box")), "convert", 3)
+                .with(Expression::literal())
+                .returning(class("Shape"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_raw_receiver_selects_an_overload_by_the_erased_parameter() {
+    let source =
+        "class OrderService {\n void f(Box box, String name) {\n  box.put(name).go();\n }\n}";
+    let types = shop().with_shape(
+        bounded_box()
+            .with_method(
+                MethodShape::new("put")
+                    .with_parameters(vec![TypeRef::variable("T")])
+                    .returning(class("Customer")),
+            )
+            .with_method(
+                MethodShape::new("put")
+                    .with_parameters(vec![class("java.lang.String")])
+                    .returning(class("Wallet")),
+            ),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(parameter("box", class("Box")), "put", 3)
+                .with(parameter("name", class("java.lang.String")))
+                .returning(class("Wallet"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_static_method_called_on_a_generic_class_keeps_its_own_type_variable() {
+    let source = "class OrderService {\n void f() {\n  Box.make().go();\n }\n}";
+    let types = shop().with_shape(
+        shape("Box").with_type_parameter("T").with_method(
+            MethodShape::new("make")
+                .as_static()
+                .with_type_parameter("R")
+                .returning(TypeRef::variable("R")),
+        ),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(Expression::static_type(class("Box")), "make", 3)
+                .returning(TypeRef::variable("R"))
+                .then("go", 3)
+        )
     );
 }
 
