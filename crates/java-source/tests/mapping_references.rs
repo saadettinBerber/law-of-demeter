@@ -100,6 +100,37 @@ fn world() -> Types {
             shape("Customer").with_method(MethodShape::new("getWallet").returning(wallet())),
         )
         .with_shape(shape("Wallet"))
+        .with_shape(
+            interface("Optional", &["T"])
+                .with_method(MethodShape::new("get").returning(variable("T"))),
+        )
+        .with_shape(
+            shape("Taker")
+                .with_method(
+                    MethodShape::new("take")
+                        .with_parameters(vec![customer()])
+                        .returning(wallet()),
+                )
+                .with_method(
+                    MethodShape::new("take")
+                        .with_parameters(vec![generic("Function", &[order(), customer()])])
+                        .returning(customer()),
+                ),
+        )
+        .with_shape(
+            shape("Runner")
+                .with_method(
+                    MethodShape::new("run")
+                        .with_type_parameter("T")
+                        .with_parameters(vec![variable("T")])
+                        .returning(wallet()),
+                )
+                .with_method(
+                    MethodShape::new("run")
+                        .with_parameters(vec![generic("Function", &[order(), customer()])])
+                        .returning(customer()),
+                ),
+        )
         .with_shape(customers)
         .with_shape(
             shape("OrderService").with_method(
@@ -261,4 +292,44 @@ fn the_result_of_a_reference_types_the_next_call_of_the_chain() {
         .with(second)
         .returning(stream_of(wallet()));
     assert_eq!(mapped, f(2).call(second_map));
+}
+
+#[test]
+fn the_type_arguments_of_the_owner_come_from_the_receiver_the_stream_feeds() {
+    let mapped = mapped_in(
+        "List<Optional<Order>> maybes",
+        "maybes.stream().map(Optional::get);",
+    );
+
+    let maybe_order = generic("Optional", &[order()]);
+    let maybes = parameter(
+        "maybes",
+        generic("List", std::slice::from_ref(&maybe_order)),
+    );
+    let stream = call(maybes, "stream", 3).returning(stream_of(maybe_order));
+    let reference = through(class("Optional"), "get").returning(order());
+    let map = call(Expression::return_of(stream), "map", 3)
+        .with(reference)
+        .returning(stream_of(order()));
+    assert_eq!(mapped, f(2).call(map));
+}
+
+#[test]
+fn a_reference_only_fits_the_overload_that_takes_a_functional_interface() {
+    let mapped = mapped_in("Taker taker", "taker.take(Order::getCustomer);");
+
+    let reference = through(order(), "getCustomer").returning(customer());
+    let take = call(parameter("taker", class("Taker")), "take", 3)
+        .with(reference)
+        .returning(customer());
+    assert_eq!(mapped, f(2).call(take));
+}
+
+#[test]
+fn a_type_variable_parameter_also_fits_the_reference_and_keeps_the_overload_ambiguous() {
+    let mapped = mapped_in("Runner runner", "runner.run(Order::getCustomer);");
+
+    let reference = through(order(), "getCustomer");
+    let run = call(parameter("runner", class("Runner")), "run", 3).with(reference);
+    assert_eq!(mapped, f(2).call(run));
 }
