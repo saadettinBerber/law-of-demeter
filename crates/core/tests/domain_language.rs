@@ -63,13 +63,44 @@ fn is_test_only(path: &Path, test_only_modules: &[String]) -> bool {
 }
 
 fn production_part(text: &str) -> String {
-    text.lines()
-        .take_while(|line| line.trim() != "#[cfg(test)]")
-        .collect::<Vec<_>>()
-        .join("\n")
+    let lines: Vec<&str> = text.lines().collect();
+    let end = lines
+        .iter()
+        .enumerate()
+        .position(|(index, line)| {
+            line.trim() == "#[cfg(test)]"
+                && lines
+                    .get(index + 1)
+                    .is_some_and(|next| is_inline_module(next))
+        })
+        .unwrap_or(lines.len());
+    lines[..end].join("\n")
+}
+
+fn is_inline_module(line: &str) -> bool {
+    let line = line.trim();
+    line.starts_with("mod ") && line.ends_with('{')
 }
 
 fn names_a_language(text: &str) -> bool {
     let lowered = text.to_lowercase();
     LANGUAGE_NAMES.iter().any(|name| lowered.contains(name))
+}
+
+#[test]
+fn a_test_only_item_before_production_code_does_not_hide_it() {
+    let source = "#[cfg(test)]\nconst MARKER: u8 = 0;\nconst LANGUAGE: &str = \"java\";";
+
+    let production = production_part(source);
+
+    assert!(names_a_language(&production));
+}
+
+#[test]
+fn an_inline_test_module_is_not_production_code() {
+    let source = "fn rule() {}\n#[cfg(test)]\nmod tests {\n    const LANGUAGE: &str = \"java\";\n}";
+
+    let production = production_part(source);
+
+    assert!(!names_a_language(&production));
 }
