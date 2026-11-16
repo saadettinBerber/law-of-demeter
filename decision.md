@@ -1,3 +1,5 @@
+Yapılan bir satır, işin karşılığı başka bir belgeye bakmadan testlerden anlaşılıyorsa kaldırılır.
+
 | Ne yapılacak? | Yapıldı mı? |
 |---|---|
 | [Kuralı C ve f üzerinden tanımla; nesneyi, veri yapısını ve hibriti ayır.](README.md) | Yapıldı |
