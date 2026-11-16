@@ -59,4 +59,8 @@ public class OrderService {
     public void discount(Order order, int rate) {
         order.getLines().forEach(line -> line.applyDiscount(rate));
     }
+
+    public void dispatchById(OrderId id) {
+        orders.getById(id).ship();
+    }
 }
