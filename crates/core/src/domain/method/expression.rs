@@ -545,7 +545,7 @@ impl Lambda {
             .unwrap_or_default();
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
-            let known = self.source_type(parameter).or(declared.get(index));
+            let known = self.given_type(parameter).or(declared.get(index));
             let source = element_feed(context.types, outer, feed, known);
             let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
@@ -562,7 +562,7 @@ impl Lambda {
         }
     }
 
-    fn source_type(&self, parameter: &str) -> Option<&TypeRef> {
+    fn given_type(&self, parameter: &str) -> Option<&TypeRef> {
         type_named(&self.declared, parameter).or_else(|| type_named(&self.resolved, parameter))
     }
 
@@ -589,7 +589,7 @@ impl Lambda {
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
             let type_ref = self
-                .source_type(parameter)
+                .given_type(parameter)
                 .or(declared.get(index))
                 .cloned()
                 .or_else(|| context.types.root_supertype());
