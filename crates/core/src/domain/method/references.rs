@@ -268,10 +268,21 @@ fn an_unbound_reference_nested_in_a_collector_takes_the_standing_of_the_stream_c
                     "groupingBy",
                     3,
                 )
-                .with(MethodReference::new(
-                    Expression::static_type(customer()),
-                    "getWallet",
-                    3,
+                .with(
+                    MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
+                        .resolving(customer())
+                        .fed_by_elements(),
+                )
+                .returning(generic(
+                    COLLECTOR,
+                    &[
+                        customer(),
+                        TypeRef::class("java.lang.Object"),
+                        generic(
+                            MAP,
+                            &[TypeRef::class("Wallet"), generic(LIST, &[customer()])],
+                        ),
+                    ],
                 )),
             )),
     );

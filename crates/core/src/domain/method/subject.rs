@@ -81,13 +81,6 @@ impl<'a> Target<'a> {
         }
     }
 
-    pub(super) fn among(type_ref: &'a TypeRef, elements: Option<&'a Subject>) -> Self {
-        Self {
-            type_ref: Some(type_ref),
-            elements,
-        }
-    }
-
     pub(super) fn elements_of(elements: &'a Subject) -> Self {
         Self {
             type_ref: None,

@@ -112,18 +112,6 @@ impl Invocation {
         invocation
     }
 
-    pub(crate) fn parameter_type(&self, index: usize) -> Option<TypeRef> {
-        self.parameters
-            .get(index)
-            .map(|parameter| substitute(parameter, &self.bindings))
-    }
-
-    pub(crate) fn argument(&mut self, types: &Types, index: usize, actual: Option<&TypeRef>) {
-        if let Some((parameter, actual)) = self.parameters.get(index).cloned().zip(actual) {
-            self.unify(types, &parameter, actual);
-        }
-    }
-
     pub(crate) fn expecting(mut self, types: &Types, expected: Option<&TypeRef>) -> Self {
         if let Some((returns, expected)) = self.returns.clone().zip(expected) {
             self.unify(types, &returns, expected);

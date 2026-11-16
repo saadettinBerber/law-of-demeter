@@ -212,11 +212,13 @@ pub(super) fn collectors_static() -> Reason {
 }
 
 #[test]
-fn a_collector_without_arguments_gets_its_element_type_from_the_stream_collecting_it() {
+fn a_collector_with_a_resolved_return_types_the_elements_of_the_stream_collecting_it() {
     let charge = Method::new("Billing", "charge", 1).call(
         mapped_customers()
             .then("collect", 2)
-            .with(Expression::return_of(collectors_call("toList")))
+            .with(Expression::return_of(
+                collectors_call("toList").returning(listing(customer())),
+            ))
             .then("get", 2)
             .with(Expression::literal())
             .then("getWallet", 3)
@@ -251,7 +253,7 @@ fn a_collector_without_arguments_gets_its_element_type_from_the_stream_collectin
 #[test]
 fn collecting_a_stream_into_a_list_keeps_the_elements_typed() {
     let ship = Method::new("Billing", "ship", 1).call(
-        orders_collected_by(collectors_call("toList"))
+        orders_collected_by(collectors_call("toList").returning(listing(order())))
             .then("get", 2)
             .with(Expression::literal())
             .then("getCustomer", 3)
@@ -266,12 +268,21 @@ fn collecting_a_stream_into_a_list_keeps_the_elements_typed() {
     );
 }
 
+fn listing(element: TypeRef) -> TypeRef {
+    collector(element.clone(), wildcard(), list_of(element))
+}
+
 fn grouping_by_status(downstream: Option<Call>) -> Call {
-    let grouping = collectors_call("groupingBy").with(MethodReference::new(
-        Expression::static_type(order()),
-        "getStatus",
-        2,
-    ));
+    let grouping = collectors_call("groupingBy")
+        .with(
+            MethodReference::new(Expression::static_type(order()), "getStatus", 2)
+                .fed_by_elements(),
+        )
+        .returning(collector(
+            order(),
+            wildcard(),
+            generic(MAP, &[status(), list_of(order())]),
+        ));
     match downstream {
         Some(call) => grouping.with(Expression::return_of(call)),
         None => grouping,
@@ -317,7 +328,9 @@ fn a_collector_wrapping_another_gets_its_result_from_its_finisher() {
         Call::new(Expression::local("list"), "get", 3).with(Expression::literal()),
     ));
     let wrapping = collectors_call("collectingAndThen")
-        .with(Expression::return_of(collectors_call("toList")))
+        .with(Expression::return_of(
+            collectors_call("toList").returning(listing(order())),
+        ))
         .with(first);
     let ship = Method::new("Billing", "ship", 1).call(
         orders_collected_by(wrapping)
@@ -337,8 +350,16 @@ fn a_collector_wrapping_another_gets_its_result_from_its_finisher() {
     );
 }
 
-fn grouping_by_the_result_of(call: Call) -> Call {
-    collectors_call("groupingBy").with(Lambda::new(&["each"]).yielding(Expression::return_of(call)))
+fn grouping_by_the_result_of(call: Call, elements: TypeRef, key: TypeRef) -> Call {
+    let groups = generic(MAP, &[key, list_of(elements.clone())]);
+    collectors_call("groupingBy")
+        .with(
+            Lambda::new(&["each"])
+                .resolving("each", elements.clone())
+                .fed_by_elements("each")
+                .yielding(Expression::return_of(call)),
+        )
+        .returning(collector(elements, wildcard(), groups))
 }
 
 #[test]
@@ -346,7 +367,11 @@ fn a_lambda_in_a_nested_call_takes_the_standing_of_the_stranger_elements_it_rece
     let wallet_of_each = Call::new(Expression::local("each"), "getWallet", 3);
     let group =
         Method::new("Billing", "group", 1).call(mapped_customers().then("collect", 2).with(
-            Expression::return_of(grouping_by_the_result_of(wallet_of_each)),
+            Expression::return_of(grouping_by_the_result_of(
+                wallet_of_each,
+                customer(),
+                TypeRef::class("Wallet"),
+            )),
         ));
 
     let verdicts = group.verdicts(&collecting());
@@ -376,7 +401,7 @@ fn a_lambda_in_a_nested_call_takes_the_standing_of_the_stranger_elements_it_rece
 fn a_lambda_in_a_nested_call_takes_the_standing_of_the_friend_elements_it_receives() {
     let status_of_each = Call::new(Expression::local("each"), "getStatus", 3);
     let group = Method::new("Billing", "group", 1).call(orders_collected_by(
-        grouping_by_the_result_of(status_of_each),
+        grouping_by_the_result_of(status_of_each, order(), status()),
     ));
 
     let verdicts = group.verdicts(&collecting());
@@ -418,13 +443,15 @@ fn a_lambda_in_a_nested_call_that_receives_something_else_keeps_its_own_feed() {
 #[test]
 fn collectors_nested_two_levels_deep_type_the_groups() {
     let ship = Method::new("Billing", "ship", 1).call(
-        orders_collected_by(grouping_by_status(Some(collectors_call("toList"))))
-            .then("get", 2)
-            .with(Expression::parameter("status", status()))
-            .then("get", 2)
-            .with(Expression::literal())
-            .then("getCustomer", 3)
-            .then("rename", 3),
+        orders_collected_by(grouping_by_status(Some(
+            collectors_call("toList").returning(listing(order())),
+        )))
+        .then("get", 2)
+        .with(Expression::parameter("status", status()))
+        .then("get", 2)
+        .with(Expression::literal())
+        .then("getCustomer", 3)
+        .then("rename", 3),
     );
 
     let verdicts = ship.verdicts(&collecting());

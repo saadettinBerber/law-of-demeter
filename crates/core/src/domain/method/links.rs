@@ -3,6 +3,10 @@ use super::nested::{
     list_of, mapped_customers, order, orders_collected_by, orders_stream, stranger_customers,
     stream_of, variable, wildcard,
 };
+use std::sync::mpsc;
+use std::thread;
+use std::time::Duration;
+
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::Types;
 use crate::domain::type_shape::{MethodShape, TypeRef};
@@ -100,7 +104,9 @@ fn wallet_of_the_first_customer_in(customers: Call) -> Method {
     Method::new("Billing", "charge", 1).call(
         customers
             .then("collect", 2)
-            .with(Expression::return_of(collectors_call("toList")))
+            .with(Expression::return_of(collectors_call("toList").returning(
+                collector(customer(), wildcard(), list_of(customer())),
+            )))
             .then("get", 2)
             .with(Expression::literal())
             .then("getWallet", 3),
@@ -262,4 +268,29 @@ fn a_method_reference_takes_its_resolved_input_type_when_its_functional_paramete
         3,
         Reason::method_reference(customer(), "getWallet", stranger_customers())
     )));
+}
+
+fn judged_within_budget(grouping: Call) -> bool {
+    let (done, finished) = mpsc::channel();
+    thread::spawn(move || {
+        let group = Method::new("Billing", "group", 1).call(orders_collected_by(grouping));
+        group.verdicts(&collecting());
+        let _ = done.send(());
+    });
+    finished.recv_timeout(Duration::from_secs(3)).is_ok()
+}
+
+#[test]
+fn collectors_nested_twenty_four_levels_deep_are_judged_within_the_budget() {
+    let nested = (0..24).fold(collectors_call("toList"), |inner, _| {
+        collectors_call("groupingBy")
+            .with(MethodReference::new(
+                Expression::static_type(order()),
+                "getStatus",
+                2,
+            ))
+            .with(Expression::return_of(inner))
+    });
+
+    assert!(judged_within_budget(nested));
 }

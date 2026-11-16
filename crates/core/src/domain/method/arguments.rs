@@ -53,7 +53,6 @@ pub(super) fn judge_arguments(
     for (index, (argument, value)) in arguments.iter().zip(values).enumerate() {
         match value {
             Some(judged) => {
-                let judged = settled(context, argument, index, judged, invocation, outer);
                 verdicts.extend(judged.verdicts);
                 if links.keyed_by == Some(index) {
                     keys = keys.or(judged.subject.keys);
@@ -82,23 +81,4 @@ pub(super) fn judge_arguments(
         mapped,
         keys,
     }
-}
-
-fn settled(
-    context: &Context,
-    argument: &Argument,
-    index: usize,
-    judged: Judged,
-    invocation: &mut Invocation,
-    outer: &Subject,
-) -> Judged {
-    if !judged.subject.type_ref.as_ref().is_some_and(has_variable) {
-        return judged;
-    }
-    let retried = invocation.parameter_type(index).and_then(|expected| {
-        argument.judge_value_expecting(context, Some(Target::among(&expected, Some(outer))))
-    });
-    let judged = retried.unwrap_or(judged);
-    invocation.argument(context.types, index, judged.subject.type_ref.as_ref());
-    judged
 }
