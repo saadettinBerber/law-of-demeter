@@ -179,33 +179,10 @@ enum Feed {
     Receiver,
 }
 
-fn element_feed<'a>(
-    types: &Types,
-    outer: &'a Subject,
-    feed: &'a Subject,
-    declared: Option<&TypeRef>,
-    linked: Option<Feed>,
-) -> &'a Subject {
+fn element_feed<'a>(outer: &'a Subject, feed: &'a Subject, linked: Option<Feed>) -> &'a Subject {
     match linked {
         Some(Feed::Elements) => outer,
-        Some(Feed::Receiver) => feed,
-        None => element_feed_by_type(types, outer, feed, declared),
-    }
-}
-
-fn element_feed_by_type<'a>(
-    types: &Types,
-    outer: &'a Subject,
-    feed: &'a Subject,
-    declared: Option<&TypeRef>,
-) -> &'a Subject {
-    let element = outer
-        .type_ref
-        .as_ref()
-        .and_then(|type_ref| types.element_type_of(type_ref));
-    match element.as_ref().zip(declared) {
-        Some((element, declared)) if element == declared => outer,
-        _ => feed,
+        Some(Feed::Receiver) | None => feed,
     }
 }
 
@@ -468,7 +445,7 @@ impl MethodReference {
 
     fn element(&self, types: &Types, feed: &Subject, outer: &Subject) -> Subject {
         let known = self.input.as_ref();
-        element_feed(types, outer, feed, known, self.feed)
+        element_feed(outer, feed, self.feed)
             .element(types, |reason| reason)
             .declared_as(known)
     }
@@ -580,7 +557,7 @@ impl Lambda {
                 .iter()
                 .find(|(name, _)| name == parameter)
                 .map(|(_, linked)| *linked);
-            let source = element_feed(context.types, outer, feed, known, linked);
+            let source = element_feed(outer, feed, linked);
             let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });
