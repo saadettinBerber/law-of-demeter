@@ -187,7 +187,7 @@ pub(super) fn collectors_call(name: &str) -> Call {
     Call::new(Expression::static_type(TypeRef::class(COLLECTORS)), name, 2)
 }
 
-fn mapped_customers() -> Call {
+pub(super) fn mapped_customers() -> Call {
     orders_stream().then("map", 2).with(MethodReference::new(
         Expression::static_type(order()),
         "getCustomer",

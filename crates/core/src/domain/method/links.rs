@@ -1,7 +1,7 @@
 use super::nested::{
     collecting, collector, collectors_call, collectors_static, customer, generic, interface,
-    list_of, order, orders_collected_by, orders_stream, stranger_customers, stream_of, variable,
-    wildcard,
+    list_of, mapped_customers, order, orders_collected_by, orders_stream, stranger_customers,
+    stream_of, variable, wildcard,
 };
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::Types;
@@ -239,4 +239,27 @@ fn a_call_passes_on_the_keys_of_the_argument_the_link_names() {
         withdrawing_from_each_of(grouped.then("keySet", 2).yielding_keys()).verdicts(&keyed());
 
     assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
+}
+
+#[test]
+fn a_method_reference_takes_its_resolved_input_type_when_its_functional_parameter_is_open() {
+    let wallet = MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
+        .fed_by_elements()
+        .resolving(customer());
+    let grouping = collectors_call("groupingBy")
+        .returning(collector(customer(), wildcard(), list_of(customer())))
+        .with(wallet);
+    let group = Method::new("Billing", "group", 1).call(
+        mapped_customers()
+            .then("collect", 2)
+            .with(Expression::return_of(grouping)),
+    );
+
+    let verdicts = group.verdicts(&collecting());
+
+    assert!(verdicts.contains(&Verdict::violation(
+        "getWallet",
+        3,
+        Reason::method_reference(customer(), "getWallet", stranger_customers())
+    )));
 }

@@ -380,6 +380,7 @@ pub struct MethodReference {
     line: usize,
     expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
+    input: Option<TypeRef>,
     feed: Option<Feed>,
 }
 
@@ -391,6 +392,7 @@ impl MethodReference {
             line,
             expected: None,
             resolved: None,
+            input: None,
             feed: None,
         }
     }
@@ -402,6 +404,11 @@ impl MethodReference {
 
     pub fn expecting(mut self, type_ref: TypeRef) -> Self {
         self.expected = Some(type_ref);
+        self
+    }
+
+    pub fn resolving(mut self, type_ref: TypeRef) -> Self {
+        self.input = Some(type_ref);
         self
     }
 
@@ -486,7 +493,10 @@ impl MethodReference {
         outer: &Subject,
         functional: Option<&FunctionalMethod>,
     ) -> Subject {
-        let known = functional.and_then(|functional| functional.parameters.first());
+        let known = self
+            .input
+            .as_ref()
+            .or_else(|| functional.and_then(|functional| functional.parameters.first()));
         element_feed(types, outer, feed, known, self.feed)
             .element(types, |reason| reason)
             .declared_as(known)
