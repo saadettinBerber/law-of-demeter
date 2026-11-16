@@ -419,9 +419,9 @@ void dispatch(OrderId id) {
 
 - **Neden:** Depo sorgusu, factory gibi f'ye kullanması için bir nesne verir. Dönen sipariş f'nin arkadaşı sayılır.
 
-- **Not:** `orders` C'nin bir alanı. Adı `find`, `load` ya da `fetch` ile başlayan metot depo sorgusu sayılır; alıcı bir alan ya da parametre olmalı.
+- **Not:** `orders` C'nin bir alanı. Adı `find`, `load` ya da `fetch` ile başlayan metot depo sorgusu sayılır; adı `Repository` ile biten tipte `get` ile başlayan metot da: `orders.getById(id).ship()`. Alıcı bir alan ya da parametre olmalı.
 
-- **Örnek projede:** [`OrderService.java:38`](examples/shop/src/main/java/shop/service/OrderService.java#L38)
+- **Örnek projede:** [`OrderService.java:38`](examples/shop/src/main/java/shop/service/OrderService.java#L38), [`OrderService.java:64`](examples/shop/src/main/java/shop/service/OrderService.java#L64)
 
 </details>
 
