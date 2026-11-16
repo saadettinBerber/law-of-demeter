@@ -568,7 +568,7 @@ law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/c
 
 ### Örnek
 
-Küçük bir proje düşün: Kural bölümündeki `OrderService` ile Veri yapıları bölümündeki hibrit `Account` ve `PaymentService`, bir de `Order`, `Customer`, `Wallet` ve `Money` sınıfları `src/shop` altında dursun. Proje `javac` ile derlenir ve araçtan geçirilir:
+Kural bölümündeki `OrderService`, Veri yapıları bölümündeki hibrit `Account` ve `PaymentService`, bir de `Order`, `Customer`, `Wallet` ve `Money` sınıfları `src/shop` altında olsun. Proje `javac` ile derlenir ve araçtan geçirilir:
 
 ```bash
 javac -d out $(find src -name '*.java')
@@ -601,11 +601,11 @@ src/shop/Account.java  shop.Account  Hibrit sınıf: davranış: withdraw; sette
   2  Döndürülen nesne f'nin arkadaşı değil
 ```
 
-Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve nedeni gösterir. İhlal ya da hibrit sınıf olduğu için araç 1 ile çıkar. `--show-allowed` ile uygun çağrılar da uydukları kuralla listelenir.
+Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve nedeni gösterir. İhlal ya da hibrit sınıf olduğu için araç 1 ile çıkar.
 
 </details>
 
-Daha büyük bir örnek repodaki `examples/shop` projesidir. Raporu [beklenen raporda](examples/shop/expected-report.txt) durur ve `--show-allowed` ile üretilmiştir. Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
+Daha büyük örnek, repodaki `examples/shop` projesidir; raporu `--show-allowed` ile üretilmiş [beklenen raporda](examples/shop/expected-report.txt) durur. Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
 
 ## Mimari
 
@@ -618,7 +618,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 | Katman | Sorumluluk |
 |---|---|
-| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit, değer ya da konteyner olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz, hiçbir dilin tip kuralını ve adını bilmez. |
+| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit, değer ya da konteyner olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz; hiçbir dilin tip kuralını ve adını bilmez. |
 | **Application** | "Projeyi denetle" kullanım senaryosu. Domain kurallarını yürütür; dışarıdan istediklerini port'larla ister. |
 | **Adapter** | Port'ları gerçek teknolojiye bağlar: komut satırı, Java ayrıştırıcı, `.class` okuyucu ve rapor. |
 
@@ -631,7 +631,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
 
-Domain hiçbir dili bilmez. Dile özgü her şey, yani tip kuralları ve dilin değerleri adapter'dadır: Java ayrıştırıcı bunları çözer ve Java platformunu kurar. Domain'in dile özgü bir bilgiye ihtiyacı olursa köprü alanı eklenir ve alanı adapter doldurur. Yeni bir dil eklemek için yeni bir adapter crate'i yazılır: kendi kaynak okuyucusu, tip çözümlemesi ve platformu olur; domain değişmez. Bu kural bir testle korunur: domain üretim kodunda dil adı geçerse test kırılır.
+Dile özgü her şey, yani tip kuralları ve dilin değerleri adapter'dadır: Java ayrıştırıcı bunları çözer ve Java platformunu kurar. Domain'in dile özgü bir bilgiye ihtiyacı olursa köprü alanı eklenir ve alanı adapter doldurur. Yeni dil için yeni bir adapter crate'i yazılır: kendi kaynak okuyucusu, tip çözümlemesi ve platformu olur; domain değişmez. Domain'in dil bilmemesi bir testle korunur: domain üretim kodunda dil adı geçerse test kırılır.
 
 Her katman ayrı bir crate'tir: `core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır; `cli` hepsini bağlar. Bağımlılık yönünü derleyici korur.
 
