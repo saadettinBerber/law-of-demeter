@@ -2247,7 +2247,7 @@ fn a_stream_of_customers() -> Reason {
 }
 
 #[test]
-fn method_reference_an_unbound_reference_on_mapped_strangers_is_a_violation() {
+fn violation_11_an_unbound_reference_on_mapped_strangers() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Customer::getWallet);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2430,7 +2430,7 @@ fn factories_catalog(owners: &[&str]) -> Types {
 }
 
 #[test]
-fn on_demand_static_methods_the_result_of_an_imported_static_call_is_a_friend() {
+fn violation_13_talking_to_the_result_of_an_imported_static_call() {
     let snippet = "void audit() {\n    customer().getWallet().withdraw(1);\n}";
 
     let verdicts = verdicts_in_c(
