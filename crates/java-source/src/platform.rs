@@ -118,4 +118,6 @@ pub fn java_platform() -> Platform {
         .with_equality_method("equals", 1)
         .with_equality_method("hashCode", 0)
         .with_constructor_name("<init>")
+        .with_builder_method("toBuilder")
+        .with_nested_type_separator("$")
 }

@@ -26,7 +26,9 @@ fn sample_platform() -> Platform {
         .with_object_method("canEqual", 1)
         .with_equality_method("equals", 1)
         .with_equality_method("hashCode", 0)
-        .with_constructor_name("<init>");
+        .with_constructor_name("<init>")
+        .with_builder_method("toBuilder")
+        .with_nested_type_separator("$");
     BEHAVIORLESS_SUPERTYPES
         .iter()
         .fold(platform, |platform, name| {

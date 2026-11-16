@@ -192,6 +192,15 @@ impl Types {
             && !self.platform.is_constructor(method.name())
     }
 
+    fn is_own_builder(&self, class: &TypeShape, method: &MethodShape) -> bool {
+        self.platform.is_builder_method(method.name())
+            && method.parameters().is_empty()
+            && method
+                .returns()
+                .and_then(class_name)
+                .is_some_and(|name| self.platform.is_nested_in(name, class.name()))
+    }
+
     fn is_root_supertype(&self, name: &str) -> bool {
         self.platform.root_supertype() == Some(name)
     }
@@ -341,7 +350,7 @@ impl Types {
             let declared: Vec<_> = class
                 .methods()
                 .iter()
-                .filter(|method| self.is_exposed(method) && !is_to_builder(class, method))
+                .filter(|method| self.is_exposed(method) && !self.is_own_builder(class, method))
                 .collect();
             let visible: Vec<_> = declared
                 .iter()
@@ -506,15 +515,6 @@ fn takes_exactly(argument_count: usize) -> impl Fn(&MethodShape) -> bool {
 
 fn takes_variable(argument_count: usize) -> impl Fn(&MethodShape) -> bool {
     move |candidate| candidate.is_varargs() && candidate.parameters().len() <= argument_count + 1
-}
-
-fn is_to_builder(class: &TypeShape, method: &MethodShape) -> bool {
-    method.name() == "toBuilder"
-        && method.parameters().is_empty()
-        && method
-            .returns()
-            .and_then(class_name)
-            .is_some_and(|name| name.starts_with(&format!("{}$", class.name())))
 }
 
 fn signature(method: &MethodShape) -> (&str, usize) {

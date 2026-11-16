@@ -11,6 +11,8 @@ pub struct Platform {
     object_methods: HashSet<(String, usize)>,
     equality_methods: Vec<(String, usize)>,
     constructor_name: Option<String>,
+    builder_methods: HashSet<String>,
+    nested_type_separator: Option<String>,
 }
 
 impl Platform {
@@ -55,6 +57,16 @@ impl Platform {
         self
     }
 
+    pub fn with_builder_method(mut self, name: &str) -> Self {
+        self.builder_methods.insert(name.to_owned());
+        self
+    }
+
+    pub fn with_nested_type_separator(mut self, separator: &str) -> Self {
+        self.nested_type_separator = Some(separator.to_owned());
+        self
+    }
+
     pub(super) fn classify(&self, name: &str) -> Option<Classification> {
         self.types.get(name).copied().or_else(|| {
             self.namespaces
@@ -79,6 +91,19 @@ impl Platform {
 
     pub(super) fn is_constructor(&self, name: &str) -> bool {
         self.constructor_name.as_deref() == Some(name)
+    }
+
+    pub(super) fn is_builder_method(&self, name: &str) -> bool {
+        self.builder_methods.contains(name)
+    }
+
+    pub(super) fn is_nested_in(&self, name: &str, outer: &str) -> bool {
+        self.nested_type_separator
+            .as_deref()
+            .is_some_and(|separator| {
+                name.strip_prefix(outer)
+                    .is_some_and(|rest| rest.starts_with(separator))
+            })
     }
 
     pub(super) fn is_behaviorless(&self, name: &str) -> bool {

@@ -329,3 +329,20 @@ fn a_java_constructor_is_not_behavior() {
 
     assert_eq!(classification, Classification::DataStructure);
 }
+
+#[test]
+fn lomboks_to_builder_returning_the_own_nested_builder_is_not_behavior() {
+    let order = class(
+        "shop.Order",
+        "java.lang.Object",
+        vec![
+            getter("getId", "id"),
+            MethodShape::new("toBuilder").returning(TypeRef::class("shop.Order$OrderBuilder")),
+        ],
+    );
+    let types = platform_types().with_shape(order);
+
+    let classification = types.classify(&TypeRef::class("shop.Order"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
