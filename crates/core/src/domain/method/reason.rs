@@ -5,6 +5,7 @@ use crate::domain::type_shape::TypeRef;
 pub enum Reason {
     This,
     Literal,
+    FunctionArgument,
     Field(String),
     FieldOf(String),
     Parameter(String),

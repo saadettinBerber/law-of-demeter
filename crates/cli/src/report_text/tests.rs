@@ -115,6 +115,22 @@ fn a_method_reference_is_counted_under_the_reason_that_feeds_it() {
 }
 
 #[test]
+fn an_object_a_function_receives_is_counted_under_its_own_reason() {
+    let reference = Reason::method_reference(
+        TypeRef::class("shop.domain.Order"),
+        "getCustomer",
+        Reason::FunctionArgument,
+    );
+
+    let text = render(&report_of(vec![allowed(9, reference)]), true);
+
+    assert_eq!(
+        section(&text, "Uygun nedenleri"),
+        ["  1  Fonksiyonun argümanı"]
+    );
+}
+
+#[test]
 fn changing_a_returned_collection_names_the_collection_type() {
     let lines = TypeRef::generic("java.util.List", vec![TypeRef::class("OrderLine")]);
     let report = report_of(vec![finding(Verdict::violation(
@@ -221,6 +237,14 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
         allowed(10, Reason::factory_result("create")),
         allowed(11, Reason::query_result("findById")),
         allowed(12, Reason::static_field("PAID")),
+        allowed(
+            13,
+            Reason::method_reference(
+                TypeRef::class("Order"),
+                "getCustomer",
+                Reason::FunctionArgument,
+            ),
+        ),
     ]);
 
     assert_eq!(
@@ -238,6 +262,7 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
             "create() factory çağrısının döndürdüğü nesne f'nin arkadaşı",
             "findById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı",
             "PAID statik sabiti f'nin arkadaşı",
+            "Order::getCustomer metot referansı: fonksiyona argüman olarak verilen nesne",
         ]
     );
 }

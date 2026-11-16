@@ -296,7 +296,7 @@ fn an_unbound_reference_in_value_position_is_allowed_like_the_equivalent_lambda(
         [Verdict::allowed(
             "getCustomer",
             3,
-            Reason::method_reference(order(), "getCustomer", Reason::Literal)
+            Reason::method_reference(order(), "getCustomer", Reason::FunctionArgument)
         )]
     );
 }

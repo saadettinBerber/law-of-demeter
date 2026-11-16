@@ -422,7 +422,7 @@ fn an_unbound_reference_value_is_allowed_like_the_call_on_the_parameter_of_a_lam
         [Verdict::allowed(
             "getEntry",
             2,
-            Reason::method_reference(event(), "getEntry", Reason::Literal)
+            Reason::method_reference(event(), "getEntry", Reason::FunctionArgument)
         )]
     );
 }

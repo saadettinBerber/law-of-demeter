@@ -400,7 +400,7 @@ impl MethodReference {
             .or(target.map(|target| target.type_ref));
         let functional = expected.and_then(|expected| context.types.functional_method(expected));
         let given = Subject {
-            standing: Standing::Friend(Reason::Literal),
+            standing: Standing::Friend(Reason::FunctionArgument),
             type_ref: None,
         };
         let produced = self.judge(context, &given, functional.as_ref(), &given);

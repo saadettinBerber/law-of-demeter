@@ -49,6 +49,7 @@ pub fn describe(reason: &Reason) -> String {
             format!("{} tipi üzerinde statik çağrı", type_name(type_ref))
         }
         Reason::Literal => "sabit değer".to_owned(),
+        Reason::FunctionArgument => "fonksiyona argüman olarak verilen nesne".to_owned(),
         Reason::UnassignedLocal(name) => format!("{name} değişkenine değer atanmamış"),
         Reason::UnresolvedName(name) => format!("{name} adı çözülemedi"),
         Reason::Classified {
@@ -94,6 +95,7 @@ pub fn category(reason: &Reason) -> &'static str {
         Reason::Created(_) => "Metotta oluşturulan nesne",
         Reason::StaticType(_) => "Statik çağrı",
         Reason::Literal => "Sabit değer",
+        Reason::FunctionArgument => "Fonksiyonun argümanı",
         Reason::Classified { classification, .. } => match classification {
             Classification::DataStructure => "Veri yapısı",
             Classification::Value => "Değer",
