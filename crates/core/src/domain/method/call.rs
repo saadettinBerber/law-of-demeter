@@ -3,7 +3,8 @@ use super::expression::{Argument, Expression};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{
-    Classification, Invocation, Types, is_factory_method, is_repository_query,
+    Classification, Invocation, Types, is_factory_method, is_query_on_repository,
+    is_repository_query,
 };
 use crate::domain::type_shape::TypeRef;
 
@@ -205,11 +206,20 @@ pub(super) fn standing_after_call(
         standing.clone()
     } else if is_factory_method(name) && matches!(standing, Standing::Friend(_)) {
         Standing::Friend(Reason::factory_result(name))
-    } else if is_repository_query(name) && standing.is_held() {
+    } else if is_query(receiver, name) {
         Standing::Friend(Reason::query_result(name))
     } else {
         Standing::Stranger(Reason::return_of(name))
     }
+}
+
+fn is_query(receiver: &Subject, name: &str) -> bool {
+    let on_repository = receiver
+        .type_ref
+        .as_ref()
+        .and_then(class_name)
+        .is_some_and(|owner| is_query_on_repository(owner, name));
+    receiver.standing.is_held() && (is_repository_query(name) || on_repository)
 }
 
 fn is_fluent(types: &Types, type_ref: &TypeRef, name: &str, argument_count: usize) -> bool {

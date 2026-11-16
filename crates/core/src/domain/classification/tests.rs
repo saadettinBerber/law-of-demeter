@@ -1,6 +1,6 @@
 use super::{
-    Classification, HybridClass, Platform, Types, is_factory_method, is_repository_query,
-    sample_types,
+    Classification, HybridClass, Platform, Types, is_factory_method, is_query_on_repository,
+    is_repository_query, sample_types,
 };
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -748,6 +748,18 @@ fn names_that_only_start_with_a_query_word_are_not_repository_queries() {
     let queries: Vec<_> = names.iter().map(|name| is_repository_query(name)).collect();
 
     assert_eq!(queries, vec![false; names.len()]);
+}
+
+#[test]
+fn a_get_call_is_a_query_only_on_a_type_named_repository() {
+    let on_repository = is_query_on_repository("shop.OrderRepository", "getById");
+    let on_other_type = is_query_on_repository("shop.OrderBook", "getById");
+    let other_word_on_repository = is_query_on_repository("shop.OrderRepository", "getter");
+
+    assert_eq!(
+        (on_repository, on_other_type, other_word_on_repository),
+        (true, false, false)
+    );
 }
 
 fn getter(name: &str, field: &str) -> MethodShape {

@@ -733,6 +733,93 @@ fn the_result_of_a_query_called_on_a_local_holding_a_field_is_a_friend() {
 }
 
 #[test]
+fn the_result_of_a_get_call_on_a_repository_field_is_a_friend() {
+    let types = order_lookup_types("OrderRepository");
+    let dispatch = Method::new("Dispatcher", "dispatch", 1).call(
+        Call::new(
+            Expression::field("orders", TypeRef::class("OrderRepository")),
+            "getById",
+            2,
+        )
+        .with(Expression::parameter("id", TypeRef::class("OrderId")))
+        .then("ship", 2),
+    );
+
+    let verdicts = dispatch.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getById", 2, Reason::field("orders")),
+            Verdict::allowed("ship", 2, Reason::query_result("getById")),
+        ]
+    );
+}
+
+#[test]
+fn the_result_of_a_get_call_on_a_field_not_named_repository_is_a_stranger() {
+    let types = order_lookup_types("OrderBook");
+    let dispatch = Method::new("Dispatcher", "dispatch", 1).call(
+        Call::new(
+            Expression::field("orders", TypeRef::class("OrderBook")),
+            "getById",
+            2,
+        )
+        .with(Expression::parameter("id", TypeRef::class("OrderId")))
+        .then("ship", 2),
+    );
+
+    let verdicts = dispatch.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getById", 2, Reason::field("orders")),
+            Verdict::violation("ship", 2, Reason::return_of("getById")),
+        ]
+    );
+}
+
+#[test]
+fn the_result_of_a_get_call_on_a_repository_that_is_a_call_result_is_a_stranger() {
+    let types = order_lookup_types("OrderRepository");
+    let dispatch = Method::new("Dispatcher", "dispatch", 1).call(
+        Call::new(
+            Expression::parameter("registry", TypeRef::class("Registry")),
+            "orders",
+            2,
+        )
+        .returning(TypeRef::class("OrderRepository"))
+        .then("getById", 2)
+        .with(Expression::parameter("id", TypeRef::class("OrderId")))
+        .then("ship", 2),
+    );
+
+    let verdicts = dispatch.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("orders", 2, Reason::parameter("registry")),
+            Verdict::violation("getById", 2, Reason::return_of("orders")),
+            Verdict::violation("ship", 2, Reason::return_of("getById")),
+        ]
+    );
+}
+
+fn order_lookup_types(repository: &str) -> Types {
+    sample_types()
+        .with_shape(
+            TypeShape::new(repository, TypeKind::Class).with_method(
+                MethodShape::new("getById")
+                    .with_parameters(vec![TypeRef::class("OrderId")])
+                    .returning(TypeRef::class("Order")),
+            ),
+        )
+        .with_shape(TypeShape::new("Order", TypeKind::Class).with_method(MethodShape::new("ship")))
+}
+
+#[test]
 fn calling_a_method_on_a_returned_object_of_unknown_type_is_a_violation() {
     let pay = Method::new("OrderService", "pay", 1).call(
         Call::new(

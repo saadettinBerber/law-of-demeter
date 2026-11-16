@@ -3,7 +3,7 @@ mod invocation;
 mod naming;
 mod platform;
 
-pub use naming::{is_factory_method, is_repository_query};
+pub use naming::{is_factory_method, is_query_on_repository, is_repository_query};
 pub use platform::Platform;
 
 use std::collections::{HashMap, HashSet};
