@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use law_of_demeter_class_file::Jdk;
 use law_of_demeter_core::application::TypeSource;
+use law_of_demeter_core::domain::classification::{Classification, Types};
+use law_of_demeter_core::domain::type_shape::TypeRef;
 
 use super::ClassFileTypes;
 
@@ -96,5 +98,19 @@ fn a_jdk_that_cannot_give_the_release_is_reported_and_the_classpath_is_still_rea
             reading.errors.len()
         ),
         (true, 1)
+    );
+}
+
+#[test]
+fn the_reading_carries_what_the_java_platform_knows_about_its_types() {
+    let types = ClassFileTypes::new(Vec::new(), None);
+
+    let known = types.read().known;
+
+    assert_eq!(
+        Types::new()
+            .with_known(known)
+            .classify(&TypeRef::class("java.util.List")),
+        Classification::Container
     );
 }

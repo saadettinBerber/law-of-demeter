@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use law_of_demeter_class_file::{Error, Jdk, Reading, read_types_lenient};
 use law_of_demeter_core::application::{ReadError, TypeReading, TypeSource};
+use law_of_demeter_java_source::java_platform;
 
 pub struct ClassFileTypes {
     classpath: Vec<PathBuf>,
@@ -16,7 +17,10 @@ impl ClassFileTypes {
 
 impl TypeSource for ClassFileTypes {
     fn read(&self) -> TypeReading {
-        let mut reading = TypeReading::default();
+        let mut reading = TypeReading {
+            known: java_platform(),
+            ..TypeReading::default()
+        };
         if let Some((jdk, release)) = &self.jdk {
             match jdk.types(*release) {
                 Ok(types) => absorb(types, &mut reading),
