@@ -1,7 +1,7 @@
 mod mapped;
 
 use law_of_demeter_core::domain::classification::Types;
-use law_of_demeter_core::domain::method::{Expression, Lambda, Method};
+use law_of_demeter_core::domain::method::{Call, Expression, Lambda, Method, MethodReference};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 use law_of_demeter_java_source::java_platform;
 use mapped::{call, class, method_f_in, parameter};
@@ -148,6 +148,21 @@ fn customer_of_order() -> Expression {
     Expression::return_of(read)
 }
 
+fn customer_reference() -> MethodReference {
+    MethodReference::new(Expression::static_type(order()), "getCustomer", 4)
+        .returning(customer())
+        .resolving(order())
+        .fed_by_elements()
+}
+
+fn grouping_by_customer() -> Call {
+    call(Expression::static_type(class(COLLECTORS)), "groupingBy", 4)
+        .with(customer_reference())
+        .returning(collector_of(order(), map_of(customer(), list_of(order()))))
+        .returning_from(&[])
+        .keyed_by(0)
+}
+
 #[test]
 fn a_lambda_given_to_a_stream_is_fed_by_its_elements_and_its_result_flows_to_the_return() {
     let mapped = mapped("orders.stream().map(order -> order.getCustomer())");
@@ -202,9 +217,36 @@ fn a_lambda_in_a_nested_call_is_fed_by_the_elements_of_the_outer_stream() {
     let grouping = call(Expression::static_type(class(COLLECTORS)), "groupingBy", 4)
         .with(classifier)
         .returning(collector_of(order(), map_of(customer(), list_of(order()))))
-        .returning_from(&[0]);
+        .returning_from(&[])
+        .keyed_by(0);
     let collect = call(streamed_orders(), "collect", 4)
         .with(Expression::return_of(grouping))
-        .returning(map_of(customer(), list_of(order())));
+        .returning(map_of(customer(), list_of(order())))
+        .keyed_by(0);
     assert_eq!(mapped, f().call(collect));
+}
+
+#[test]
+fn a_classifier_in_a_nested_call_is_fed_by_the_outer_elements_and_keys_the_result() {
+    let mapped = mapped("orders.stream().collect(Collectors.groupingBy(Order::getCustomer))");
+
+    let collect = call(streamed_orders(), "collect", 4)
+        .with(Expression::return_of(grouping_by_customer()))
+        .returning(map_of(customer(), list_of(order())))
+        .keyed_by(0);
+    assert_eq!(mapped, f().call(collect));
+}
+
+#[test]
+fn a_call_returning_the_first_type_argument_of_a_map_yields_its_keys() {
+    let mapped = mapped("grouped.keySet()");
+
+    let keys = call(
+        parameter("grouped", map_of(customer(), list_of(order()))),
+        "keySet",
+        4,
+    )
+    .returning(generic(SET, &[customer()]))
+    .yielding_keys();
+    assert_eq!(mapped, f().call(keys));
 }

@@ -5,7 +5,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
-use super::links::{ArgumentLinks, Declared};
+use super::links::{ArgumentLinks, Declared, Flow};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
@@ -130,6 +130,16 @@ impl MethodMapper<'_> {
         }
     }
 
+    fn produces_keys(&mut self, call: &model::Call) -> bool {
+        self.invocation_of(call)
+            .and_then(|found| {
+                found
+                    .declared()
+                    .map(|declared| declared.produces_keys(self.types))
+            })
+            .unwrap_or(false)
+    }
+
     fn argument_links(
         &mut self,
         declared: Option<&Declared>,
@@ -159,20 +169,32 @@ impl MethodMapper<'_> {
         }
     }
 
-    fn linked(&self, mapped: Call, call: &model::Call, declared: &Declared) -> Call {
-        if !call.arguments.iter().any(is_functional) {
-            return mapped;
+    fn linked(&mut self, mapped: Call, call: &model::Call, declared: &Declared) -> Call {
+        let flows = self.flows_of(call, declared);
+        let mapped = with_feeding(mapped, call, &flows);
+        let mapped = match flows.iter().position(|flow| *flow == Flow::Keys) {
+            Some(index) => mapped.keyed_by(index),
+            None => mapped,
+        };
+        if declared.yields_keys() {
+            mapped.yielding_keys()
+        } else {
+            mapped
         }
-        let feeding: Vec<usize> = call
-            .arguments
+    }
+
+    fn flows_of(&mut self, call: &model::Call, declared: &Declared) -> Vec<Flow> {
+        call.arguments
             .iter()
             .enumerate()
-            .filter(|(index, argument)| {
-                is_functional(argument) && declared.feeds_return(self.types, *index)
+            .map(|(index, argument)| match argument {
+                model::Expression::Call(nested) if self.produces_keys(nested) => {
+                    declared.flow(self.types, index, false)
+                }
+                _ if is_functional(argument) => declared.flow(self.types, index, true),
+                _ => Flow::None,
             })
-            .map(|(index, _)| index)
-            .collect();
-        mapped.returning_from(&feeding)
+            .collect()
     }
 
     fn creation(&mut self, created: &model::New) -> Expression {
@@ -249,6 +271,20 @@ impl MethodMapper<'_> {
             _ => None,
         }
     }
+}
+
+fn with_feeding(mapped: Call, call: &model::Call, flows: &[Flow]) -> Call {
+    if !call.arguments.iter().any(is_functional) {
+        return mapped;
+    }
+    let feeding: Vec<usize> = call
+        .arguments
+        .iter()
+        .enumerate()
+        .filter(|(index, argument)| is_functional(argument) && flows[*index] == Flow::Return)
+        .map(|(index, _)| index)
+        .collect();
+    mapped.returning_from(&feeding)
 }
 
 fn is_functional(argument: &model::Expression) -> bool {
