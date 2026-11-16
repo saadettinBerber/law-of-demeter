@@ -744,3 +744,79 @@ fn a_method_the_receiver_does_not_declare_leaves_the_call_unresolved() {
             )
     );
 }
+
+fn optional_of(element: TypeRef) -> TypeRef {
+    TypeRef::generic("java.util.Optional", vec![element])
+}
+
+#[test]
+fn renamed_type_parameters_are_substituted_along_the_whole_chain() {
+    let source =
+        "class OrderService {\n void f(Registry<Order> registry) {\n  registry.get(0).go();\n }\n}";
+    let array_list = shape("java.util.ArrayList")
+        .with_type_parameter("E")
+        .extending(TypeRef::generic(
+            "java.util.List",
+            vec![TypeRef::variable("E")],
+        ));
+    let registry = shape("Registry")
+        .with_type_parameter("Item")
+        .with_superclass(TypeRef::generic(
+            "java.util.ArrayList",
+            vec![optional_of(TypeRef::variable("Item"))],
+        ));
+    let types = shop()
+        .with_shape(list_shape())
+        .with_shape(array_list)
+        .with_shape(registry);
+
+    let mapped = method_f_in(source, &types);
+
+    let registry = parameter(
+        "registry",
+        TypeRef::generic("Registry", vec![class("Order")]),
+    );
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(registry, "get", 3)
+                .with(Expression::literal())
+                .returning(optional_of(class("Order")))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_method_type_variable_no_argument_binds_stays_open_in_the_return_type() {
+    let source = "import java.util.Optional;\nclass OrderService {\n void f(Optional<Order> maybe, Ghost ghost) {\n  maybe.map(ghost).go();\n }\n}";
+    let optional = shape("java.util.Optional")
+        .with_type_parameter("T")
+        .with_method(
+            MethodShape::new("map")
+                .with_type_parameter("U")
+                .with_parameters(vec![TypeRef::generic(
+                    "java.util.function.Function",
+                    vec![TypeRef::variable("T"), TypeRef::variable("U")],
+                )])
+                .returning(optional_of(TypeRef::variable("U"))),
+        );
+    let types = shop().with_shape(optional).with_shape(
+        shape("java.util.function.Function")
+            .with_type_parameter("T")
+            .with_type_parameter("R"),
+    );
+
+    let mapped = method_f_in(source, &types);
+
+    let maybe = parameter("maybe", optional_of(class("Order")));
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 3).call(
+            call(maybe, "map", 4)
+                .with(parameter("ghost", class("Ghost")))
+                .returning(optional_of(TypeRef::variable("U")))
+                .then("go", 4)
+        )
+    );
+}
