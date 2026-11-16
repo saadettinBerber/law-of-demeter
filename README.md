@@ -89,12 +89,15 @@ Sonuç: f yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ula
 
 ## Veri yapıları
 
-Kural nesneler içindir. Nesne verisini gizler ve davranışını açar. Veri yapısı ise verisini açar ve davranış taşımaz.
+Kural nesneler içindir. Nesne verisini gizler ve davranışını açar. Veri yapısı ise verisini açar ve davranış taşımaz. İki durumu da karıştırmamak gerekir.
+
+<details>
+<summary><strong>Hibrit sınıf</strong></summary>
+
+Hem verisini açan hem davranış taşıyan sınıfa hibrit denir. Örneklerde C `PaymentService` sınıfı, f de `pay` metodu.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
-
-Hem verisini açan hem davranış taşıyan sınıfa hibrit denir. Örnekte C `PaymentService` sınıfı, f de `pay` metodu.
 
 ```java
 class Account {
@@ -123,17 +126,90 @@ class PaymentService {
 }
 ```
 
-1. `Account` verisini `getBalance()` ve `setBalance()` ile açıyor, bir yandan da `withdraw()` davranışını taşıyor.
-2. `account.setBalance(account.getBalance() - amount)`: `withdraw()` içindeki bakiye kontrolünü atlıyor. Bakiye eksiye düşebilir.
+1. `account.getBalance()`: Serbest. `account`, f'ye argüman olarak verildi.
+2. `account.setBalance(...)`: Serbest, ama `Account` verisini `getBalance()` ve `setBalance()` ile açıyor, bir yandan da `withdraw()` davranışını taşıyor. Araç sınıfı hibrit olarak raporlar.
 
-Sonuç: Alanları dışarıdan değiştirilebildiği için hibrit sınıf kendi kuralını koruyamaz.
+Sonuç: `pay`, `withdraw()` içindeki bakiye kontrolünü atlıyor; bakiye eksiye düşebilir. Alanları dışarıdan değiştirilebildiği için hibrit sınıf kendi kuralını koruyamaz.
 
 </details>
 
 <details>
 <summary><strong>Uygun</strong></summary>
 
-Veri yapısında zincirle okumak kuralı çiğnemez, çünkü gizlenecek bir iç yapı yoktur. Örnekte C `Connector` sınıfı, f de `portOf` metodu.
+```java
+class Account {
+    private int balance;
+
+    void withdraw(int amount) {
+        if (amount > balance) {
+            throw new IllegalStateException("Insufficient balance");
+        }
+        balance -= amount;
+    }
+}
+
+class PaymentService {
+    void pay(Account account, int amount) {
+        account.withdraw(amount);
+    }
+}
+```
+
+1. `account.withdraw(amount)`: Serbest. `account`, f'ye argüman olarak verildi.
+
+Sonuç: `Account` bakiyesini gizliyor. Kontrol tek yerde, verinin sahibinde kalıyor; sınıf hibrit sayılmaz.
+
+</details>
+
+</details>
+
+<details>
+<summary><strong>Veri yapısında zincirle okumak</strong></summary>
+
+Veri yapısında zincirle okumak kuralı çiğnemez, çünkü gizlenecek bir iç yapı yoktur. Aynı zincir davranış taşıyan nesnelerden geçerse çiğner. Örneklerde C `Connector` sınıfı, f de `portOf` metodu.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class Server {
+    private int port = 8080;
+
+    int port() {
+        return port;
+    }
+
+    void restart() {
+    }
+}
+
+class Config {
+    private final Server server = new Server();
+
+    Server server() {
+        return server;
+    }
+
+    void reload() {
+    }
+}
+
+class Connector {
+    int portOf(Config config) {
+        return config.server().port();
+    }
+}
+```
+
+1. `config.server()`: Serbest. `config`, f'ye argüman olarak verildi.
+2. `.port()`: Kuralı çiğner. Bu metot, `server()`'ın döndürdüğü sunucuda çağrılıyor. `Server` davranış taşıyan bir nesne (`restart()`) ve listede yok.
+
+Sonuç: `portOf`, yapılandırmanın bir sunucusu, sunucunun da bir portu olduğunu bilmek zorunda. `Server` değişirse `portOf` de değişir.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
 
 ```java
 record Server(String host, int port) {
@@ -152,7 +228,9 @@ class Connector {
 1. `config.server()`: Serbest. `config`, f'ye argüman olarak verildi.
 2. `.port()`: Serbest. `server()`'ın döndürdüğü `Server` bir veri yapısı; yalnızca veri taşıyor.
 
-Sonuç: `Config` ve `Server` davranış taşımadığı için yapılarını açmaları beklenen bir durum.
+Sonuç: `portOf` aynı kalıyor. `Config` ve `Server` davranış taşımadığı için yapılarını açmaları beklenen bir durum.
+
+</details>
 
 </details>
 
