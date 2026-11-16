@@ -5,8 +5,7 @@ use law_of_demeter_core::domain::method::{Creation, Expression, Method};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 use mapped::{call, class, method_f_in, parameter};
 
-const PARAMETERS: &str =
-    "Order order, Customer customer, Premium premium, Integer boxed, Object any, Ghost ghost";
+const PARAMETERS: &str = "Order order, Customer customer, Premium premium, Integer boxed, Object any, Order[] orders, Ghost ghost";
 
 fn shape(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -139,6 +138,19 @@ fn a_cast_to_a_primitive_gives_the_argument_that_type() {
 
     let cast = Expression::cast(int(), boxed());
     assert_eq!(mapped, expected_pick(vec![cast], Some("Customer")));
+}
+
+#[test]
+fn an_array_argument_fits_a_parameter_of_object_but_not_of_a_class() {
+    let overloads = vec![
+        pick("Customer", vec![class("Customer")]),
+        pick("Wallet", vec![class("java.lang.Object")]),
+    ];
+
+    let mapped = mapped_pick("orders", overloads);
+
+    let orders = parameter("orders", TypeRef::array(class("Order")));
+    assert_eq!(mapped, expected_pick(vec![orders], Some("Wallet")));
 }
 
 #[test]
