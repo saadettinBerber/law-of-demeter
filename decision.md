@@ -41,5 +41,17 @@
 | Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
 | [JDK tip kataloğunu domain'den Java adapter'ına taşı: değer, konteyner, veri yapısı ve davranışsız tipleri dil versin; domain yalnızca bilinen tiplerin sınıfını alsın.](README.md#mimari) | Yapıldı |
 | [Java'nın nesne modelini domain'den çıkar: gizli üst tipler (`Object`, `Enum`, `Record`), `equals`, `hashCode`, `toString`, `canEqual`, kurucu adı `<init>`, Lombok'un `toBuilder`'ı ve değiştirici metot adları dilden gelsin.](README.md#mimari) | Yapıldı |
-| [İfade tiplerini dil adapter'ı çözsün: aşırı yükleme seçimi, değişken sayıda argüman, generic çıkarım, lambda ve metot referansı tipi; domain her çağrının alıcı ve dönüş tipini çözülmüş alsın.](README.md#mimari) | Yapılmadı |
+| [Tip çıkarımı için güvenlik ağı kur: domain'deki çıkarım testlerinden Java kaynağıyla karşılığı olmayanları java-source'ta uçtan uca test olarak yaz.](SCENARIOS.md) | Yapılmadı |
+| [Kaynak okuyucu port'u tip şekillerini ve platformu da versin; Java adapter'ı tipleri çözebilsin.](README.md#mimari) | Yapılmadı |
+| [Domain modeline çözülmüş tip alanları ekle: çağrının dönüş tipi, lambda parametresinin tipi; alan doluysa domain onu kullansın, boşsa kendi çıkarımını sürdürsün.](README.md#mimari) | Yapılmadı |
+| [Generic olmayan çağrının dönüş tipini adapter bulsun: üst tiplerde ve kök tipte arama, argüman sayısına göre metot.](README.md#mimari) | Yapılmadı |
+| [Generic sınıfın tip argümanlarını adapter yerine koysun: `List<Order>.get()` → `Order`.](README.md#mimari) | Yapılmadı |
+| [Aşırı yükleme seçimini adapter yapsın: argüman tiplerine göre doğru metot.](README.md#mimari) | Yapılmadı |
+| [Değişken sayıda argümanı adapter çözsün: `Stream.of(a, b)`, `String.format("%s %s", a, b)`.](README.md#mimari) | Yapılmadı |
+| [Generic metodun tip değişkenini adapter çıkarsın: argümandan, beklenen tipten ve sınırından (`<T extends Shape>`).](README.md#mimari) | Yapılmadı |
+| [Lambda parametresinin tipini adapter bulsun: fonksiyonel arayüzün tek soyut metodundan; hedef tip atamadan, dönüşten ya da kurucu parametresinden.](README.md#mimari) | Yapılmadı |
+| [Metot referansının tipini adapter çözsün: `Order::getCustomer`, `this::handle`, kurucu referansı.](README.md#mimari) | Yapılmadı |
+| [İç içe generic çağrının tiplerini adapter çözsün: `collect(Collectors.groupingBy(...))`.](README.md#mimari) | Yapılmadı |
+| [Veri akışı bağlarını adapter versin: hangi lambda parametresi alıcının elemanlarıyla besleniyor, lambda sonucu dönüşe akıyor mu; domain arkadaş ya da yabancı durumunu bu bağlar boyunca taşısın.](README.md#mimari) | Yapılmadı |
+| [Tip çıkarımını domain'den sil: `invocation.rs`, `functional.rs`, aşırı yükleme ve generic bağlama; domain testleri çözülmüş tiplerle sadeleşsin.](README.md#mimari) | Yapılmadı |
 | [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapılmadı |
