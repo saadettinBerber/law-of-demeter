@@ -97,11 +97,23 @@ impl MethodMapper<'_> {
                 Some(ArgumentType::Lambda(lambda.parameters.len()))
             }
             model::Expression::MethodReference { .. } => Some(ArgumentType::Reference),
+            model::Expression::Call(call) => self.call_argument(call),
             other => self
                 .type_of(other)
                 .filter(|type_ref| is_known(self.types, type_ref))
                 .map(ArgumentType::Typed),
         }
+    }
+
+    fn call_argument(&mut self, call: &model::Call) -> Option<ArgumentType> {
+        match self.call_type(call) {
+            Some(known) => is_known(self.types, &known).then_some(ArgumentType::Typed(known)),
+            None => self.open_return_of(call).map(ArgumentType::Open),
+        }
+    }
+
+    fn open_return_of(&mut self, call: &model::Call) -> Option<TypeRef> {
+        self.invocation_of(call)?.open_return()
     }
 
     fn receiver_type(&mut self, call: &model::Call) -> Option<TypeRef> {
@@ -165,6 +177,11 @@ impl Invocation {
             },
             None => self,
         }
+    }
+
+    pub(super) fn open_return(&self) -> Option<TypeRef> {
+        let open = apply_bindings(self.returned.as_ref()?, &self.bindings);
+        has_variable(&open).then_some(open)
     }
 
     pub(super) fn returns_to(&self, types: &Types) -> Option<TypeRef> {

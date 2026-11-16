@@ -13,11 +13,12 @@ pub(super) enum ArgumentType {
     Typed(TypeRef),
     Lambda(usize),
     Reference,
+    Open(TypeRef),
 }
 
 impl ArgumentType {
-    pub(super) fn is_functional(&self) -> bool {
-        matches!(self, Self::Lambda(_) | Self::Reference)
+    pub(super) fn is_deferred(&self) -> bool {
+        matches!(self, Self::Lambda(_) | Self::Reference | Self::Open(_))
     }
 
     pub(super) fn of_literal(literal: LiteralType) -> Self {
@@ -164,11 +165,19 @@ fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: P
             matches!(parameter, TypeRef::Variable(_))
                 || functional_method(types, parameter).is_some()
         }
+        ArgumentType::Open(returned) => match returned {
+            TypeRef::Variable(_) => phase != Phase::Strict || !is_primitive(parameter),
+            _ => substitutable(types, returned, parameter),
+        },
         ArgumentType::Typed(argument) => {
             substitutable(types, argument, parameter)
                 || (phase != Phase::Strict && converts_by_boxing(types, argument, parameter))
         }
     }
+}
+
+fn is_primitive(type_ref: &TypeRef) -> bool {
+    matches!(type_ref, TypeRef::Primitive(_))
 }
 
 fn most_specific(
