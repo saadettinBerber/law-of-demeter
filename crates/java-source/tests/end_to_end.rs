@@ -2430,7 +2430,7 @@ fn factories_catalog(owners: &[&str]) -> Types {
 }
 
 #[test]
-fn violation_13_talking_to_the_result_of_an_imported_static_call() {
+fn violation_13_talking_to_what_an_imported_static_call_result_returns() {
     let snippet = "void audit() {\n    customer().getWallet().withdraw(1);\n}";
 
     let verdicts = verdicts_in_c(
