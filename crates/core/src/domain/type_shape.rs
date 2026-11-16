@@ -244,6 +244,7 @@ pub struct TypeShape {
     name: String,
     kind: TypeKind,
     type_parameters: Vec<String>,
+    type_parameter_bounds: Vec<(String, TypeRef)>,
     superclass: Option<TypeRef>,
     supertypes: Vec<TypeRef>,
     fields: Vec<FieldShape>,
@@ -256,6 +257,7 @@ impl TypeShape {
             name: name.to_owned(),
             kind,
             type_parameters: Vec::new(),
+            type_parameter_bounds: Vec::new(),
             superclass: None,
             supertypes: Vec::new(),
             fields: Vec::new(),
@@ -265,6 +267,11 @@ impl TypeShape {
 
     pub fn with_type_parameter(mut self, name: &str) -> Self {
         self.type_parameters.push(name.to_owned());
+        self
+    }
+
+    pub fn with_type_parameter_bound(mut self, name: &str, bound: TypeRef) -> Self {
+        self.type_parameter_bounds.push((name.to_owned(), bound));
         self
     }
 
@@ -281,6 +288,12 @@ impl TypeShape {
 
     pub fn type_parameters(&self) -> &[String] {
         &self.type_parameters
+    }
+
+    pub fn type_parameter_bound(&self, name: &str) -> Option<&TypeRef> {
+        self.type_parameter_bounds
+            .iter()
+            .find_map(|(parameter, bound)| (parameter == name).then_some(bound))
     }
 
     pub fn superclass(&self) -> Option<&TypeRef> {
@@ -334,5 +347,19 @@ mod tests {
             Some(&TypeRef::class("Shape"))
         );
         assert_eq!(method.type_parameter_bound("U"), None);
+    }
+
+    #[test]
+    fn a_class_type_parameter_reports_the_bound_it_was_given() {
+        let shape = TypeShape::new("Box", TypeKind::Class)
+            .with_type_parameter("T")
+            .with_type_parameter("U")
+            .with_type_parameter_bound("T", TypeRef::class("Shape"));
+
+        assert_eq!(
+            shape.type_parameter_bound("T"),
+            Some(&TypeRef::class("Shape"))
+        );
+        assert_eq!(shape.type_parameter_bound("U"), None);
     }
 }
