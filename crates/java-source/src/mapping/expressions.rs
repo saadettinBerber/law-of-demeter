@@ -210,10 +210,14 @@ impl MethodMapper<'_> {
         let invocation = self
             .constructor_of(created)
             .map(|found| found.expecting(self.types, expected));
+        let declared = invocation
+            .as_ref()
+            .and_then(|found| found.declared().cloned());
         let mut creation = Creation::new(self.type_ref_or_object(&created.created));
         for (index, argument) in created.arguments.iter().enumerate() {
             let target = invocation.as_ref().and_then(|found| found.parameter(index));
-            creation = creation.with(self.argument(argument, target, &ArgumentLinks::default()));
+            let links = self.argument_links(declared.as_ref(), index, argument, &[]);
+            creation = creation.with(self.argument(argument, target, &links));
         }
         Expression::created(creation)
     }

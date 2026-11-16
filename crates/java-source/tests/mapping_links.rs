@@ -1,7 +1,9 @@
 mod mapped;
 
 use law_of_demeter_core::domain::classification::Types;
-use law_of_demeter_core::domain::method::{Call, Expression, Lambda, Method, MethodReference};
+use law_of_demeter_core::domain::method::{
+    Call, Creation, Expression, Lambda, Method, MethodReference,
+};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 use law_of_demeter_java_source::java_platform;
 use mapped::{call, class, method_f_in, parameter};
@@ -168,6 +170,38 @@ fn world() -> Types {
             shape("Order").with_method(MethodShape::new("getCustomer").returning(customer())),
         )
         .with_shape(shape("Customer"))
+        .with_shape(batch())
+        .with_shape(worker())
+        .with_shape(batches())
+}
+
+fn batch() -> TypeShape {
+    let constructor = MethodShape::new("<init>").with_parameters(vec![
+        list_of(variable("T")),
+        function_of(variable("T"), variable("R")),
+    ]);
+    shape("Batch")
+        .with_type_parameter("T")
+        .with_type_parameter("R")
+        .with_method(constructor)
+}
+
+fn worker() -> TypeShape {
+    let constructor =
+        MethodShape::new("<init>").with_parameters(vec![function_of(order(), customer())]);
+    shape("Worker").with_method(constructor)
+}
+
+fn batches() -> TypeShape {
+    let each = MethodShape::new("each")
+        .as_static()
+        .with_type_parameter("T")
+        .with_type_parameter("R")
+        .with_parameters(vec![
+            list_of(variable("T")),
+            function_of(variable("T"), variable("R")),
+        ]);
+    shape("Batches").with_method(each)
 }
 
 fn mapped(statement: &str) -> Method {
@@ -399,4 +433,73 @@ fn a_call_returning_an_element_of_the_receiver_keeps_the_entries() {
         .returning(order())
         .keeping_entries();
     assert_eq!(mapped, f().call(first));
+}
+
+fn customer_of_each_order() -> Lambda {
+    Lambda::new(&["order"])
+        .resolving("order", order())
+        .yielding(customer_of_order())
+}
+
+fn untyped_customer_of_each_order() -> Lambda {
+    let read = call(Expression::local("order"), "getCustomer", 4);
+    Lambda::new(&["order"]).yielding(Expression::return_of(read))
+}
+
+fn orders_parameter() -> Expression {
+    parameter("orders", list_of(order()))
+}
+
+#[test]
+fn a_lambda_given_to_a_constructor_is_fed_by_the_elements_of_the_argument_binding_its_input() {
+    let mapped = mapped("new Batch<>(orders, order -> order.getCustomer())");
+
+    let creation = Creation::new(generic("Batch", &[]))
+        .with(orders_parameter())
+        .with(untyped_customer_of_each_order().fed_by_argument_elements("order", 0));
+    assert_eq!(mapped, f().evaluate(Expression::created(creation)));
+}
+
+#[test]
+fn a_lambda_given_to_a_constructor_with_an_input_no_argument_binds_is_fed_by_its_receiver() {
+    let mapped = mapped("new Worker(order -> order.getCustomer())");
+
+    let creation =
+        Creation::new(class("Worker")).with(customer_of_each_order().fed_by_receiver("order"));
+    assert_eq!(mapped, f().evaluate(Expression::created(creation)));
+}
+
+#[test]
+fn a_method_reference_given_to_a_constructor_is_fed_by_the_elements_of_the_argument_binding_its_input()
+ {
+    let mapped = mapped("new Batch<>(orders, Order::getCustomer)");
+
+    let reference = MethodReference::new(Expression::static_type(order()), "getCustomer", 4)
+        .taking(1)
+        .fed_by_argument_elements(0);
+    let creation = Creation::new(generic("Batch", &[]))
+        .with(orders_parameter())
+        .with(reference);
+    assert_eq!(mapped, f().evaluate(Expression::created(creation)));
+}
+
+#[test]
+fn a_lambda_given_to_a_static_call_is_fed_by_the_elements_of_the_argument_binding_its_input() {
+    let mapped = mapped("Batches.each(orders, order -> order.getCustomer())");
+
+    let each = call(Expression::static_type(class("Batches")), "each", 4)
+        .with(orders_parameter())
+        .with(customer_of_each_order().fed_by_argument_elements("order", 0))
+        .returning_from(&[]);
+    assert_eq!(mapped, f().call(each));
+}
+
+#[test]
+fn a_lambda_given_to_a_constructor_of_an_unknown_class_gets_no_link() {
+    let mapped = mapped("new Unknown(orders, order -> order.getCustomer())");
+
+    let creation = Creation::new(class("Unknown"))
+        .with(orders_parameter())
+        .with(untyped_customer_of_each_order());
+    assert_eq!(mapped, f().evaluate(Expression::created(creation)));
 }

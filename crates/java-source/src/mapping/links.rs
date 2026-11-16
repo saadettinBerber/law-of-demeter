@@ -8,6 +8,7 @@ use super::lambdas::functional_method;
 pub(super) enum Feed {
     Elements,
     Receiver,
+    Argument(usize),
 }
 
 #[derive(Clone, Default)]
@@ -24,6 +25,7 @@ impl ArgumentLinks {
             .fold(lambda, |lambda, (name, feed)| match feed {
                 Feed::Elements => lambda.fed_by_elements(name),
                 Feed::Receiver => lambda.fed_by_receiver(name),
+                Feed::Argument(index) => lambda.fed_by_argument_elements(name, *index),
             })
     }
 
@@ -31,6 +33,7 @@ impl ArgumentLinks {
         match self.feeds.first() {
             Some(Feed::Elements) => reference.fed_by_elements(),
             Some(Feed::Receiver) => reference.fed_by_receiver(),
+            Some(Feed::Argument(index)) => reference.fed_by_argument_elements(*index),
             None => reference,
         }
     }
@@ -113,6 +116,9 @@ impl Declared {
                     .iter()
                     .map(|input| match input {
                         TypeRef::Variable(name) if fed.contains(name) => Feed::Elements,
+                        TypeRef::Variable(name) => self
+                            .argument_binding(types, name)
+                            .map_or(Feed::Receiver, Feed::Argument),
                         _ => Feed::Receiver,
                     })
                     .collect()
@@ -122,6 +128,13 @@ impl Declared {
             feeds,
             inherited: Vec::new(),
         }
+    }
+
+    fn argument_binding(&self, types: &Types, name: &str) -> Option<usize> {
+        let bound = TypeRef::variable(name);
+        self.parameters
+            .iter()
+            .position(|parameter| sole_element(types, parameter) == Some(&bound))
     }
 
     pub(super) fn inherited_by(
@@ -189,6 +202,13 @@ impl Declared {
 
     fn fed(&self, inherited: &[String]) -> Vec<String> {
         self.elements.iter().chain(inherited).cloned().collect()
+    }
+}
+
+fn sole_element<'t>(types: &Types, type_ref: &'t TypeRef) -> Option<&'t TypeRef> {
+    match type_ref {
+        TypeRef::Class { arguments, .. } if arguments.len() != 1 => None,
+        _ => types.element_type(type_ref),
     }
 }
 

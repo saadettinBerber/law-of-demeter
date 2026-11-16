@@ -341,7 +341,10 @@ fn a_constructor_argument_resolves_its_parameter_from_the_constructor() {
 
     assert_eq!(
         mapped,
-        creating(class("Worker"), listener("e").resolving("e", event()))
+        creating(
+            class("Worker"),
+            fed(listener("e").resolving("e", event()), "e")
+        )
     );
 }
 
@@ -370,7 +373,7 @@ fn the_class_type_arguments_substitute_into_the_constructor_parameter() {
         mapped,
         creating(
             generic("Handler", &[event()]),
-            listener("e").resolving("e", event())
+            fed(listener("e").resolving("e", event()), "e")
         )
     );
 }
@@ -384,7 +387,7 @@ fn a_diamond_leaves_the_constructor_lambda_unresolved() {
 
     let mapped = created(&types, "new Handler<>(e -> e.getEntry());");
 
-    assert_eq!(mapped, creating(class("Handler"), listener("e")));
+    assert_eq!(mapped, creating(class("Handler"), fed(listener("e"), "e")));
 }
 
 #[test]
@@ -399,7 +402,7 @@ fn a_diamond_takes_its_type_arguments_from_the_declared_local_for_its_lambda() {
         "Handler<Event> handler = new Handler<>(e -> e.getEntry());",
     );
 
-    let lambda = listener("e").resolving("e", event());
+    let lambda = fed(listener("e").resolving("e", event()), "e");
     assert_eq!(
         mapped,
         f(2).assign(
