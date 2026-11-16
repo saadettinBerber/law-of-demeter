@@ -1,8 +1,4 @@
-use std::mem;
-
-use law_of_demeter_core::domain::method::{
-    Argument, Call, Creation, Expression, Lambda, MethodReference,
-};
+use law_of_demeter_core::domain::method::{Argument, Call, Creation, Expression, MethodReference};
 
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
@@ -48,9 +44,11 @@ impl MethodMapper<'_> {
                 Expression::operation(operands.collect())
             }
             model::Expression::Cast { target, operand } => {
-                Expression::cast(self.type_ref_or_object(target), self.expression(operand))
+                let target = self.type_ref_or_object(target);
+                let operand = self.expression_expecting(operand, Some(&target));
+                Expression::cast(target, operand)
             }
-            model::Expression::Lambda(lambda) => Expression::lambda(self.lambda(lambda)),
+            model::Expression::Lambda(lambda) => Expression::lambda(self.lambda(lambda, None)),
             model::Expression::MethodReference { target, .. } => {
                 let target = self.expression(target);
                 if is_quiet(&target) {
@@ -78,6 +76,7 @@ impl MethodMapper<'_> {
     ) -> Expression {
         match expression {
             model::Expression::Call(call) => self.call(call, expected),
+            model::Expression::Lambda(lambda) => Expression::lambda(self.lambda(lambda, expected)),
             other => self.expression(other),
         }
     }
@@ -110,7 +109,7 @@ impl MethodMapper<'_> {
 
     fn argument(&mut self, argument: &model::Expression) -> Argument {
         match argument {
-            model::Expression::Lambda(lambda) => Argument::Lambda(self.lambda(lambda)),
+            model::Expression::Lambda(lambda) => Argument::Lambda(self.lambda(lambda, None)),
             model::Expression::MethodReference { target, name, line } => Argument::MethodReference(
                 MethodReference::new(self.expression(target), name, *line),
             ),
@@ -140,37 +139,6 @@ impl MethodMapper<'_> {
             model::Expression::Field(name) => Some(self.field_type(&self.class.name, name)),
             model::Expression::OuterField { owner, name } => Some(self.field_type(owner, name)),
             _ => None,
-        }
-    }
-
-    fn lambda(&mut self, lambda: &model::Lambda) -> Lambda {
-        let names: Vec<&str> = lambda
-            .parameters
-            .iter()
-            .map(|parameter| parameter.name.as_str())
-            .collect();
-        let (result, body) = match lambda.body.split_last() {
-            Some((model::Statement::Return(Some(result)), earlier)) => (Some(result), earlier),
-            _ => (None, lambda.body.as_slice()),
-        };
-        let outer_steps = mem::take(&mut self.steps);
-        let outer_returns = self.returns.take();
-        self.statements(body);
-        let result = result.map(|result| self.expression(result));
-        self.returns = outer_returns;
-        let mapped = mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names));
-        let mapped = lambda
-            .parameters
-            .iter()
-            .filter_map(|parameter| {
-                Some((parameter, self.type_ref(parameter.declared_type.as_ref()?)?))
-            })
-            .fold(mapped, |mapped, (parameter, declared)| {
-                mapped.declaring(&parameter.name, declared)
-            });
-        match result {
-            Some(value) => mapped.yielding(value),
-            None => mapped,
         }
     }
 }
