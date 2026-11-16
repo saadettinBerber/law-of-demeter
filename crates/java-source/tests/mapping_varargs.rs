@@ -289,3 +289,18 @@ fn a_fixed_array_parameter_does_not_take_separate_arguments() {
     let order = parameter("order", class("Order"));
     assert_eq!(mapped, expected_pick(vec![order], Some("Customer")));
 }
+
+#[test]
+fn an_overload_of_another_arity_does_not_disagree_with_an_unknown_argument() {
+    let overloads = vec![
+        fixed_pick("Customer", vec![TypeRef::primitive("int")]),
+        fixed_pick(
+            "Wallet",
+            vec![TypeRef::primitive("int"), TypeRef::primitive("int")],
+        ),
+    ];
+
+    let mapped = mapped_pick("ghost", overloads);
+
+    assert_eq!(mapped, expected_pick(vec![ghost()], Some("Customer")));
+}
