@@ -77,6 +77,9 @@ impl MethodMapper<'_> {
             model::Expression::Lambda(lambda) => {
                 Expression::lambda(self.lambda(lambda, expected).lambda)
             }
+            model::Expression::MethodReference { target, name, line } => {
+                Expression::method_reference(self.reference(target, (name, *line), expected))
+            }
             other => self.expression(other),
         }
     }
@@ -228,26 +231,35 @@ impl MethodMapper<'_> {
                 name,
                 line,
             } => {
-                let result = self.reference_result(referenced, name, target);
-                let reference = MethodReference::new(self.expression(referenced), name, *line);
-                let reference = links.on_reference(reference);
-                let reference = match self.reference_arity(target) {
-                    Some(arity) => reference.taking(arity),
-                    None => reference,
-                };
-                let reference = match self.reference_input(referenced, name, target) {
-                    Some(input) => reference.resolving(input),
-                    None => reference,
-                };
-                match result {
-                    Some(returned) => Argument::MethodReference(reference.returning(returned)),
-                    None => Argument::MethodReference(reference),
-                }
+                let reference = self.reference(referenced, (name, *line), target);
+                Argument::MethodReference(links.on_reference(reference))
             }
             model::Expression::Call(call) if self.is_open(call) => {
                 Argument::Value(self.returning_call(call, target, &links.inherited))
             }
             other => Argument::Value(self.expression(other)),
+        }
+    }
+
+    fn reference(
+        &mut self,
+        referenced: &model::Expression,
+        (name, line): (&str, usize),
+        target: Option<&TypeRef>,
+    ) -> MethodReference {
+        let result = self.reference_result(referenced, name, target);
+        let reference = MethodReference::new(self.expression(referenced), name, line);
+        let reference = match self.reference_arity(target) {
+            Some(arity) => reference.taking(arity),
+            None => reference,
+        };
+        let reference = match self.reference_input(referenced, name, target) {
+            Some(input) => reference.resolving(input),
+            None => reference,
+        };
+        match result {
+            Some(returned) => reference.returning(returned),
+            None => reference,
         }
     }
 
