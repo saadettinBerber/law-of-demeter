@@ -19,6 +19,9 @@ Kaynak: Karl Lieberherr ve Ian Holland, *Assuring Good Style for Object-Oriented
 
 ## Kural
 
+<details>
+<summary><strong>Law of Demeter nedir?</strong></summary>
+
 Kural iki kısaltmayla anlatılır:
 
 - **C:** Bir sınıf.
@@ -70,6 +73,8 @@ class OrderService {
 1. `order.charge(amount)`: Serbest. `order`, f'ye argüman olarak verildi.
 
 Sonuç: f yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
+
+</details>
 
 </details>
 
