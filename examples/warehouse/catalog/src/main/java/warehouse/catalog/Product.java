@@ -19,4 +19,8 @@ public class Product {
     public boolean isAvailable(int quantity) {
         return stock.getOnHand() >= quantity;
     }
+
+    public int onHand() {
+        return stock.getOnHand();
+    }
 }

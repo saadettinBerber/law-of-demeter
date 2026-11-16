@@ -256,7 +256,7 @@ List<Wallet> wallets() {
 
 - **Not:** İç içe çağrıda da sonuç aynı: `collect(Collectors.groupingBy(Customer::getWallet))`. `wallet::withdraw` gibi bağlı referans `wallet.withdraw(...)` gibi, `Optional::of` gibi statik referans statik çağrı gibi yargılanır. `Order::new` çağrı sayılmaz. Değişkene atanan ya da döndürülen referans da eşdeğer lambda gibi yargılanır: `return event.getReceipt().getOrder()::ship;`, `e -> e.getReceipt().getOrder().ship()` ile aynı ihlalleri verir.
 
-- **Örnek projede:** [`ReportingService.java:44`](examples/shop/src/main/java/shop/service/ReportingService.java#L44), [`EventDispatcher.java:39`](examples/shop/src/main/java/shop/service/EventDispatcher.java#L39)
+- **Örnek projede:** [`ReportingService.java:44`](examples/shop/src/main/java/shop/service/ReportingService.java#L44), [`EventDispatcher.java:39`](examples/shop/src/main/java/shop/service/EventDispatcher.java#L39), [`PickingService.java:52`](examples/warehouse/orders/src/main/java/warehouse/orders/PickingService.java#L52)
 
 </details>
 

@@ -1,5 +1,6 @@
 package warehouse.orders;
 
+import java.util.List;
 import warehouse.catalog.Product;
 import warehouse.catalog.Stock;
 
@@ -45,5 +46,13 @@ public class PickingService {
 
     public void append(Order order, OrderLine line) {
         order.getLines().add(line);
+    }
+
+    public List<Integer> onHandOfAll(List<OrderLine> lines) {
+        return lines.stream().map(OrderLine::product).map(Product::getStock).map(Stock::getOnHand).toList();
+    }
+
+    public List<Integer> onHandPerLine(List<OrderLine> lines) {
+        return lines.stream().map(OrderLine::onHand).toList();
     }
 }
