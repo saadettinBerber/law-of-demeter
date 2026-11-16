@@ -5,6 +5,7 @@ mod expressions;
 mod mapping;
 mod members;
 mod model;
+mod platform;
 mod reader;
 mod resolver;
 mod scope;
@@ -19,6 +20,7 @@ pub use model::{
     New, Parameter, PatternBinding, STATIC_INITIALIZER, SourceFile, Statement, Switch,
     SwitchBranch, TypeName, TypeParameter,
 };
+pub use platform::java_platform;
 
 pub fn parse(path: &str, source: &str) -> Result<SourceFile, ParseError> {
     parse_with(path, source, &|_| false)
