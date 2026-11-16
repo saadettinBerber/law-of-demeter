@@ -4,6 +4,15 @@ Kaynak kodda Law of Demeter ihlallerini bulan bir araç. Kodu tip bilgisiyle bir
 
 Şu anda Java'yı destekliyor: Java kaynağını derlenmiş sınıflarla birlikte okur. Python, Rust gibi diller ileride eklenecek.
 
+## Ajanlar için
+
+Araç, kod yazan her ajana sınır koymak için yazıldı: yapay zekâ ajanlarına, süper zekâya (Super Intelligence) ve insan ajanlara. Ajan kod yazarken aracı çalıştırır, kuralı çiğneyen çağrıları rapordan görür ve düzeltir.
+
+- **Çıkış kodu sınırı çizer:** İhlal ya da hibrit sınıf varsa araç 1 ile çıkar. Ajan bu sonucu başarısız bir test gibi ele alır.
+- **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir. Ajan neyi neden düzelteceğini buradan öğrenir.
+
+Kurulum, komut, seçenekler ve çıkış kodları [Kullanım](#kullanım) bölümünde.
+
 ## Neden Law of Demeter?
 
 Bir metot başka nesnelerin içine uzandıkça daha çok şeye bağımlı olur. `order.getCustomer().getWallet().withdraw(amount)` yazan metot yalnızca siparişi değil, müşteriyi ve cüzdanı da tanır. Aradaki yapı değişince o da değişir.
