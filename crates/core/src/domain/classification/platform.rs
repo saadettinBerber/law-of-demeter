@@ -13,6 +13,7 @@ pub struct Platform {
     constructor_name: Option<String>,
     builder_methods: HashSet<String>,
     nested_type_separator: Option<String>,
+    mutator_words: Vec<String>,
 }
 
 impl Platform {
@@ -67,6 +68,11 @@ impl Platform {
         self
     }
 
+    pub fn with_mutator_word(mut self, word: &str) -> Self {
+        self.mutator_words.push(word.to_owned());
+        self
+    }
+
     pub(super) fn classify(&self, name: &str) -> Option<Classification> {
         self.types.get(name).copied().or_else(|| {
             self.namespaces
@@ -104,6 +110,13 @@ impl Platform {
                 name.strip_prefix(outer)
                     .is_some_and(|rest| rest.starts_with(separator))
             })
+    }
+
+    pub(super) fn is_mutator(&self, name: &str) -> bool {
+        self.mutator_words.iter().any(|word| {
+            name.strip_prefix(word.as_str())
+                .is_some_and(|rest| !rest.starts_with(char::is_lowercase))
+        })
     }
 
     pub(super) fn is_behaviorless(&self, name: &str) -> bool {

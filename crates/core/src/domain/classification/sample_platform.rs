@@ -29,12 +29,17 @@ fn sample_platform() -> Platform {
         .with_constructor_name("<init>")
         .with_builder_method("toBuilder")
         .with_nested_type_separator("$");
+    let platform = MUTATOR_WORDS
+        .iter()
+        .fold(platform, |platform, word| platform.with_mutator_word(word));
     BEHAVIORLESS_SUPERTYPES
         .iter()
         .fold(platform, |platform, name| {
             platform.with_behaviorless_supertype(name)
         })
 }
+
+const MUTATOR_WORDS: &[&str] = &["add", "clear", "compute", "offer", "put", "set"];
 
 const VALUES: &[&str] = &[
     "java.lang.Class",

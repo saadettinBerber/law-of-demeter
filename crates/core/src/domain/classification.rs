@@ -201,6 +201,10 @@ impl Types {
                 .is_some_and(|name| self.platform.is_nested_in(name, class.name()))
     }
 
+    pub(crate) fn is_mutator(&self, name: &str) -> bool {
+        self.platform.is_mutator(name)
+    }
+
     fn is_root_supertype(&self, name: &str) -> bool {
         self.platform.root_supertype() == Some(name)
     }

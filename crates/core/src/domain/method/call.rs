@@ -146,11 +146,13 @@ fn stranger_verdict(
     let (name, line) = (called.name, called.line);
     let classified = type_ref.map(|type_ref| (types.classify(type_ref), type_ref));
     match classified {
-        Some((Classification::Container, type_ref)) if is_mutator(name) => Verdict::violation(
-            name,
-            line,
-            Reason::container_mutation(type_ref.clone(), source.clone()),
-        ),
+        Some((Classification::Container, type_ref)) if types.is_mutator(name) => {
+            Verdict::violation(
+                name,
+                line,
+                Reason::container_mutation(type_ref.clone(), source.clone()),
+            )
+        }
         Some((classification @ (Classification::Value | Classification::Container), type_ref)) => {
             Verdict::allowed(
                 name,
@@ -214,18 +216,6 @@ fn is_library(context: &Context, type_ref: &TypeRef) -> bool {
     project_context
         && class_name(type_ref)
             .is_some_and(|name| types.shape(name).is_some() && !types.is_project_type(name))
-}
-
-const MUTATOR_WORDS: [&str; 14] = [
-    "add", "remove", "retain", "clear", "put", "set", "push", "pop", "poll", "offer", "sort",
-    "replace", "merge", "compute",
-];
-
-fn is_mutator(name: &str) -> bool {
-    MUTATOR_WORDS.iter().any(|word| {
-        name.strip_prefix(word)
-            .is_some_and(|rest| !rest.starts_with(char::is_lowercase))
-    })
 }
 
 fn class_name(type_ref: &TypeRef) -> Option<&str> {

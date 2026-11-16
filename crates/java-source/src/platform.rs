@@ -81,6 +81,11 @@ const BEHAVIORLESS_SUPERTYPES: [&str; 6] = [
     "java.lang.Comparable",
 ];
 
+const MUTATOR_WORDS: [&str; 14] = [
+    "add", "remove", "retain", "clear", "put", "set", "push", "pop", "poll", "offer", "sort",
+    "replace", "merge", "compute",
+];
+
 pub fn java_platform() -> Platform {
     let types = [
         (&VALUES[..], Classification::Value),
@@ -105,7 +110,7 @@ pub fn java_platform() -> Platform {
         .fold(platform, |platform, (prefix, classification)| {
             platform.with_namespace(prefix, classification)
         });
-    BEHAVIORLESS_SUPERTYPES
+    let platform = BEHAVIORLESS_SUPERTYPES
         .iter()
         .fold(platform, |platform, name| {
             platform.with_behaviorless_supertype(name)
@@ -119,5 +124,8 @@ pub fn java_platform() -> Platform {
         .with_equality_method("hashCode", 0)
         .with_constructor_name("<init>")
         .with_builder_method("toBuilder")
-        .with_nested_type_separator("$")
+        .with_nested_type_separator("$");
+    MUTATOR_WORDS
+        .iter()
+        .fold(platform, |platform, word| platform.with_mutator_word(word))
 }

@@ -1,5 +1,5 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::{Classification, Types, sample_types};
+use crate::domain::classification::{Classification, Platform, Types, sample_types};
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
@@ -971,5 +971,40 @@ fn a_loop_over_a_returned_container_subtype_takes_its_element_type() {
                 Reason::classified(Classification::DataStructure, TypeRef::class("Customer"))
             ),
         ]
+    );
+}
+
+#[test]
+fn changing_a_strangers_container_with_a_mutator_the_platform_names_is_a_violation() {
+    let bag = TypeRef::generic("Bag", vec![TypeRef::class("Item")]);
+    let platform = Platform::new()
+        .with_type("Bag", Classification::Container)
+        .with_mutator_word("stash");
+    let types = Types::new().with_platform(platform).with_shape(
+        TypeShape::new("Order", TypeKind::Class).with_method(
+            MethodShape::new("getItems")
+                .reading("items")
+                .returning(bag.clone()),
+        ),
+    );
+    let stash = Method::new("OrderService", "stash", 1).call(
+        Call::new(
+            Expression::parameter("order", TypeRef::class("Order")),
+            "getItems",
+            2,
+        )
+        .then("stashItem", 2)
+        .with(Expression::parameter("item", TypeRef::class("Item"))),
+    );
+
+    let verdicts = stash.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation(
+            "stashItem",
+            2,
+            Reason::container_mutation(bag, Reason::return_of("getItems"))
+        )
     );
 }

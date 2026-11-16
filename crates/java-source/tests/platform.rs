@@ -1,4 +1,5 @@
 use law_of_demeter_core::domain::classification::{Classification, Types};
+use law_of_demeter_core::domain::method::{Call, Expression, Method, Reason, Verdict};
 use law_of_demeter_core::domain::type_shape::{
     FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
 };
@@ -345,4 +346,59 @@ fn lomboks_to_builder_returning_the_own_nested_builder_is_not_behavior() {
     let classification = types.classify(&TypeRef::class("shop.Order"));
 
     assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn the_mutators_of_java_collections_change_a_strangers_container() {
+    let mutators = [
+        "add",
+        "removeIf",
+        "retainAll",
+        "clear",
+        "put",
+        "set",
+        "push",
+        "pop",
+        "poll",
+        "offer",
+        "sort",
+        "replaceAll",
+        "merge",
+        "computeIfAbsent",
+    ];
+    let lines = TypeRef::generic("java.util.List", vec![TypeRef::class("shop.OrderLine")]);
+    let types = platform_types().with_shape(
+        TypeShape::new("shop.Order", TypeKind::Class).with_method(
+            MethodShape::new("getLines")
+                .reading("lines")
+                .returning(lines.clone()),
+        ),
+    );
+
+    let verdicts: Vec<_> = mutators
+        .iter()
+        .map(|mutator| {
+            let change = Method::new("shop.OrderService", "change", 1).call(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("shop.Order")),
+                    "getLines",
+                    2,
+                )
+                .then(mutator, 2),
+            );
+            change.verdicts(&types)[1].clone()
+        })
+        .collect();
+
+    assert_eq!(
+        verdicts,
+        mutators
+            .iter()
+            .map(|mutator| Verdict::violation(
+                mutator,
+                2,
+                Reason::container_mutation(lines.clone(), Reason::return_of("getLines"))
+            ))
+            .collect::<Vec<_>>()
+    );
 }
