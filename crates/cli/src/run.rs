@@ -1,11 +1,13 @@
 use std::ffi::OsString;
 use std::io::Write;
+use std::path::PathBuf;
 
 use law_of_demeter_core::application::CheckProject;
 
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
 use crate::class_file_types::ClassFileTypes;
 use crate::jdk_choice::choose_jdk;
+use crate::maven_layout::maven_layout;
 use crate::report_text::render;
 use crate::source_files::{Mapper, SourceFiles};
 use crate::sources::java_files;
@@ -17,6 +19,7 @@ pub const FAILURE: u8 = 2;
 pub struct Environment {
     pub java_home: Option<OsString>,
     pub path: Option<OsString>,
+    pub working_directory: PathBuf,
 }
 
 impl Environment {
@@ -24,6 +27,7 @@ impl Environment {
         Self {
             java_home: std::env::var_os("JAVA_HOME"),
             path: std::env::var_os("PATH"),
+            working_directory: PathBuf::new(),
         }
     }
 }
@@ -40,7 +44,22 @@ pub fn run<I: IntoIterator<Item = OsString>>(
             write!(out, "{}", usage()).ok();
             CLEAN
         }
-        Ok(Command::Check(arguments)) => check(&arguments, environment, mapper, out, err),
+        Ok(Command::Check(mut arguments)) => {
+            if arguments.sources.is_empty() {
+                let layout = maven_layout(&environment.working_directory);
+                if layout.sources.is_empty() {
+                    writeln!(
+                        err,
+                        "Error: no src/main/java under the working directory; pass a source root with --source"
+                    )
+                    .ok();
+                    return FAILURE;
+                }
+                arguments.sources = layout.sources;
+                arguments.classpath.extend(layout.classpath);
+            }
+            check(&arguments, environment, mapper, out, err)
+        }
         Err(UsageError(message)) => {
             write!(err, "Error: {message}\n\n{}", usage()).ok();
             FAILURE

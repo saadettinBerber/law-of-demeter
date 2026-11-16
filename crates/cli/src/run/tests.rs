@@ -16,6 +16,7 @@ fn nothing() -> Environment {
     Environment {
         java_home: None,
         path: None,
+        working_directory: PathBuf::new(),
     }
 }
 
@@ -30,11 +31,15 @@ fn execute(arguments: &[&str]) -> Outcome {
 }
 
 fn execute_with(arguments: &[&str], mapper: Option<&Mapper>) -> Outcome {
+    execute_in(&nothing(), arguments, mapper)
+}
+
+fn execute_in(environment: &Environment, arguments: &[&str], mapper: Option<&Mapper>) -> Outcome {
     let mut out = Vec::new();
     let mut err = Vec::new();
     let code = run(
         arguments.iter().map(OsString::from),
-        &nothing(),
+        environment,
         mapper,
         &mut out,
         &mut err,
@@ -77,7 +82,11 @@ fn fixtures() -> PathBuf {
 fn project(files: &[(&str, &str)]) -> TempDir {
     let root = TempDir::new().expect("temp dir");
     for (name, text) in files {
-        fs::write(root.path().join(name), text).expect("write source");
+        let path = root.path().join(name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create directories");
+        }
+        fs::write(path, text).expect("write source");
     }
     root
 }
@@ -359,5 +368,89 @@ fn a_directory_that_cannot_be_walked_shows_up_among_the_source_errors() {
                 "Source errors (1):\n{}  Error: ",
                 locked.display()
             ))
+    );
+}
+
+fn check_in_working_directory(directory: &Path) -> Outcome {
+    let jdk = fixtures().join("jdk").display().to_string();
+    let environment = Environment {
+        working_directory: directory.to_path_buf(),
+        ..nothing()
+    };
+
+    execute_in(
+        &environment,
+        &["--jdk-home", &jdk, "--release", "8"],
+        Some(&mapper_by_text),
+    )
+}
+
+#[test]
+fn without_a_source_every_maven_source_root_under_the_working_directory_is_checked() {
+    let root = project(&[
+        ("src/main/java/app/Order.java", "clean"),
+        ("orders/src/main/java/app/Shipping.java", "violation"),
+    ]);
+
+    let outcome = check_in_working_directory(root.path());
+
+    assert!(outcome.out.contains("  Files: 2\n"), "{}", outcome.out);
+}
+
+#[test]
+fn without_a_source_hidden_directories_are_not_searched() {
+    let root = project(&[
+        ("src/main/java/Order.java", "clean"),
+        (".copy/src/main/java/Shipping.java", "violation"),
+    ]);
+
+    let outcome = check_in_working_directory(root.path());
+
+    assert!(outcome.out.contains("  Files: 1\n"), "{}", outcome.out);
+}
+
+#[test]
+fn without_a_source_the_compiled_classes_of_the_project_are_on_the_classpath() {
+    let root = project(&[("src/main/java/Probe.java", "probe")]);
+    let compiled = root.path().join("target/classes/shop");
+    fs::create_dir_all(&compiled).expect("create class directory");
+    fs::copy(
+        fixtures().join("classes/shop/Order.class"),
+        compiled.join("Order.class"),
+    )
+    .expect("copy class file");
+
+    let outcome = check_in_working_directory(root.path());
+
+    assert!(outcome.out.contains("classpath=true"), "{}", outcome.out);
+}
+
+#[test]
+fn without_a_source_the_dependencies_maven_listed_are_on_the_classpath() {
+    let listed = fixtures().join("classes").display().to_string();
+    let root = project(&[
+        ("src/main/java/Probe.java", "probe"),
+        ("target/classpath.txt", &listed),
+    ]);
+
+    let outcome = check_in_working_directory(root.path());
+
+    assert!(outcome.out.contains("classpath=true"), "{}", outcome.out);
+}
+
+#[test]
+fn without_a_source_a_directory_without_a_maven_source_root_fails() {
+    let root = project(&[("Order.java", "clean")]);
+
+    let outcome = check_in_working_directory(root.path());
+
+    assert_eq!(
+        (outcome.code, outcome.out, outcome.err),
+        (
+            FAILURE,
+            String::new(),
+            "Error: no src/main/java under the working directory; pass a source root with --source\n"
+                .to_owned()
+        )
     );
 }

@@ -83,12 +83,15 @@ fn rejected(arguments: &[&str]) -> UsageError {
 }
 
 #[test]
-fn at_least_one_source_root_is_required() {
-    let error = rejected(&["--classpath", "lib"]);
+fn the_source_roots_may_be_left_out() {
+    let command = parsed(&["--classpath", "lib"]);
 
     assert_eq!(
-        error,
-        UsageError("at least one --source is required".to_owned())
+        command,
+        Command::Check(Arguments {
+            classpath: vec![PathBuf::from("lib")],
+            ..Arguments::default()
+        })
     );
 }
 

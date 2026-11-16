@@ -27,13 +27,13 @@ fn help_goes_to_standard_output_with_exit_code_zero() {
 
 #[test]
 fn a_usage_error_goes_to_standard_error_with_exit_code_two() {
-    let output = run(&[]);
+    let output = run(&["--verbose"]);
 
     assert_eq!(
         (
             output.status.code(),
             text(&output.stdout),
-            text(&output.stderr).starts_with("Error: at least one --source is required\n")
+            text(&output.stderr).starts_with("Error: unknown option: --verbose\n")
         ),
         (Some(2), String::new(), true)
     );

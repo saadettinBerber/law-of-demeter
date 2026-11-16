@@ -1,6 +1,7 @@
 mod arguments;
 mod class_file_types;
 mod jdk_choice;
+mod maven_layout;
 mod reason_text;
 mod report_text;
 mod run;

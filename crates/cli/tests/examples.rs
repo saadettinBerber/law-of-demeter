@@ -1,13 +1,9 @@
-use std::collections::HashSet;
-use std::env;
-use std::ffi::OsStr;
 use std::fs;
-use std::io::{self, ErrorKind};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
 const EXPECTED_REPORT: &str = "expected-report.txt";
-const SOURCE_ROOT: &str = "src/main/java";
 const CLASSPATH_FILE: &str = "classpath.txt";
 const NO_VIOLATIONS: &str = "No violations found.";
 const CONTEXT_LINES: usize = 2;
@@ -87,20 +83,9 @@ fn build(example: &Path) -> Result<(), String> {
 }
 
 fn run_tool(example: &Path) -> Result<Output, String> {
-    let layout = Layout::of(example)
-        .map_err(|error| format!("cannot scan the example directory: {error}"))?;
-    if layout.sources.is_empty() {
-        return Err(format!("no {SOURCE_ROOT} directory found"));
-    }
-    let mut command = Command::new(env!("CARGO_BIN_EXE_law-of-demeter"));
-    command.current_dir(example).arg("--show-allowed");
-    for source in &layout.sources {
-        command.arg("--source").arg(source);
-    }
-    for entry in &layout.classpath {
-        command.arg("--classpath").arg(entry);
-    }
-    command
+    Command::new(env!("CARGO_BIN_EXE_law-of-demeter"))
+        .current_dir(example)
+        .arg("--show-allowed")
         .output()
         .map_err(|error| format!("cannot run the tool: {error}"))
 }
@@ -135,69 +120,6 @@ fn implied_exit_code(expected_report: &str) -> i32 {
 
 fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
-}
-
-struct Layout {
-    sources: Vec<PathBuf>,
-    classpath: Vec<PathBuf>,
-}
-
-impl Layout {
-    fn of(example: &Path) -> io::Result<Self> {
-        let mut layout = Self {
-            sources: Vec::new(),
-            classpath: Vec::new(),
-        };
-        layout.scan(example, Path::new(""))?;
-        layout.classpath = without_duplicates(example, std::mem::take(&mut layout.classpath));
-        Ok(layout)
-    }
-
-    fn scan(&mut self, example: &Path, relative: &Path) -> io::Result<()> {
-        let mut entries = fs::read_dir(example.join(relative))?.collect::<io::Result<Vec<_>>>()?;
-        entries.sort_by_key(fs::DirEntry::file_name);
-        for entry in entries.iter().filter(|entry| is_directory(entry)) {
-            let child = relative.join(entry.file_name());
-            if child.ends_with(SOURCE_ROOT) {
-                self.sources.push(child);
-            } else if entry.file_name() == OsStr::new("target") {
-                self.read_target(example, &child)?;
-            } else {
-                self.scan(example, &child)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn read_target(&mut self, example: &Path, target: &Path) -> io::Result<()> {
-        let classes = target.join("classes");
-        if example.join(&classes).is_dir() {
-            self.classpath.push(classes);
-        }
-        let dependencies = example.join(target).join(CLASSPATH_FILE);
-        if dependencies.is_file() {
-            let listed = fs::read_to_string(dependencies)?;
-            self.classpath.extend(
-                env::split_paths(listed.trim()).filter(|entry| !entry.as_os_str().is_empty()),
-            );
-        }
-        Ok(())
-    }
-}
-
-fn is_directory(entry: &fs::DirEntry) -> bool {
-    entry.file_type().is_ok_and(|kind| kind.is_dir())
-}
-
-fn without_duplicates(example: &Path, entries: Vec<PathBuf>) -> Vec<PathBuf> {
-    let mut seen = HashSet::new();
-    entries
-        .into_iter()
-        .filter(|entry| {
-            let location = example.join(entry);
-            seen.insert(fs::canonicalize(&location).unwrap_or(location))
-        })
-        .collect()
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

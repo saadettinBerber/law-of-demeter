@@ -18,12 +18,17 @@ pub enum Command {
 }
 
 pub fn usage() -> &'static str {
-    "Usage: law-of-demeter --source <DIR>... [OPTIONS]
+    "Usage: law-of-demeter [OPTIONS]
 
 Finds Law of Demeter violations in Java source code.
 
+Without --source, the Maven project in the working directory is checked: every
+src/main/java directory is a source root, and every target/classes directory and
+the entries of every target/classpath.txt file join the classpath. Hidden
+directories are skipped.
+
 Options:
-  -s, --source <DIR>        Source root; can be given more than once (required)
+  -s, --source <DIR>        Source root; can be given more than once
   -c, --classpath <PATH>    Directory or jar; can be given more than once or as a ':'-separated list
       --jdk-home <DIR>      JDK directory (default: JAVA_HOME, then javac on PATH)
       --release <VERSION>   Java release to read (default: the JDK's own release)
@@ -57,9 +62,6 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
             }
             _ => return Err(UsageError(format!("unexpected argument: {option}"))),
         }
-    }
-    if parsed.sources.is_empty() {
-        return Err(UsageError("at least one --source is required".to_owned()));
     }
     Ok(Command::Check(parsed))
 }
