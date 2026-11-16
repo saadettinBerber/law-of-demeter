@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use law_of_demeter_class_file::Jdk;
-use law_of_demeter_core::application::CheckProject;
+use law_of_demeter_core::application::{CheckProject, Counts};
 
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
 use crate::class_file_types::ClassFileTypes;
@@ -40,71 +40,86 @@ pub fn run<I: IntoIterator<Item = OsString>>(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
-    match parse(arguments) {
+    let (code, result) = match parse(arguments) {
         Ok(Command::Help) => {
             write!(out, "{}", usage()).ok();
-            CLEAN
+            return CLEAN;
         }
-        Ok(Command::Check(mut arguments)) => {
-            if arguments.sources.is_empty() {
-                let layout = maven_layout(&environment.working_directory);
-                if layout.sources.is_empty() {
-                    writeln!(
-                        err,
-                        "Error: no src/main/java under the working directory; pass a source root with --source"
-                    )
-                    .ok();
-                    return FAILURE;
-                }
-                arguments.sources = layout.sources;
-                arguments.classpath.extend(layout.classpath);
+        Ok(Command::Check(arguments)) => match check(arguments, environment, mapper, out, err) {
+            Ok(counts) => {
+                writeln!(err).ok();
+                verdict(&counts)
             }
-            check(&arguments, environment, mapper, out, err)
-        }
+            Err(message) => {
+                writeln!(err, "Error: {message}").ok();
+                failed()
+            }
+        },
         Err(UsageError(message)) => {
             write!(err, "Error: {message}\n\n{}", usage()).ok();
-            FAILURE
+            failed()
         }
+    };
+    writeln!(err, "Result: {result} (exit code {code})").ok();
+    code
+}
+
+fn verdict(counts: &Counts) -> (u8, String) {
+    if counts.violations + counts.hybrid_classes > 0 {
+        let found = format!(
+            "{}, {}",
+            counted(counts.violations, "violation", "violations"),
+            counted(counts.hybrid_classes, "hybrid class", "hybrid classes")
+        );
+        (VIOLATIONS, found)
+    } else {
+        (CLEAN, "no violations".to_owned())
     }
 }
 
+fn failed() -> (u8, String) {
+    (FAILURE, "check did not run".to_owned())
+}
+
+fn counted(count: usize, singular: &str, plural: &str) -> String {
+    format!("{count} {}", if count == 1 { singular } else { plural })
+}
+
 fn check(
-    arguments: &Arguments,
+    mut arguments: Arguments,
     environment: &Environment,
     mapper: Option<&Mapper>,
     out: &mut dyn Write,
     err: &mut dyn Write,
-) -> u8 {
-    let mut fail = |message: String| {
-        writeln!(err, "Error: {message}").ok();
-        FAILURE
-    };
-    if let Some(root) = arguments.sources.iter().find(|root| !root.is_dir()) {
-        return fail(format!("source root not found: {}", root.display()));
+) -> Result<Counts, String> {
+    if arguments.sources.is_empty() {
+        let layout = maven_layout(&environment.working_directory);
+        if layout.sources.is_empty() {
+            return Err(
+                "no src/main/java under the working directory; pass a source root with --source"
+                    .to_owned(),
+            );
+        }
+        arguments.sources = layout.sources;
+        arguments.classpath.extend(layout.classpath);
     }
-    let (jdk, release) = match choose_jdk(
-        arguments,
+    if let Some(root) = arguments.sources.iter().find(|root| !root.is_dir()) {
+        return Err(format!("source root not found: {}", root.display()));
+    }
+    let (jdk, release) = choose_jdk(
+        &arguments,
         environment.java_home.clone(),
         environment.path.clone(),
-    ) {
-        Ok(chosen) => chosen,
-        Err(UsageError(message)) => return fail(message),
-    };
-    let Some(mapper) = mapper else {
-        return fail("no source parser is connected".to_owned());
-    };
-    announce(arguments, &jdk, release, err);
+    )
+    .map_err(|UsageError(message)| message)?;
+    let mapper = mapper.ok_or("no source parser is connected")?;
+    announce(&arguments, &jdk, release, err);
     let walked = java_files(&arguments.sources);
     let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);
-    let types = ClassFileTypes::new(arguments.classpath.clone(), Some((jdk, release)));
+    let types = ClassFileTypes::new(arguments.classpath, Some((jdk, release)));
     let report = CheckProject::new(&sources, &types).execute();
     write!(out, "{}", render(&report, arguments.show_allowed)).ok();
-    let counts = report.counts();
-    if counts.violations + counts.hybrid_classes > 0 {
-        VIOLATIONS
-    } else {
-        CLEAN
-    }
+    Ok(report.counts())
 }
 
 fn announce(arguments: &Arguments, jdk: &Jdk, release: u32, err: &mut dyn Write) {
@@ -118,10 +133,6 @@ fn announce(arguments: &Arguments, jdk: &Jdk, release: u32, err: &mut dyn Write)
     )
     .ok();
     writeln!(err, "JDK: {} (release {release})\n", jdk.home().display()).ok();
-}
-
-fn counted(count: usize, singular: &str, plural: &str) -> String {
-    format!("{count} {}", if count == 1 { singular } else { plural })
 }
 
 #[cfg(test)]

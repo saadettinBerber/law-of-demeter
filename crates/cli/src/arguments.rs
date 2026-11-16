@@ -36,8 +36,8 @@ Options:
   -h, --help                Shows this help
 
 The source roots, the classpath and the JDK are written to standard error before
-the check. Exit code: 0 no violations, 1 violations found, 2 usage or fatal
-error.
+the check, and the result with its exit code comes last. Exit code: 0 no
+violations, 1 violations found, 2 usage or fatal error.
 "
 }
 

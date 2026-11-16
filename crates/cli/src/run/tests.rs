@@ -70,7 +70,10 @@ fn a_usage_error_is_explained_with_the_usage_and_fails() {
         (
             FAILURE,
             String::new(),
-            format!("Error: unknown option: --verbose\n\n{}", usage())
+            format!(
+                "Error: unknown option: --verbose\n\n{}Result: check did not run (exit code 2)\n",
+                usage()
+            )
         )
     );
 }
@@ -187,7 +190,10 @@ fn a_source_root_that_is_not_a_directory_fails() {
         (
             FAILURE,
             String::new(),
-            format!("Error: source root not found: {}\n", missing.display())
+            format!(
+                "Error: source root not found: {}\nResult: check did not run (exit code 2)\n",
+                missing.display()
+            )
         )
     );
 }
@@ -203,7 +209,8 @@ fn a_missing_jdk_fails() {
         (outcome.code, outcome.err),
         (
             FAILURE,
-            "Error: no JDK found: pass --jdk-home or set JAVA_HOME\n".to_owned()
+            "Error: no JDK found: pass --jdk-home or set JAVA_HOME\nResult: check did not run (exit code 2)\n"
+                .to_owned()
         )
     );
 }
@@ -219,7 +226,8 @@ fn a_binary_without_a_source_mapper_fails_instead_of_pretending() {
         (
             FAILURE,
             String::new(),
-            "Error: no source parser is connected\n".to_owned()
+            "Error: no source parser is connected\nResult: check did not run (exit code 2)\n"
+                .to_owned()
         )
     );
 }
@@ -448,7 +456,7 @@ fn without_a_source_a_directory_without_a_maven_source_root_fails() {
         (
             FAILURE,
             String::new(),
-            "Error: no src/main/java under the working directory; pass a source root with --source\n"
+            "Error: no src/main/java under the working directory; pass a source root with --source\nResult: check did not run (exit code 2)\n"
                 .to_owned()
         )
     );
@@ -471,4 +479,38 @@ fn the_checked_source_roots_the_classpath_and_the_jdk_are_announced_first() {
         fixtures().join("jdk").display()
     );
     assert!(outcome.err.starts_with(&expected), "{}", outcome.err);
+}
+
+#[test]
+fn a_clean_run_ends_by_saying_so_with_exit_code_zero() {
+    let root = project(&[("Order.java", "clean")]);
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert!(
+        outcome
+            .err
+            .ends_with("\nResult: no violations (exit code 0)\n"),
+        "{}",
+        outcome.err
+    );
+}
+
+#[test]
+fn a_run_with_findings_ends_by_counting_them_with_exit_code_one() {
+    let root = project(&[
+        ("Shipping.java", "violation"),
+        ("Delivery.java", "violation"),
+        ("Account.java", "hybrid"),
+    ]);
+
+    let outcome = check(root.path(), &[], Some(&mapper_by_text));
+
+    assert!(
+        outcome
+            .err
+            .ends_with("\nResult: 2 violations, 1 hybrid class (exit code 1)\n"),
+        "{}",
+        outcome.err
+    );
 }
