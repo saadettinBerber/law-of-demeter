@@ -496,7 +496,7 @@ fn a_raw_receiver_leaves_a_call_returning_a_type_variable_unresolved() {
 
 #[test]
 fn a_method_type_variable_shadowing_the_class_one_leaves_the_call_unresolved() {
-    let source = "class OrderService {\n void f(Box box) {\n  box.pick().go();\n }\n}";
+    let source = "class OrderService {\n void f(Box<Order> box) {\n  box.pick().go();\n }\n}";
     let types = shop().with_shape(
         shape("Box").with_type_parameter("T").with_method(
             MethodShape::new("pick")
@@ -509,7 +509,14 @@ fn a_method_type_variable_shadowing_the_class_one_leaves_the_call_unresolved() {
 
     assert_eq!(
         mapped,
-        f(2).call(call(parameter("box", class("Box")), "pick", 3).then("go", 3))
+        f(2).call(
+            call(
+                parameter("box", TypeRef::generic("Box", vec![class("Order")])),
+                "pick",
+                3
+            )
+            .then("go", 3)
+        )
     );
 }
 
