@@ -495,8 +495,7 @@ fn a_raw_receiver_leaves_a_call_returning_a_type_variable_unresolved() {
 }
 
 #[test]
-fn a_type_variable_of_the_method_itself_leaves_the_call_unresolved_even_if_the_class_names_it_too()
-{
+fn a_method_type_variable_shadowing_the_class_one_leaves_the_call_unresolved() {
     let source = "class OrderService {\n void f(Box box) {\n  box.pick().go();\n }\n}";
     let types = shop().with_shape(
         shape("Box").with_type_parameter("T").with_method(

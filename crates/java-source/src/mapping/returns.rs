@@ -42,12 +42,6 @@ impl MethodMapper<'_> {
     }
 }
 
-struct Ancestor<'t> {
-    shape: &'t TypeShape,
-    bindings: HashMap<String, TypeRef>,
-    erased: bool,
-}
-
 fn declared_return(
     types: &Types,
     receiver: &TypeRef,
@@ -77,42 +71,64 @@ fn lineage<'t>(types: &'t Types, receiver: &TypeRef) -> Vec<Ancestor<'t>> {
     let mut ancestors = Vec::new();
     let mut index = 0;
     while index < queue.len() {
-        if let Some(ancestor) = class_name(&queue[index]).and_then(|name| types.shape(name)) {
-            let arguments = arguments_of(&queue[index]);
-            let erased = arguments.is_empty() && !ancestor.type_parameters().is_empty();
-            let bindings: HashMap<_, _> = ancestor
-                .type_parameters()
-                .iter()
-                .cloned()
-                .zip(arguments.iter().cloned())
-                .collect();
-            let supertypes = ancestor.supertypes().iter().map(|supertype| {
-                if erased {
-                    erase(supertype)
-                } else {
-                    substitute(supertype, &|name| bindings.get(name).cloned())
-                }
-            });
-            let unseen: Vec<_> = supertypes
+        if let Some(ancestor) = Ancestor::of(types, &queue[index]) {
+            let unseen: Vec<_> = ancestor
+                .supertypes()
+                .into_iter()
                 .filter(|supertype| !queue.iter().any(|known| same_class(known, supertype)))
                 .collect();
             queue.extend(unseen);
-            ancestors.push(Ancestor {
-                shape: ancestor,
-                bindings,
-                erased,
-            });
+            ancestors.push(ancestor);
         }
         index += 1;
     }
     if !queue.iter().any(|known| class_name(known) == Some(OBJECT)) {
-        ancestors.extend(types.shape(OBJECT).map(|shape| Ancestor {
-            shape,
-            bindings: HashMap::new(),
-            erased: false,
-        }));
+        ancestors.extend(Ancestor::of(types, &TypeRef::class(OBJECT)));
     }
     ancestors
+}
+
+struct Ancestor<'t> {
+    shape: &'t TypeShape,
+    bindings: HashMap<String, TypeRef>,
+    erased: bool,
+}
+
+impl<'t> Ancestor<'t> {
+    fn of(types: &'t Types, type_ref: &TypeRef) -> Option<Self> {
+        let shape = types.shape(class_name(type_ref)?)?;
+        let arguments = arguments_of(type_ref);
+        let bindings = shape
+            .type_parameters()
+            .iter()
+            .cloned()
+            .zip(arguments.iter().cloned())
+            .collect();
+        let erased = arguments.is_empty() && !shape.type_parameters().is_empty();
+        Some(Self {
+            shape,
+            bindings,
+            erased,
+        })
+    }
+
+    fn supertypes(&self) -> Vec<TypeRef> {
+        self.shape
+            .supertypes()
+            .iter()
+            .map(|supertype| {
+                if self.erased {
+                    erase(supertype)
+                } else {
+                    substitute(supertype, &|name| self.bound(name))
+                }
+            })
+            .collect()
+    }
+
+    fn bound(&self, name: &str) -> Option<TypeRef> {
+        self.bindings.get(name).cloned()
+    }
 }
 
 fn named<'t>(shape: &'t TypeShape, method: &str) -> Vec<&'t MethodShape> {
@@ -138,11 +154,9 @@ fn returned_by_candidate(candidate: &MethodShape, ancestor: &Ancestor) -> Option
         return None;
     }
     let own = candidate.type_parameters();
+    let shadowed = |name: &str| own.iter().any(|variable| variable == name);
     Some(substitute(returned, &|name| {
-        if own.iter().any(|variable| variable == name) {
-            return None;
-        }
-        ancestor.bindings.get(name).cloned()
+        ancestor.bound(name).filter(|_| !shadowed(name))
     }))
 }
 
