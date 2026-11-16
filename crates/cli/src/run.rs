@@ -2,6 +2,7 @@ use std::ffi::OsString;
 use std::io::Write;
 use std::path::PathBuf;
 
+use law_of_demeter_class_file::Jdk;
 use law_of_demeter_core::application::CheckProject;
 
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
@@ -92,6 +93,7 @@ fn check(
     let Some(mapper) = mapper else {
         return fail("no source parser is connected".to_owned());
     };
+    announce(arguments, &jdk, release, err);
     let walked = java_files(&arguments.sources);
     let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);
     let types = ClassFileTypes::new(arguments.classpath.clone(), Some((jdk, release)));
@@ -103,6 +105,23 @@ fn check(
     } else {
         CLEAN
     }
+}
+
+fn announce(arguments: &Arguments, jdk: &Jdk, release: u32, err: &mut dyn Write) {
+    for root in &arguments.sources {
+        writeln!(err, "Source root: {}", root.display()).ok();
+    }
+    writeln!(
+        err,
+        "Classpath: {}",
+        counted(arguments.classpath.len(), "entry", "entries")
+    )
+    .ok();
+    writeln!(err, "JDK: {} (release {release})\n", jdk.home().display()).ok();
+}
+
+fn counted(count: usize, singular: &str, plural: &str) -> String {
+    format!("{count} {}", if count == 1 { singular } else { plural })
 }
 
 #[cfg(test)]

@@ -35,7 +35,9 @@ Options:
       --show-allowed        Also lists the allowed calls with the rule they follow
   -h, --help                Shows this help
 
-Exit code: 0 no violations, 1 violations found, 2 usage or fatal error.
+The source roots, the classpath and the JDK are written to standard error before
+the check. Exit code: 0 no violations, 1 violations found, 2 usage or fatal
+error.
 "
 }
 

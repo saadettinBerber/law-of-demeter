@@ -233,10 +233,9 @@ fn a_project_without_violations_reports_so_and_succeeds() {
     assert_eq!(
         (
             outcome.code,
-            outcome.out.starts_with("No violations found.\n"),
-            outcome.err
+            outcome.out.starts_with("No violations found.\n")
         ),
-        (CLEAN, true, String::new())
+        (CLEAN, true)
     );
 }
 
@@ -453,4 +452,23 @@ fn without_a_source_a_directory_without_a_maven_source_root_fails() {
                 .to_owned()
         )
     );
+}
+
+#[test]
+fn the_checked_source_roots_the_classpath_and_the_jdk_are_announced_first() {
+    let root = project(&[
+        ("src/main/java/Order.java", "clean"),
+        ("orders/src/main/java/Shipping.java", "clean"),
+    ]);
+    fs::create_dir_all(root.path().join("target/classes")).expect("create class directory");
+
+    let outcome = check_in_working_directory(root.path());
+
+    let expected = format!(
+        "Source root: {}\nSource root: {}\nClasspath: 1 entry\nJDK: {} (release 8)\n",
+        root.path().join("orders/src/main/java").display(),
+        root.path().join("src/main/java").display(),
+        fixtures().join("jdk").display()
+    );
+    assert!(outcome.err.starts_with(&expected), "{}", outcome.err);
 }
