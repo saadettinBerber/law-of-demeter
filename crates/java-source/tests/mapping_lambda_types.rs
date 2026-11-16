@@ -235,3 +235,113 @@ fn a_raw_target_leaves_the_parameter_unresolved() {
         f(2).assign("run", class("Consumer"), Expression::lambda(payer()))
     );
 }
+
+fn reading_world() -> Types {
+    let event = TypeShape::new("Event", TypeKind::Class)
+        .with_method(MethodShape::new("getEntry").returning(class("Entry")));
+    let entry = TypeShape::new("Entry", TypeKind::Class)
+        .with_method(MethodShape::new("getLock").returning(class("Lock")));
+    let premium = TypeShape::new("Premium", TypeKind::Class)
+        .with_method(MethodShape::new("getEntry").returning(class("Special")));
+    world()
+        .with_shape(event)
+        .with_shape(entry)
+        .with_shape(premium)
+}
+
+fn event_entry(parameter: &str, line: usize) -> Expression {
+    let entry = call(Expression::local(parameter), "getEntry", line).returning(class("Entry"));
+    Expression::return_of(entry)
+}
+
+fn consumer_of_event() -> TypeRef {
+    consumer_of(class("Event"))
+}
+
+#[test]
+fn a_call_on_a_resolved_lambda_parameter_gets_its_return_type() {
+    let body = "Consumer<Event> run = e -> e.getEntry().getLock();";
+
+    let mapped = mapped_in(&reading_world(), "", body);
+
+    let lock = call(event_entry("e", 3), "getLock", 3).returning(class("Lock"));
+    let lambda = Lambda::new(&["e"])
+        .resolving("e", class("Event"))
+        .yielding(Expression::return_of(lock));
+    assert_eq!(
+        mapped,
+        f(2).assign("run", consumer_of_event(), Expression::lambda(lambda))
+    );
+}
+
+#[test]
+fn a_call_in_a_block_body_gets_the_type_of_the_resolved_parameter() {
+    let body = "Consumer<Event> run = e -> {\n   e.getEntry();\n  };";
+
+    let mapped = mapped_in(&reading_world(), "", body);
+
+    let entry = call(Expression::local("e"), "getEntry", 4).returning(class("Entry"));
+    let lambda = Lambda::new(&["e"])
+        .resolving("e", class("Event"))
+        .call(entry);
+    assert_eq!(
+        mapped,
+        f(2).assign("run", consumer_of_event(), Expression::lambda(lambda))
+    );
+}
+
+#[test]
+fn a_declared_parameter_type_types_the_calls_in_the_body() {
+    let body = "Consumer<Event> run = (Premium e) -> e.getEntry();";
+
+    let mapped = mapped_in(&reading_world(), "", body);
+
+    let special = call(Expression::local("e"), "getEntry", 3).returning(class("Special"));
+    let lambda = Lambda::new(&["e"])
+        .declaring("e", class("Premium"))
+        .yielding(Expression::return_of(special));
+    assert_eq!(
+        mapped,
+        f(2).assign("run", consumer_of_event(), Expression::lambda(lambda))
+    );
+}
+
+#[test]
+fn an_inner_lambda_sees_the_parameter_of_the_outer_one() {
+    let body = "Consumer<Event> run = e -> {\n   Consumer<Entry> inner = n -> e.getEntry();\n  };";
+
+    let mapped = mapped_in(&reading_world(), "", body);
+
+    let inner = Lambda::new(&["n"])
+        .resolving("n", class("Entry"))
+        .yielding(event_entry("e", 4));
+    let outer = Lambda::new(&["e"]).resolving("e", class("Event")).assign(
+        "inner",
+        consumer_of(class("Entry")),
+        Expression::lambda(inner),
+    );
+    assert_eq!(
+        mapped,
+        f(2).assign("run", consumer_of_event(), Expression::lambda(outer))
+    );
+}
+
+#[test]
+fn the_parameter_types_of_a_lambda_do_not_leak_into_the_next_one() {
+    let body = "Consumer<Event> run = e -> e.getEntry();\n  unknown.go(e -> e.getEntry());";
+
+    let mapped = mapped_in(&reading_world(), "", body);
+
+    let second =
+        call(Expression::unresolved("unknown"), "go", 4).with(Lambda::new(&["e"]).yielding(
+            Expression::return_of(call(Expression::local("e"), "getEntry", 4)),
+        ));
+    let first = Lambda::new(&["e"])
+        .resolving("e", class("Event"))
+        .yielding(event_entry("e", 3));
+    assert_eq!(
+        mapped,
+        f(2).assign("run", consumer_of_event(), Expression::lambda(first))
+            .call(second)
+    );
+}

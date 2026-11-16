@@ -79,6 +79,7 @@ impl MethodMapper<'_> {
         match expression {
             model::Expression::This => Some(TypeRef::class(&self.class.name)),
             model::Expression::Parameter(name) => Some(self.parameter_type(name)),
+            model::Expression::LambdaParameter(name) => self.lambda_parameters.get(name).cloned(),
             model::Expression::Local(name) => self.locals.get(name).cloned().flatten(),
             model::Expression::Field(name) => Some(self.field_type(&self.class.name, name)),
             model::Expression::OuterField { owner, name } => Some(self.field_type(owner, name)),

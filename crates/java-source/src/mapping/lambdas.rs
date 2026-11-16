@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::mem;
 
 use law_of_demeter_core::domain::classification::Types;
@@ -15,8 +16,29 @@ pub(super) struct Functional {
     pub(super) parameters: Vec<TypeRef>,
 }
 
+struct Typed {
+    name: String,
+    declared: Option<TypeRef>,
+    resolved: Option<TypeRef>,
+}
+
+impl Typed {
+    fn known(&self) -> Option<&TypeRef> {
+        self.declared.as_ref().or(self.resolved.as_ref())
+    }
+
+    fn on(&self, lambda: Lambda) -> Lambda {
+        match (&self.declared, &self.resolved) {
+            (Some(declared), _) => lambda.declaring(&self.name, declared.clone()),
+            (None, Some(resolved)) => lambda.resolving(&self.name, resolved.clone()),
+            (None, None) => lambda,
+        }
+    }
+}
+
 impl MethodMapper<'_> {
     pub(super) fn lambda(&mut self, lambda: &model::Lambda, target: Option<&TypeRef>) -> Lambda {
+        let typed = self.typed_parameters(lambda, target);
         let names: Vec<&str> = lambda
             .parameters
             .iter()
@@ -28,39 +50,44 @@ impl MethodMapper<'_> {
         };
         let outer_steps = mem::take(&mut self.steps);
         let outer_returns = self.returns.take();
+        let outer_parameters = self.enter_scope(&typed);
         self.statements(body);
         let result = result.map(|result| self.expression(result));
+        self.lambda_parameters = outer_parameters;
         self.returns = outer_returns;
         let mapped = mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names));
-        let resolved = self.resolved_parameters(lambda, target);
-        let mapped = lambda
-            .parameters
-            .iter()
-            .zip(resolved)
-            .fold(mapped, |mapped, (parameter, resolved)| {
-                self.typed(mapped, parameter, resolved)
-            });
+        let mapped = typed.iter().fold(mapped, |mapped, typed| typed.on(mapped));
         match result {
             Some(value) => mapped.yielding(value),
             None => mapped,
         }
     }
 
-    fn typed(
-        &self,
-        mapped: Lambda,
-        parameter: &model::LambdaParameter,
-        resolved: Option<TypeRef>,
-    ) -> Lambda {
-        let declared = parameter
-            .declared_type
-            .as_ref()
-            .and_then(|declared| self.type_ref(declared));
-        match (declared, resolved) {
-            (Some(declared), _) => mapped.declaring(&parameter.name, declared),
-            (None, Some(resolved)) => mapped.resolving(&parameter.name, resolved),
-            (None, None) => mapped,
+    fn enter_scope(&mut self, typed: &[Typed]) -> HashMap<String, TypeRef> {
+        let mut scope = self.lambda_parameters.clone();
+        for parameter in typed {
+            if let Some(known) = parameter.known() {
+                scope.insert(parameter.name.clone(), known.clone());
+            }
         }
+        mem::replace(&mut self.lambda_parameters, scope)
+    }
+
+    fn typed_parameters(&self, lambda: &model::Lambda, target: Option<&TypeRef>) -> Vec<Typed> {
+        let resolved = self.resolved_parameters(lambda, target);
+        lambda
+            .parameters
+            .iter()
+            .zip(resolved)
+            .map(|(parameter, resolved)| Typed {
+                name: parameter.name.clone(),
+                declared: parameter
+                    .declared_type
+                    .as_ref()
+                    .and_then(|declared| self.type_ref(declared)),
+                resolved,
+            })
+            .collect()
     }
 
     fn resolved_parameters(

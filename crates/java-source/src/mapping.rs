@@ -64,6 +64,7 @@ struct MethodMapper<'a> {
     bounds: Bounds,
     parameters: HashMap<&'a str, TypeRef>,
     locals: HashMap<String, Option<TypeRef>>,
+    lambda_parameters: HashMap<String, TypeRef>,
     returns: Option<TypeRef>,
     steps: Steps,
 }
@@ -92,6 +93,7 @@ impl<'a> MethodMapper<'a> {
                 })
                 .collect(),
             locals: HashMap::new(),
+            lambda_parameters: HashMap::new(),
             returns: method
                 .returns
                 .as_ref()
