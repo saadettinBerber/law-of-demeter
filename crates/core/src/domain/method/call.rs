@@ -1,10 +1,9 @@
-use super::arguments::{Links, judge_arguments, judge_values, value_types};
+use super::arguments::{Links, judge_arguments, judge_values};
 use super::expression::{Argument, Expression};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{
-    Classification, Invocation, Types, is_factory_method, is_query_on_repository,
-    is_repository_query,
+    Classification, Types, is_factory_method, is_query_on_repository, is_repository_query,
 };
 use crate::domain::type_shape::TypeRef;
 
@@ -14,7 +13,6 @@ pub struct Call {
     name: String,
     line: usize,
     arguments: Vec<Argument>,
-    expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
     flows: Vec<usize>,
     keyed_by: Option<usize>,
@@ -28,17 +26,11 @@ impl Call {
             name: name.to_owned(),
             line,
             arguments: Vec::new(),
-            expected: None,
             resolved: None,
             flows: Vec::new(),
             keyed_by: None,
             reads_keys: false,
         }
-    }
-
-    pub fn expecting(mut self, type_ref: TypeRef) -> Self {
-        self.expected = Some(type_ref);
-        self
     }
 
     pub fn returning(mut self, type_ref: TypeRef) -> Self {
@@ -81,16 +73,6 @@ impl Call {
             .and_then(|target| target.elements)
             .unwrap_or(&receiver.subject);
         let values = judge_values(context, &self.arguments, outer);
-        let expected = self
-            .expected
-            .as_ref()
-            .or(target.and_then(|target| target.type_ref));
-        let invocation = self.invocation(
-            context.types,
-            &receiver.subject,
-            &value_types(&values),
-            expected,
-        );
         let judged = judge_arguments(
             context,
             &self.arguments,
@@ -111,7 +93,7 @@ impl Call {
                 argument_count: self.arguments.len(),
             },
         ));
-        let type_ref = self.resolved.clone().or_else(|| invocation.returns());
+        let type_ref = self.resolved.clone();
         let mapped = judged.mapped.filter(|_| {
             Self::is_container(context.types, receiver.subject.type_ref.as_ref())
                 && Self::is_container(context.types, type_ref.as_ref())
@@ -135,22 +117,6 @@ impl Call {
 
     fn is_container(types: &Types, type_ref: Option<&TypeRef>) -> bool {
         type_ref.is_some_and(|type_ref| types.classify(type_ref) == Classification::Container)
-    }
-
-    fn invocation(
-        &self,
-        types: &Types,
-        receiver: &Subject,
-        value_types: &[Option<&TypeRef>],
-        expected: Option<&TypeRef>,
-    ) -> Invocation {
-        receiver
-            .type_ref
-            .as_ref()
-            .map_or_else(Invocation::unknown, |receiver_type| {
-                types.invocation(receiver_type, &self.name, value_types)
-            })
-            .expecting(types, expected)
     }
 }
 

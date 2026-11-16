@@ -1,8 +1,6 @@
 use super::expression::Argument;
 use super::reason::Verdict;
 use super::subject::{Context, Judged, Standing, Subject, Target};
-use crate::domain::classification::has_variable;
-use crate::domain::type_shape::TypeRef;
 
 #[derive(Default)]
 pub(super) struct Links<'a> {
@@ -24,18 +22,6 @@ pub(super) fn judge_values(
     arguments
         .iter()
         .map(|argument| argument.judge_value_expecting(context, Some(Target::elements_of(outer))))
-        .collect()
-}
-
-pub(super) fn value_types(values: &[Option<Judged>]) -> Vec<Option<&TypeRef>> {
-    values
-        .iter()
-        .map(|value| {
-            value
-                .as_ref()
-                .and_then(|judged| judged.subject.type_ref.as_ref())
-                .filter(|type_ref| !has_variable(type_ref))
-        })
         .collect()
 }
 

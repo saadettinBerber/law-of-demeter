@@ -1,4 +1,3 @@
-mod invocation;
 mod naming;
 mod platform;
 
@@ -6,8 +5,6 @@ pub use naming::{is_factory_method, is_query_on_repository, is_repository_query}
 pub use platform::Platform;
 
 use std::collections::{HashMap, HashSet};
-
-pub(crate) use invocation::{Invocation, has_variable};
 
 use super::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -54,49 +51,6 @@ impl Types {
 
     pub fn is_project_type(&self, name: &str) -> bool {
         self.project_types.contains(name)
-    }
-
-    pub fn return_type(
-        &self,
-        type_name: &str,
-        method: &str,
-        argument_count: usize,
-    ) -> Option<&TypeRef> {
-        let overloads = self.overloads(type_name, method, argument_count);
-        unambiguous_return(&overloads)
-    }
-
-    pub fn return_type_on(
-        &self,
-        receiver: &TypeRef,
-        method: &str,
-        argument_count: usize,
-    ) -> Option<TypeRef> {
-        self.invocation(receiver, method, &vec![None; argument_count])
-            .returns()
-    }
-
-    pub(crate) fn invocation(
-        &self,
-        receiver: &TypeRef,
-        method: &str,
-        values: &[Option<&TypeRef>],
-    ) -> Invocation {
-        let Some((declaring, overloads)) = self.overloads_on(receiver, method, values.len()) else {
-            return Invocation::unknown();
-        };
-        let class_bindings = self
-            .bound(&declaring)
-            .map(|(_, bindings)| bindings)
-            .unwrap_or_default();
-        let overloads = invocation::applicable(self, overloads, &class_bindings, values);
-        match overloads.as_slice() {
-            [only] => Invocation::of(self, only, &class_bindings, values),
-            _ => Invocation::ambiguous(
-                unambiguous_return(&overloads)
-                    .map(|returned| substitute(returned, &class_bindings)),
-            ),
-        }
     }
 
     fn overloads(&self, type_name: &str, method: &str, argument_count: usize) -> Vec<&MethodShape> {
@@ -170,10 +124,6 @@ impl Types {
 
     pub(crate) fn is_mutator(&self, name: &str) -> bool {
         self.platform.is_mutator(name)
-    }
-
-    fn is_root_supertype(&self, name: &str) -> bool {
-        self.platform.root_supertype() == Some(name)
     }
 
     fn ancestors(&self, receiver: &TypeRef) -> Vec<TypeRef> {
@@ -445,14 +395,6 @@ impl Members<'_> {
                     && !method.is_static()
             })
     }
-}
-
-fn unambiguous_return<'a>(overloads: &[&'a MethodShape]) -> Option<&'a TypeRef> {
-    let (first, rest) = overloads.split_first()?;
-    rest.iter()
-        .all(|overload| overload.returns() == first.returns())
-        .then(|| first.returns())
-        .flatten()
 }
 
 fn substitute(type_ref: &TypeRef, bindings: &HashMap<String, TypeRef>) -> TypeRef {
