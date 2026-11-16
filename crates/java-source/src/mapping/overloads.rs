@@ -4,7 +4,8 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::LiteralType;
 
 use super::conversions::{boxed, unboxed, widens};
-use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure, has_variable};
+use super::inference::{Bindings, bound, instantiate};
+use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure};
 
 pub(super) enum ArgumentType {
     Null,
@@ -27,7 +28,7 @@ impl ArgumentType {
 }
 
 pub(super) enum Selection {
-    Chosen(usize),
+    Chosen { index: usize, bindings: Bindings },
     Unresolvable,
     Undecided,
 }
@@ -35,6 +36,12 @@ pub(super) enum Selection {
 pub(super) struct Signature {
     pub(super) parameters: Vec<TypeRef>,
     pub(super) variable_arity: bool,
+    pub(super) free: Vec<String>,
+}
+
+struct Applicant {
+    index: usize,
+    bindings: Bindings,
 }
 
 impl Signature {
@@ -83,20 +90,16 @@ pub(super) fn select(
     else {
         return Selection::Undecided;
     };
-    if signatures
-        .iter()
-        .flat_map(|signature| &signature.parameters)
-        .any(has_variable)
-    {
-        return Selection::Undecided;
+    for phase in [Phase::Strict, Phase::Loose, Phase::VariableArity] {
+        match applicable(types, signatures, &arguments, phase) {
+            None => return Selection::Undecided,
+            Some(applicants) if !applicants.is_empty() => {
+                return most_specific(types, signatures, &applicants, phase, arguments.len());
+            }
+            Some(_) => {}
+        }
     }
-    [Phase::Strict, Phase::Loose, Phase::VariableArity]
-        .into_iter()
-        .map(|phase| (phase, applicable(types, signatures, &arguments, phase)))
-        .find(|(_, applicable)| !applicable.is_empty())
-        .map_or(Selection::Unresolvable, |(phase, applicable)| {
-            most_specific(types, signatures, &applicable, phase, arguments.len())
-        })
+    Selection::Unresolvable
 }
 
 pub(super) fn is_known(types: &Types, type_ref: &TypeRef) -> bool {
@@ -115,19 +118,22 @@ fn applicable(
     signatures: &[Signature],
     arguments: &[&ArgumentType],
     phase: Phase,
-) -> Vec<usize> {
-    (0..signatures.len())
-        .filter(|&index| {
-            signatures[index]
-                .parameters_for(phase, arguments.len())
-                .is_some_and(|parameters| {
-                    parameters
-                        .iter()
-                        .zip(arguments)
-                        .all(|(parameter, argument)| accepts(types, parameter, argument, phase))
-                })
-        })
-        .collect()
+) -> Option<Vec<Applicant>> {
+    let mut applicants = Vec::new();
+    for (index, signature) in signatures.iter().enumerate() {
+        let Some(parameters) = signature.parameters_for(phase, arguments.len()) else {
+            continue;
+        };
+        let (parameters, bindings) = instantiate(types, &signature.free, &parameters, arguments)?;
+        let fits = parameters
+            .iter()
+            .zip(arguments)
+            .all(|(parameter, argument)| accepts(types, parameter, argument, phase));
+        if fits {
+            applicants.push(Applicant { index, bindings });
+        }
+    }
+    Some(applicants)
 }
 
 fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: Phase) -> bool {
@@ -143,22 +149,24 @@ fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: P
 fn most_specific(
     types: &Types,
     signatures: &[Signature],
-    applicable: &[usize],
+    applicants: &[Applicant],
     phase: Phase,
     count: usize,
 ) -> Selection {
-    let specific: Vec<_> = applicable
+    let specific: Vec<_> = applicants
         .iter()
-        .copied()
-        .filter(|&index| {
-            applicable.iter().all(|&other| {
-                index == other
-                    || more_specific(types, phase, count, &signatures[index], &signatures[other])
+        .filter(|applicant| {
+            applicants.iter().all(|other| {
+                applicant.index == other.index
+                    || more_specific(types, phase, count, signatures, (applicant, other))
             })
         })
         .collect();
     match specific[..] {
-        [only] => Selection::Chosen(only),
+        [only] => Selection::Chosen {
+            index: only.index,
+            bindings: only.bindings.clone(),
+        },
         _ => Selection::Unresolvable,
     }
 }
@@ -167,15 +175,17 @@ fn more_specific(
     types: &Types,
     phase: Phase,
     count: usize,
-    signature: &Signature,
-    other: &Signature,
+    signatures: &[Signature],
+    (applicant, other): (&Applicant, &Applicant),
 ) -> bool {
+    let signature = &signatures[applicant.index];
+    let other_signature = &signatures[other.index];
     let length = count
         .max(signature.parameters.len())
-        .max(other.parameters.len());
+        .max(other_signature.parameters.len());
     match (
-        signature.parameters_for(phase, length),
-        other.parameters_for(phase, length),
+        instance(signature, phase, length, &applicant.bindings),
+        instance(other_signature, phase, length, &other.bindings),
     ) {
         (Some(parameters), Some(others)) => parameters
             .iter()
@@ -183,6 +193,21 @@ fn more_specific(
             .all(|(parameter, other)| substitutable(types, parameter, other)),
         _ => false,
     }
+}
+
+fn instance(
+    signature: &Signature,
+    phase: Phase,
+    length: usize,
+    bindings: &Bindings,
+) -> Option<Vec<TypeRef>> {
+    let parameters = signature.parameters_for(phase, length)?;
+    Some(
+        parameters
+            .iter()
+            .map(|parameter| bound(parameter, bindings))
+            .collect(),
+    )
 }
 
 fn substitutable(types: &Types, from: &TypeRef, to: &TypeRef) -> bool {

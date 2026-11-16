@@ -1,5 +1,6 @@
 mod conversions;
 mod expressions;
+mod inference;
 mod lineage;
 mod overloads;
 mod patterns;

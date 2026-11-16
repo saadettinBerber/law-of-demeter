@@ -101,7 +101,7 @@ fn erase(type_ref: &TypeRef) -> TypeRef {
     class_name(type_ref).map_or_else(|| type_ref.clone(), TypeRef::class)
 }
 
-fn arguments_of(type_ref: &TypeRef) -> &[TypeRef] {
+pub(super) fn arguments_of(type_ref: &TypeRef) -> &[TypeRef] {
     match type_ref {
         TypeRef::Class { arguments, .. } => arguments,
         _ => &[],

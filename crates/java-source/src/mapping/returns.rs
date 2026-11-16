@@ -4,6 +4,7 @@ use law_of_demeter_core::domain::type_shape::{MethodShape, TypeRef, TypeShape};
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
+use super::inference::{Bindings, bound};
 use super::lineage::{Ancestor, has_variable, lineage, substitute};
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
@@ -70,7 +71,7 @@ fn declared_return(
     }
     let signatures: Vec<_> = candidates.iter().map(Candidate::signature).collect();
     let returned = match select(types, &signatures, arguments) {
-        Selection::Chosen(index) => candidates[index].returned(),
+        Selection::Chosen { index, bindings } => candidates[index].returned_under(&bindings),
         Selection::Undecided => agreed_return(&candidates),
         Selection::Unresolvable => None,
     };
@@ -95,7 +96,12 @@ impl Candidate<'_> {
         Signature {
             parameters: self.parameters(),
             variable_arity: self.method.is_varargs(),
+            free: self.method.type_parameters().to_vec(),
         }
+    }
+
+    fn returned_under(&self, bindings: &Bindings) -> Option<TypeRef> {
+        self.returned().map(|returned| bound(&returned, bindings))
     }
 
     fn returned(&self) -> Option<TypeRef> {
