@@ -45,6 +45,7 @@ fn reading_a_chain_through_data_structures_is_allowed() {
             "server",
             2,
         )
+        .returning(TypeRef::class("Server"))
         .then("port", 2),
     );
     let city_of = Method::new("Shipping", "cityOf", 1).call(
@@ -53,6 +54,7 @@ fn reading_a_chain_through_data_structures_is_allowed() {
             "getAddress",
             2,
         )
+        .returning(TypeRef::class("Address"))
         .then("getCity", 2),
     );
     let key_of = Method::new("Directory", "keyOf", 1).call(
@@ -61,6 +63,7 @@ fn reading_a_chain_through_data_structures_is_allowed() {
             "getId",
             2,
         )
+        .returning(TypeRef::class("CustomerId"))
         .then("getValue", 2),
     );
 
@@ -157,7 +160,9 @@ fn transforming_a_collection_with_a_stream_is_allowed() {
         );
     let paid_count = Method::new("Reports", "paidCount", 1).call(
         Call::new(Expression::parameter("orders", orders), "stream", 2)
+            .returning(stream.clone())
             .then("filter", 2)
+            .returning(stream)
             .with(Expression::literal())
             .then("count", 2),
     );
@@ -190,6 +195,7 @@ fn changing_a_collection_returned_by_a_getter_is_a_violation() {
             "getLines",
             2,
         )
+        .returning(lines.clone())
         .then("add", 2)
         .with(Expression::parameter("line", TypeRef::class("OrderLine"))),
     );
@@ -238,6 +244,7 @@ fn objects_from_factories_and_new_are_friends() {
             "create",
             2,
         )
+        .returning(TypeRef::class("Report"))
         .then("render", 2),
     );
     let greeting = Method::new("Reports", "greeting", 5).call(
@@ -246,8 +253,10 @@ fn objects_from_factories_and_new_are_friends() {
             "append",
             6,
         )
+        .returning(builder.clone())
         .with(Expression::literal())
         .then("append", 6)
+        .returning(builder.clone())
         .with(Expression::parameter(
             "name",
             TypeRef::class("java.lang.String"),
@@ -333,12 +342,15 @@ fn builder_chains_stay_with_the_builder() {
         );
     let create = Method::new("Orders", "create", 1).call(
         Call::new(Expression::static_type(order.clone()), "builder", 2)
+            .returning(builder.clone())
             .then("id", 2)
+            .returning(builder.clone())
             .with(Expression::parameter(
                 "id",
                 TypeRef::class("java.lang.String"),
             ))
             .then("total", 2)
+            .returning(builder)
             .with(Expression::parameter("total", TypeRef::primitive("int")))
             .then("build", 2),
     );
@@ -388,7 +400,9 @@ fn reaching_through_the_object_a_getter_returned_is_a_violation() {
             "getCustomer",
             2,
         )
+        .returning(TypeRef::class("Customer"))
         .then("getWallet", 2)
+        .returning(TypeRef::class("Wallet"))
         .then("withdraw", 2)
         .with(Expression::parameter("amount", TypeRef::primitive("int"))),
     );
@@ -411,14 +425,18 @@ fn splitting_the_chain_into_a_local_changes_nothing() {
         .assign(
             "customer",
             TypeRef::class("Customer"),
-            Expression::return_of(Call::new(
-                Expression::parameter("order", TypeRef::class("Order")),
-                "getCustomer",
-                2,
-            )),
+            Expression::return_of(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("Order")),
+                    "getCustomer",
+                    2,
+                )
+                .returning(TypeRef::class("Customer")),
+            ),
         )
         .call(
             Call::new(Expression::local("customer"), "getWallet", 3)
+                .returning(TypeRef::class("Wallet"))
                 .then("withdraw", 3)
                 .with(Expression::parameter("amount", TypeRef::primitive("int"))),
         );
@@ -447,6 +465,7 @@ fn changing_the_object_a_getter_returned_with_a_setter_is_a_violation() {
             "getCustomer",
             2,
         )
+        .returning(TypeRef::class("Customer"))
         .then("setAddress", 2)
         .with(Expression::parameter("address", TypeRef::class("Address"))),
     );
@@ -480,12 +499,16 @@ fn changing_the_elements_of_an_inner_collection_from_outside_is_a_violation() {
             "getLines",
             2,
         )
+        .returning(lines.clone())
         .then("forEach", 2)
         .with(
-            Lambda::new(&["line"]).call(
-                Call::new(Expression::local("line"), "applyDiscount", 2)
-                    .with(Expression::parameter("rate", TypeRef::primitive("int"))),
-            ),
+            Lambda::new(&["line"])
+                .resolving("line", TypeRef::class("OrderLine"))
+                .fed_by_elements("line")
+                .call(
+                    Call::new(Expression::local("line"), "applyDiscount", 2)
+                        .with(Expression::parameter("rate", TypeRef::primitive("int"))),
+                ),
         ),
     );
 
@@ -525,6 +548,7 @@ fn reaching_through_the_object_a_data_structure_carries_is_a_violation() {
                 "getOrder",
                 2,
             )
+            .returning(TypeRef::class("Order"))
             .then("getTotal", 2),
         )),
     );
@@ -552,6 +576,7 @@ fn talking_to_the_object_a_holder_getter_returned_is_a_violation() {
             "getCart",
             2,
         )
+        .returning(TypeRef::class("Cart"))
         .then("clear", 2),
     );
 

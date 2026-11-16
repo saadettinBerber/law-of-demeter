@@ -27,11 +27,14 @@ fn calls_inside_an_assigned_value_are_judged_once_however_often_the_local_is_use
     let inspect = Method::new("OrderService", "pay", 1)
         .assign_var(
             "customer",
-            Expression::return_of(Call::new(
-                Expression::parameter("order", TypeRef::class("Order")),
-                "getCustomer",
-                1,
-            )),
+            Expression::return_of(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("Order")),
+                    "getCustomer",
+                    1,
+                )
+                .returning(TypeRef::class("Customer")),
+            ),
         )
         .call(Call::new(Expression::local("customer"), "getWallet", 1))
         .call(Call::new(Expression::local("customer"), "getAddress", 1));
@@ -140,6 +143,7 @@ fn calls_inside_constructor_arguments_are_judged() {
                     "getCustomer",
                     1,
                 )
+                .returning(TypeRef::class("Customer"))
                 .then("getName", 1),
             )),
         ),
@@ -194,7 +198,10 @@ fn a_lambda_body_can_assign_a_local_and_call_it() {
             Lambda::new(&["order"])
                 .assign_var(
                     "customer",
-                    Expression::return_of(Call::new(Expression::local("order"), "getCustomer", 1)),
+                    Expression::return_of(
+                        Call::new(Expression::local("order"), "getCustomer", 1)
+                            .returning(TypeRef::class("Customer")),
+                    ),
                 )
                 .call(Call::new(Expression::local("customer"), "getWallet", 1)),
         ),
@@ -225,11 +232,14 @@ fn a_loop_variable_takes_the_standing_of_the_iterable_and_judges_it_once() {
     let discount = Method::new("OrderService", "pay", 1)
         .for_each(
             "line",
-            Expression::return_of(Call::new(
-                Expression::parameter("order", TypeRef::class("Order")),
-                "getLines",
-                1,
-            )),
+            Expression::return_of(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("Order")),
+                    "getLines",
+                    1,
+                )
+                .returning(order_lines()),
+            ),
         )
         .call(
             Call::new(Expression::local("line"), "applyDiscount", 1)
@@ -260,7 +270,9 @@ fn every_verdict_carries_the_line_of_its_call() {
                 "getCustomer",
                 11,
             )
+            .returning(TypeRef::class("Customer"))
             .then("getWallet", 12)
+            .returning(TypeRef::class("Wallet"))
             .then("withdraw", 13),
         )
         .call(Call::new(Expression::This, "audit", 14));
@@ -369,6 +381,7 @@ fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
             "getLines",
             2,
         )
+        .returning(order_lines())
         .then("forEach", 2)
         .with(Lambda::new(&["line"]).call(Call::new(
             Expression::local("line"),
@@ -402,11 +415,14 @@ fn a_loop_variable_takes_the_element_type_of_the_iterable() {
     let list_skus = Method::new("OrderService", "listSkus", 1)
         .for_each(
             "line",
-            Expression::return_of(Call::new(
-                Expression::parameter("order", TypeRef::class("Order")),
-                "getLines",
-                2,
-            )),
+            Expression::return_of(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("Order")),
+                    "getLines",
+                    2,
+                )
+                .returning(order_lines()),
+            ),
         )
         .call(Call::new(Expression::local("line"), "getSku", 3));
 
@@ -439,11 +455,14 @@ fn a_var_local_takes_the_type_of_its_value() {
     let read_port = Method::new("Connector", "portOf", 1)
         .assign_var(
             "server",
-            Expression::return_of(Call::new(
-                Expression::parameter("config", TypeRef::class("Config")),
-                "server",
-                2,
-            )),
+            Expression::return_of(
+                Call::new(
+                    Expression::parameter("config", TypeRef::class("Config")),
+                    "server",
+                    2,
+                )
+                .returning(TypeRef::class("Server")),
+            ),
         )
         .call(Call::new(Expression::local("server"), "port", 3));
 
@@ -522,7 +541,9 @@ fn a_fluent_call_on_a_returned_object_is_allowed() {
             "getReportBuilder",
             2,
         )
+        .returning(builder.clone())
         .then("title", 2)
+        .returning(builder.clone())
         .with(Expression::literal())
         .then("footer", 2)
         .with(Expression::literal()),
@@ -601,7 +622,9 @@ fn the_result_of_a_factory_call_on_a_stranger_is_a_stranger() {
             "getFactory",
             2,
         )
+        .returning(TypeRef::class("ReportFactory"))
         .then("create", 2)
+        .returning(TypeRef::class("Report"))
         .then("render", 2),
     );
 
@@ -647,7 +670,9 @@ fn the_result_of_a_query_called_on_a_stranger_is_a_stranger() {
             "getCustomer",
             2,
         )
+        .returning(TypeRef::class("Customer"))
         .then("findLine", 2)
+        .returning(TypeRef::class("OrderLine"))
         .with(Expression::parameter("id", TypeRef::class("LineId")))
         .then("applyDiscount", 2),
     );
@@ -680,6 +705,7 @@ fn the_result_of_a_query_called_on_this_is_a_stranger() {
         );
     let discount = Method::new("OrderService", "discount", 1).call(
         Call::new(Expression::This, "findLine", 2)
+            .returning(TypeRef::class("OrderLine"))
             .with(Expression::parameter("id", TypeRef::class("LineId")))
             .then("applyDiscount", 2),
     );
@@ -765,6 +791,7 @@ fn the_result_of_a_get_call_on_a_field_not_named_repository_is_a_stranger() {
             "getById",
             2,
         )
+        .returning(TypeRef::class("Order"))
         .with(Expression::parameter("id", TypeRef::class("OrderId")))
         .then("ship", 2),
     );
@@ -791,6 +818,7 @@ fn the_result_of_a_get_call_on_a_repository_that_is_a_call_result_is_a_stranger(
         )
         .returning(TypeRef::class("OrderRepository"))
         .then("getById", 2)
+        .returning(TypeRef::class("Order"))
         .with(Expression::parameter("id", TypeRef::class("OrderId")))
         .then("ship", 2),
     );
@@ -860,6 +888,7 @@ fn calling_a_method_on_a_returned_object_of_a_type_without_shape_is_a_violation(
             "getCustomer",
             2,
         )
+        .returning(TypeRef::class("Customer"))
         .then("getWallet", 2),
     );
 
@@ -898,6 +927,7 @@ fn calling_a_method_on_a_returned_value_is_allowed() {
             "getStatus",
             2,
         )
+        .returning(TypeRef::class("Status"))
         .then("name", 2),
     );
 
@@ -1008,7 +1038,9 @@ fn a_generic_call_on_a_returned_container_returns_the_type_argument_of_its_recei
             "getAll",
             2,
         )
+        .returning(customers.clone())
         .then("get", 2)
+        .returning(TypeRef::class("Customer"))
         .with(Expression::literal())
         .then("getName", 2),
     );
@@ -1038,11 +1070,14 @@ fn a_loop_over_a_returned_container_subtype_takes_its_element_type() {
     let names = Method::new("Mailer", "names", 1)
         .for_each(
             "customer",
-            Expression::return_of(Call::new(
-                Expression::parameter("order", TypeRef::class("Order")),
-                "getCustomers",
-                2,
-            )),
+            Expression::return_of(
+                Call::new(
+                    Expression::parameter("order", TypeRef::class("Order")),
+                    "getCustomers",
+                    2,
+                )
+                .returning(TypeRef::class("CustomerList")),
+            ),
         )
         .call(Call::new(Expression::local("customer"), "getName", 3));
 
@@ -1080,6 +1115,7 @@ fn changing_a_strangers_container_with_a_mutator_the_platform_names_is_a_violati
             "getItems",
             2,
         )
+        .returning(bag.clone())
         .then("stashItem", 2)
         .with(Expression::parameter("item", TypeRef::class("Item"))),
     );

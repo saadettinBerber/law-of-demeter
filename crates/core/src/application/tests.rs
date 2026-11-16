@@ -80,6 +80,7 @@ fn pay_method() -> Method {
             "getCustomer",
             11,
         )
+        .returning(TypeRef::class("Customer"))
         .then("getWallet", 11),
     )
 }
