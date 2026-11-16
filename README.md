@@ -239,7 +239,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 | Port | Ne sağlar | Adapter |
 |---|---|---|
 | Denetim isteği | Denetlenecek kaynaklar ve derlenmiş sınıflar | CLI |
-| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin nereden geldiği: parametre, alan, `new` ya da başka bir çağrının dönüşü | Java ayrıştırıcı |
+| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin nereden geldiği: parametre, alan, `new` ya da başka bir çağrının dönüşü. Okurken tip kataloğunu alır: tip şekilleri ve platform. | Java ayrıştırıcı |
 | Tip kataloğu | Bir tipin alanları ve metotları, Lombok'un ürettikleri dahil; dilin platformu: standart kütüphanesinden bilinen değer, konteyner ve veri yapısı tipleri, kök tipi, nesne ve eşitlik metotları, kurucu adı, builder metodu ve değiştirici metot adları | `.class` okuyucu; platform için Java ayrıştırıcının Java platformu |
 | Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural. Kullanıcı isterse uygun çağrılar da uydukları kuralla birlikte. | Metin raporu |
 
