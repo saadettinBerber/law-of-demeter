@@ -96,7 +96,14 @@ fn collectors() -> TypeShape {
             collector_of(variable("U"), variable("A"), variable("R")),
         ])
         .returning(collected(variable("T"), variable("R")));
+    let finishing = collector_method("collectingAndThen", &["T", "A", "R", "RR"])
+        .with_parameters(vec![
+            collector_of(variable("T"), variable("A"), variable("R")),
+            function_of(variable("R"), variable("RR")),
+        ])
+        .returning(collector_of(variable("T"), variable("A"), variable("RR")));
     shape("Collectors")
+        .with_method(finishing)
         .with_method(to_list)
         .with_method(grouping)
         .with_method(grouping_downstream)
@@ -126,7 +133,12 @@ fn world() -> Types {
         .with_shape(interface("Function", &["T", "R"]).with_method(applying))
         .with_shape(
             interface("List", &["E"])
-                .with_method(MethodShape::new("stream").returning(stream_of(variable("E")))),
+                .with_method(MethodShape::new("stream").returning(stream_of(variable("E"))))
+                .with_method(
+                    MethodShape::new("get")
+                        .with_parameters(vec![TypeRef::primitive("int")])
+                        .returning(variable("E")),
+                ),
         )
         .with_shape(interface("Map", &["K", "V"]))
         .with_shape(
@@ -279,5 +291,26 @@ fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
             grouping,
             map_of(customer(), list_of(money()))
         )
+    );
+}
+
+#[test]
+fn a_lambda_after_a_nested_call_gets_its_parameter_from_the_nested_result() {
+    let mapped = mapped_collect(
+        "orders.stream().collect(Collectors.collectingAndThen(Collectors.toList(), list -> list.get(0)))",
+    );
+
+    let first = call(Expression::local("list"), "get", 3)
+        .with(Expression::literal())
+        .returning(order());
+    let finisher = Lambda::new(&["list"])
+        .resolving("list", list_of(order()))
+        .yielding(Expression::return_of(first));
+    let finishing = collectors_call("collectingAndThen")
+        .with(Expression::return_of(collectors_call("toList")))
+        .with(finisher);
+    assert_eq!(
+        mapped,
+        collecting(streamed("orders", order()), finishing, order())
     );
 }
