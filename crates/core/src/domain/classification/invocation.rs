@@ -232,12 +232,12 @@ fn accepts(types: &Types, parameter: &TypeRef, value: &TypeRef) -> bool {
         (TypeRef::Array(parameter), TypeRef::Array(value)) => accepts(types, parameter, value),
         (TypeRef::Primitive(parameter), TypeRef::Primitive(value)) => parameter == value,
         (TypeRef::Class { name, .. }, TypeRef::Array(_))
-        | (TypeRef::Array(_), TypeRef::Class { name, .. }) => name == "java.lang.Object",
+        | (TypeRef::Array(_), TypeRef::Class { name, .. }) => types.is_root_supertype(name),
         (TypeRef::Primitive(_), TypeRef::Array(_) | TypeRef::Class { .. })
         | (TypeRef::Array(_) | TypeRef::Class { .. }, TypeRef::Primitive(_)) => false,
         (TypeRef::Class { name, .. }, TypeRef::Class { .. }) => {
             let ancestors = types.ancestors(value);
-            name == "java.lang.Object"
+            types.is_root_supertype(name)
                 || ancestors
                     .iter()
                     .filter_map(class_name)

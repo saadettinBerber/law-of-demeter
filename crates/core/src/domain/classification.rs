@@ -170,20 +170,18 @@ impl Types {
     }
 
     fn root_types(&self, receiver: &TypeRef) -> Vec<TypeRef> {
-        let Some(name) = class_name(receiver) else {
-            return Vec::new();
-        };
-        let specific = match self.shape(name).map(TypeShape::kind) {
-            Some(TypeKind::Enum) => {
-                Some(TypeRef::generic("java.lang.Enum", vec![receiver.clone()]))
-            }
-            Some(TypeKind::Record) => Some(TypeRef::class("java.lang.Record")),
-            _ => None,
-        };
-        specific
+        class_name(receiver)
+            .and(self.root_supertype())
             .into_iter()
-            .chain([TypeRef::class("java.lang.Object")])
             .collect()
+    }
+
+    pub(crate) fn root_supertype(&self) -> Option<TypeRef> {
+        self.platform.root_supertype().map(TypeRef::class)
+    }
+
+    fn is_root_supertype(&self, name: &str) -> bool {
+        self.platform.root_supertype() == Some(name)
     }
 
     fn ancestors(&self, receiver: &TypeRef) -> Vec<TypeRef> {

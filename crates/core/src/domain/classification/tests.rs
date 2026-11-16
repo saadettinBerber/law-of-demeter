@@ -52,6 +52,21 @@ fn a_supertype_the_language_marks_behaviorless_leaves_the_class_to_its_own_membe
 }
 
 #[test]
+fn every_type_finds_the_methods_of_the_root_supertype_the_platform_names() {
+    let types = Types::new()
+        .with_platform(Platform::new().with_root_supertype("Root"))
+        .with_shape(
+            TypeShape::new("Root", TypeKind::Class)
+                .with_method(MethodShape::new("describe").returning(TypeRef::class("Text"))),
+        )
+        .with_shape(TypeShape::new("Order", TypeKind::Class));
+
+    let returned = types.return_type_on(&TypeRef::class("Order"), "describe", 0);
+
+    assert_eq!(returned, Some(TypeRef::class("Text")));
+}
+
+#[test]
 fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argument() {
     let order = TypeRef::class("Order");
     let types = Types::new()
@@ -1474,9 +1489,14 @@ fn get_class_is_found_on_any_class_through_the_object_shape() {
     );
 }
 
+fn status_enum() -> TypeShape {
+    TypeShape::new("Status", TypeKind::Enum)
+        .with_superclass(generic_of("java.lang.Enum", vec![TypeRef::class("Status")]))
+}
+
 #[test]
 fn name_and_ordinal_are_found_on_an_enum_through_the_enum_shape() {
-    let types = root_shapes().with_shape(TypeShape::new("Status", TypeKind::Enum));
+    let types = root_shapes().with_shape(status_enum());
     let status = TypeRef::class("Status");
 
     let returned = (
@@ -1490,7 +1510,7 @@ fn name_and_ordinal_are_found_on_an_enum_through_the_enum_shape() {
 
 #[test]
 fn the_enum_shape_is_bound_to_the_enum_itself() {
-    let types = root_shapes().with_shape(TypeShape::new("Status", TypeKind::Enum));
+    let types = root_shapes().with_shape(status_enum());
 
     let returned = types.return_type_on(&TypeRef::class("Status"), "getDeclaringClass", 0);
 
@@ -1505,7 +1525,9 @@ fn the_enum_shape_is_bound_to_the_enum_itself() {
 
 #[test]
 fn a_record_finds_methods_on_the_record_shape() {
-    let types = root_shapes().with_shape(TypeShape::new("Server", TypeKind::Record));
+    let server = TypeShape::new("Server", TypeKind::Record)
+        .with_superclass(TypeRef::class("java.lang.Record"));
+    let types = root_shapes().with_shape(server);
 
     let returned = types.return_type_on(&TypeRef::class("Server"), "describe", 0);
 

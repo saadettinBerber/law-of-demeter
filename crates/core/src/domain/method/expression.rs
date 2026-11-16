@@ -588,10 +588,13 @@ impl Lambda {
                 .declared_type(parameter)
                 .or(declared.get(index))
                 .cloned()
-                .unwrap_or_else(|| TypeRef::class("java.lang.Object"));
+                .or_else(|| context.types.root_supertype());
             inner.bind(
                 parameter,
-                Subject::friend(Reason::parameter(parameter), type_ref),
+                Subject {
+                    standing: Standing::Friend(Reason::parameter(parameter)),
+                    type_ref,
+                },
             );
         }
         let (verdicts, _) = self.judge_body(inner);

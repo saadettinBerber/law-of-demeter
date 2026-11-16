@@ -110,4 +110,5 @@ pub fn java_platform() -> Platform {
         .fold(platform, |platform, name| {
             platform.with_behaviorless_supertype(name)
         })
+        .with_root_supertype("java.lang.Object")
 }

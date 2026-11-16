@@ -18,7 +18,8 @@ fn sample_platform() -> Platform {
         });
     let platform = platform
         .with_namespace("java.time.", Classification::Value)
-        .with_namespace("java.util.stream.", Classification::Container);
+        .with_namespace("java.util.stream.", Classification::Container)
+        .with_root_supertype("java.lang.Object");
     BEHAVIORLESS_SUPERTYPES
         .iter()
         .fold(platform, |platform, name| {

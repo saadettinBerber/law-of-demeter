@@ -249,3 +249,16 @@ fn record_and_enum_add_no_behavior_to_a_class_that_extends_them() {
         vec![Classification::DataStructure; dtos.len()]
     );
 }
+
+#[test]
+fn every_java_type_finds_the_methods_of_object() {
+    let object = TypeShape::new("java.lang.Object", TypeKind::Class)
+        .with_method(MethodShape::new("hashCode").returning(TypeRef::primitive("int")));
+    let types = platform_types()
+        .with_shape(object)
+        .with_shape(TypeShape::new("shop.Order", TypeKind::Class));
+
+    let returned = types.return_type_on(&TypeRef::class("shop.Order"), "hashCode", 0);
+
+    assert_eq!(returned, Some(TypeRef::primitive("int")));
+}

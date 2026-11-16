@@ -7,6 +7,7 @@ pub struct Platform {
     types: HashMap<String, Classification>,
     namespaces: Vec<(String, Classification)>,
     behaviorless_supertypes: HashSet<String>,
+    root_supertype: Option<String>,
 }
 
 impl Platform {
@@ -29,6 +30,11 @@ impl Platform {
         self
     }
 
+    pub fn with_root_supertype(mut self, name: &str) -> Self {
+        self.root_supertype = Some(name.to_owned());
+        self
+    }
+
     pub(super) fn classify(&self, name: &str) -> Option<Classification> {
         self.types.get(name).copied().or_else(|| {
             self.namespaces
@@ -36,6 +42,10 @@ impl Platform {
                 .find(|(prefix, _)| name.starts_with(prefix.as_str()))
                 .map(|(_, classification)| *classification)
         })
+    }
+
+    pub(super) fn root_supertype(&self) -> Option<&str> {
+        self.root_supertype.as_deref()
     }
 
     pub(super) fn is_behaviorless(&self, name: &str) -> bool {
