@@ -234,6 +234,312 @@ Sonuç: `portOf` aynı kalıyor. `Config` ve `Server` davranış taşımadığı
 
 </details>
 
+## Akışlar, lambdalar ve statik importlar
+
+Akış, lambda ya da metot referansı yabancıyla konuşmayı gizlemez. Araç elemanların nereden geldiğini izler ve zincirle aynı kararı verir. Her örnek, ihlalin düzeltilmiş hâliyle birlikte durur: nesneye sormak yerine ona söylenir. Tam liste [SCENARIOS.md](SCENARIOS.md)'de.
+
+Örneklerde `Order`, `Customer` ve `Wallet` davranış taşıyan nesnelerdir. `Order` müşterisini, `Customer` de cüzdanını `getCustomer()` ve `getWallet()` ile verir.
+
+<details>
+<summary><strong>Akışın yabancıdan ürettiği elemanla konuşmak</strong></summary>
+
+Örneklerde C `BillingService` sınıfı, f de `charge` metodu.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class BillingService {
+    private final List<Order> orders = new ArrayList<>();
+
+    void charge(Money amount) {
+        orders.stream().map(order -> order.getCustomer()).forEach(customer -> customer.getWallet().withdraw(amount));
+    }
+}
+```
+
+1. `orders.stream()`: Serbest. `orders`, C'nin bir alanı.
+2. `.map(order -> order.getCustomer())`: Serbest. `order`, `orders`'ın elemanı; arkadaş.
+3. `.forEach(...)`: Serbest. Akış bir Java konteyneri.
+4. `customer.getWallet()`: Kuralı çiğner. `customer`, `getCustomer()`'ın döndürdüğü müşteri ve listede yok.
+5. `.withdraw(amount)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor.
+
+Sonuç: Akış yabancıyı gizlemez; `order.getCustomer().getWallet().withdraw(amount)` ile aynı ihlal.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+class BillingService {
+    private final List<Order> orders = new ArrayList<>();
+
+    void charge(Money amount) {
+        orders.forEach(order -> order.charge(amount));
+    }
+}
+```
+
+1. `orders.forEach(...)`: Serbest. `orders`, C'nin bir alanı.
+2. `order.charge(amount)`: Serbest. `order`, `orders`'ın elemanı; arkadaş.
+
+Sonuç: `BillingService` yalnızca siparişlerle konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
+
+</details>
+
+</details>
+
+<details>
+<summary><strong>Yabancıyla metot referansıyla konuşmak</strong></summary>
+
+Örneklerde C `BalanceService` sınıfı, f de `balances` metodu.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class BalanceService {
+    private final List<Order> orders = new ArrayList<>();
+
+    List<Integer> balances() {
+        return orders.stream().map(Order::getCustomer).map(Customer::getWallet).map(Wallet::getBalance).toList();
+    }
+}
+```
+
+1. `orders.stream()`: Serbest. `orders`, C'nin bir alanı.
+2. `.map(Order::getCustomer)`: Serbest. Siparişler arkadaş.
+3. `.map(Customer::getWallet)`: Kuralı çiğner. Referans, `customer -> customer.getWallet()` ile aynı çağrıyı yapar; müşteriler `getCustomer()`'dan gelen yabancılar.
+4. `.map(Wallet::getBalance)`: Kuralı çiğner. Cüzdanlar `getWallet()`'tan gelen yabancılar.
+5. `.toList()`: Serbest. Akış bir Java konteyneri.
+
+Sonuç: Metot referansı lambdayla aynı yargılanır; `Order::getCustomer` siparişte çağrıldığı için uygun, sonraki ikisi uygun değil.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+class BalanceService {
+    private final List<Order> orders = new ArrayList<>();
+
+    List<Integer> balances() {
+        return orders.stream().map(Order::balance).toList();
+    }
+}
+```
+
+1. `orders.stream()`: Serbest. `orders`, C'nin bir alanı.
+2. `.map(Order::balance)`: Serbest. Referans siparişte çağrılıyor; arkadaş.
+3. `.toList()`: Serbest. Akış bir Java konteyneri.
+
+Sonuç: Bakiyeyi nasıl bulacağını `Order` biliyor; `BalanceService` müşteriyi ve cüzdanı tanımıyor.
+
+</details>
+
+</details>
+
+<details>
+<summary><strong>Gruplanan anahtarla konuşmak</strong></summary>
+
+Örneklerde C `CustomerService` sınıfı, f de `activate` metodu.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class CustomerService {
+    void activate(List<Order> orders) {
+        for (Customer buyer : orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()) {
+            buyer.activate();
+        }
+    }
+}
+```
+
+1. `orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()`: Serbest. `orders`, f'ye argüman olarak verildi; `Order::getCustomer` siparişlerde çağrılıyor.
+2. `buyer.activate()`: Kuralı çiğner. Haritanın anahtarlarını `Order::getCustomer` üretiyor; `buyer`, `getCustomer()`'dan gelen yabancı.
+
+Sonuç: Gruplama yabancıyı gizlemez; `order.getCustomer().activate()` ile aynı ihlal.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+class CustomerService {
+    void activate(List<Order> orders) {
+        orders.forEach(Order::activateCustomer);
+    }
+}
+```
+
+1. `orders.forEach(...)`: Serbest. `orders`, f'ye argüman olarak verildi.
+2. `Order::activateCustomer`: Serbest. Referans siparişte çağrılıyor; arkadaş.
+
+Sonuç: Müşteriyi etkinleştirmeyi `Order` yapıyor; `CustomerService` müşteriye uzanmıyor.
+
+</details>
+
+</details>
+
+<details>
+<summary><strong>Haritanın değerleriyle ve girdileriyle konuşmak</strong></summary>
+
+Örneklerde C `ReportingService` sınıfı, f'ler `activateByOrder` ve `rewardBuyers` metotları.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class ReportingService {
+    void activateByOrder(List<Order> orders) {
+        for (Customer buyer : orders.stream().collect(Collectors.toMap(Order::getId, Order::getCustomer)).values()) {
+            buyer.activate();
+        }
+    }
+
+    void rewardBuyers(List<Order> orders, int bonus) {
+        for (Map.Entry<Customer, Order> entry : orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order)).entrySet()) {
+            entry.getKey().getWallet().deposit(bonus);
+            entry.getValue().ship();
+        }
+    }
+}
+```
+
+1. `activateByOrder`: `toMap(...).values()` serbest; `orders`, f'ye argüman olarak verildi.
+2. `buyer.activate()`: Kuralı çiğner. Değer eşleyici `Order::getCustomer` yabancı verdiği için `values()` yabancı verir.
+3. `rewardBuyers`: `toMap(...).entrySet()` ve `entry.getKey()` serbest; `entry`, `orders`'tan geliyor.
+4. `.getWallet()`: Kuralı çiğner. Anahtar eşleyici `Order::getCustomer`, yani anahtarlar yabancı.
+5. `.deposit(bonus)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor.
+6. `entry.getValue().ship()`: Serbest. Değer eşleyici `order -> order` elemanı olduğu gibi verir; sipariş arkadaş.
+
+Sonuç: Harita yabancıyı gizlemez. Anahtarın ve değerin durumu ayrı izlenir: yabancı olan anahtar ve değer ihlal sayılır, sipariş olan değer sayılmaz.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+class ReportingService {
+    void activateByOrder(List<Order> orders) {
+        orders.forEach(Order::activateCustomer);
+    }
+
+    void rewardBuyers(List<Order> orders, int bonus) {
+        for (Order order : orders) {
+            order.reward(bonus);
+            order.ship();
+        }
+    }
+}
+```
+
+1. `orders.forEach(...)`: Serbest. `orders`, f'ye argüman olarak verildi.
+2. `Order::activateCustomer`: Serbest. Referans siparişte çağrılıyor; arkadaş.
+3. `order.reward(bonus)` ve `order.ship()`: Serbest. `order`, `orders`'ın elemanı; arkadaş.
+
+Sonuç: Müşteriye ve cüzdana `Order` ulaşıyor. `ReportingService` haritaya ve girdilere hiç ihtiyaç duymuyor.
+
+</details>
+
+</details>
+
+<details>
+<summary><strong>Kuruculara verilen lambdayla konuşmak</strong></summary>
+
+Örneklerde C `DiscountService` sınıfı, f de `discountLines` metodu. `Batch`'in kurucusu `List<T>` ile `Consumer<T>` alır ve lambdayı listenin elemanlarına uygular.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class DiscountService {
+    void discountLines(Order order) {
+        new Batch<>(order.getLines(), line -> line.applyDiscount(10));
+    }
+}
+```
+
+1. `order.getLines()`: Serbest. `order`, f'ye argüman olarak verildi.
+2. `line.applyDiscount(10)`: Kuralı çiğner. Lambdanın girdisi listenin elemanları; onları `getLines()` verdiği için yabancı. Lambda yeni oluşturulan `Batch`'i değil, o elemanları alır.
+
+Sonuç: İndirim kuralı `Order`'ın dışına, `DiscountService`'e dağılıyor; `order.getLines().forEach(line -> line.applyDiscount(10))` ile aynı ihlal.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+class DiscountService {
+    void discountLines(Order order) {
+        order.applyDiscount(10);
+    }
+}
+```
+
+1. `order.applyDiscount(10)`: Serbest. `order`, f'ye argüman olarak verildi.
+
+Sonuç: İndirimi satırlara nasıl uygulayacağını `Order` biliyor.
+
+</details>
+
+</details>
+
+<details>
+<summary><strong>Statik importla gelen çağrının sonucuyla konuşmak</strong></summary>
+
+Örneklerde C `GuestService` sınıfı, f de `deposit` metodu. `guest()`, `Defaults` sınıfının statik metodu.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+import static shop.Defaults.*;
+
+class GuestService {
+    void deposit(int amount) {
+        guest().getWallet().deposit(amount);
+    }
+}
+```
+
+1. `guest()`: Serbest. `Defaults`'tan yıldızlı statik importla geliyor; statik çağrının sonucu arkadaş.
+2. `.getWallet()`: Serbest. Bu metot, arkadaş olan `guest()` sonucunda çağrılıyor.
+3. `.deposit(amount)`: Kuralı çiğner. `getWallet()`, `Customer`'ın alanını döndürür ve o cüzdan listede yok.
+
+Sonuç: İmport çağrının nereden geldiğini gizler ama kararı değiştirmez; `guest().getWallet().deposit(amount)` ile `order.getCustomer().getWallet().withdraw(amount)` aynı ihlal.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+import static shop.Defaults.*;
+
+class GuestService {
+    void deposit(int amount) {
+        guest().deposit(amount);
+    }
+}
+```
+
+1. `guest()`: Serbest. Statik çağrının sonucu arkadaş.
+2. `.deposit(amount)`: Serbest. Bu metot, arkadaş olan `guest()` sonucunda çağrılıyor.
+
+Sonuç: Cüzdana `Customer` ulaşıyor; `GuestService` cüzdanı tanımıyor.
+
+</details>
+
+</details>
+
 ## Kullanım
 
 Araç repo kökünden kurulur:
