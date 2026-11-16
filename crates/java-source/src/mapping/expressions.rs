@@ -37,7 +37,7 @@ impl MethodMapper<'_> {
                 Expression::field_of(self.expression(target), name)
             }
             model::Expression::Call(call) => self.call(call, None),
-            model::Expression::New(created) => self.creation(created),
+            model::Expression::New(created) => self.creation(created, None),
             model::Expression::Assignment { target, value } => self.assignment(target, value),
             model::Expression::Operation(operands) => {
                 let operands = operands.iter().map(|operand| self.expression(operand));
@@ -80,6 +80,7 @@ impl MethodMapper<'_> {
             model::Expression::MethodReference { target, name, line } => {
                 Expression::method_reference(self.reference(target, (name, *line), expected))
             }
+            model::Expression::New(created) => self.creation(created, expected),
             other => self.expression(other),
         }
     }
@@ -200,8 +201,10 @@ impl MethodMapper<'_> {
             .collect()
     }
 
-    fn creation(&mut self, created: &model::New) -> Expression {
-        let invocation = self.constructor_of(created);
+    fn creation(&mut self, created: &model::New, expected: Option<&TypeRef>) -> Expression {
+        let invocation = self
+            .constructor_of(created)
+            .map(|found| found.expecting(self.types, expected));
         let mut creation = Creation::new(self.type_ref_or_object(&created.created));
         for (index, argument) in created.arguments.iter().enumerate() {
             let target = invocation.as_ref().and_then(|found| found.parameter(index));

@@ -388,6 +388,29 @@ fn a_diamond_leaves_the_constructor_lambda_unresolved() {
 }
 
 #[test]
+fn a_diamond_takes_its_type_arguments_from_the_declared_local_for_its_lambda() {
+    let handler = shape("Handler")
+        .with_type_parameter("T")
+        .with_method(constructor(vec![consumer_of(variable("T"))]));
+    let types = world().with_shape(handler);
+
+    let mapped = created(
+        &types,
+        "Handler<Event> handler = new Handler<>(e -> e.getEntry());",
+    );
+
+    let lambda = listener("e").resolving("e", event());
+    assert_eq!(
+        mapped,
+        f(2).assign(
+            "handler",
+            generic("Handler", &[event()]),
+            Expression::created(Creation::new(class("Handler")).with(lambda))
+        )
+    );
+}
+
+#[test]
 fn the_constructors_of_a_supertype_do_not_type_the_lambda_of_a_subtype() {
     let types = world()
         .with_shape(shape("Worker").with_method(constructor(vec![consumer_of(event())])))

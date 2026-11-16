@@ -7,7 +7,7 @@ use crate::{self as model, ImplicitTarget};
 use super::MethodMapper;
 use super::inference::{Bindings, apply_bindings, bind_results, complete};
 use super::lambdas::functional_method;
-use super::lineage::{Ancestor, class_name, has_variable, lineage, substitute};
+use super::lineage::{Ancestor, arguments_of, class_name, has_variable, lineage, substitute};
 use super::links::Declared;
 use super::memo::address;
 use super::overloads::{ArgumentType, Selection, Signature, select};
@@ -67,12 +67,18 @@ impl MethodMapper<'_> {
         if !is_the_class {
             return None;
         }
-        invoked(
+        let shape = own.first()?.shape;
+        let invocation = invoked(
             self.types,
             own,
             (CONSTRUCTOR_NAME, Dispatch::Any),
             &arguments,
-        )
+        )?;
+        Some(if arguments_of(&receiver).is_empty() {
+            invocation.creating(shape)
+        } else {
+            invocation
+        })
     }
 
     fn argument_types(&mut self, arguments: &[model::Expression]) -> Vec<Option<ArgumentType>> {
@@ -183,6 +189,22 @@ impl Invocation {
                 ..self
             },
             None => self,
+        }
+    }
+
+    fn creating(self, class: &TypeShape) -> Self {
+        let variables: Vec<_> = class
+            .type_parameters()
+            .iter()
+            .map(|name| TypeRef::variable(name))
+            .collect();
+        if variables.is_empty() {
+            return self;
+        }
+        Self {
+            free: [self.free, class.type_parameters().to_vec()].concat(),
+            returned: Some(TypeRef::generic(class.name(), variables)),
+            ..self
         }
     }
 
