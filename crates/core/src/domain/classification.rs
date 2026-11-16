@@ -113,7 +113,7 @@ impl Types {
             shape
                 .methods()
                 .iter()
-                .filter(|method| method.name() == "<init>")
+                .filter(|method| self.platform.is_constructor(method.name()))
         };
         let fixed: Vec<_> = constructors()
             .filter(|method| takes_exactly(values.len())(method))
@@ -189,7 +189,7 @@ impl Types {
         !method.is_private()
             && !method.is_static()
             && !self.is_object_method(method)
-            && method.name() != "<init>"
+            && !self.platform.is_constructor(method.name())
     }
 
     fn is_root_supertype(&self, name: &str) -> bool {

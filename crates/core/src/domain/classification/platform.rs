@@ -10,6 +10,7 @@ pub struct Platform {
     root_supertype: Option<String>,
     object_methods: HashSet<(String, usize)>,
     equality_methods: Vec<(String, usize)>,
+    constructor_name: Option<String>,
 }
 
 impl Platform {
@@ -49,6 +50,11 @@ impl Platform {
         self
     }
 
+    pub fn with_constructor_name(mut self, name: &str) -> Self {
+        self.constructor_name = Some(name.to_owned());
+        self
+    }
+
     pub(super) fn classify(&self, name: &str) -> Option<Classification> {
         self.types.get(name).copied().or_else(|| {
             self.namespaces
@@ -69,6 +75,10 @@ impl Platform {
 
     pub(super) fn equality_methods(&self) -> &[(String, usize)] {
         &self.equality_methods
+    }
+
+    pub(super) fn is_constructor(&self, name: &str) -> bool {
+        self.constructor_name.as_deref() == Some(name)
     }
 
     pub(super) fn is_behaviorless(&self, name: &str) -> bool {

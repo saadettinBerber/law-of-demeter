@@ -1,5 +1,5 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::{Types, sample_types};
+use crate::domain::classification::{Platform, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const CONSUMER: &str = "java.util.function.Consumer";
@@ -245,6 +245,19 @@ fn plain_handler() -> Lambda {
 
 fn worker() -> TypeRef {
     TypeRef::class("Worker")
+}
+
+#[test]
+fn a_type_is_constructed_through_the_method_the_platform_names_as_its_constructor() {
+    let make = MethodShape::new("make").with_parameters(vec![consumer_of(event())]);
+    let types =
+        worker_taking(vec![make]).with_platform(Platform::new().with_constructor_name("make"));
+    let run =
+        Method::new("Dispatcher", "start", 1).evaluate(creating(worker(), vec![plain_handler()]));
+
+    let verdicts = run.verdicts(&types);
+
+    assert_eq!(verdicts, release_in(worker()));
 }
 
 #[test]

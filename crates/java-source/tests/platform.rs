@@ -312,3 +312,20 @@ fn an_immutable_java_class_with_equals_and_hash_code_is_a_value() {
 
     assert_eq!(classification, Classification::Value);
 }
+
+#[test]
+fn a_java_constructor_is_not_behavior() {
+    let address = class(
+        "shop.Address",
+        "java.lang.Object",
+        vec![
+            getter("getCity", "city"),
+            MethodShape::new("<init>").with_parameters(vec![TypeRef::class("java.lang.String")]),
+        ],
+    );
+    let types = platform_types().with_shape(address);
+
+    let classification = types.classify(&TypeRef::class("shop.Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}

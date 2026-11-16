@@ -118,6 +118,24 @@ fn an_immutable_class_is_not_a_value_when_the_platform_names_no_equality_methods
 }
 
 #[test]
+fn the_constructor_the_platform_names_is_not_behavior() {
+    let address = TypeShape::new("Address", TypeKind::Class)
+        .with_method(
+            MethodShape::new("getCity")
+                .returning(TypeRef::class("Text"))
+                .reading("city"),
+        )
+        .with_method(MethodShape::new("make").with_parameters(vec![TypeRef::class("Text")]));
+    let types = Types::new()
+        .with_platform(Platform::new().with_constructor_name("make"))
+        .with_shape(address);
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
 fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argument() {
     let order = TypeRef::class("Order");
     let types = Types::new()
