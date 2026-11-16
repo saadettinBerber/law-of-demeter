@@ -41,7 +41,7 @@ fn status() -> TypeRef {
     TypeRef::class("Status")
 }
 
-fn wildcard() -> TypeRef {
+pub(super) fn wildcard() -> TypeRef {
     TypeRef::class(OBJECT)
 }
 
@@ -49,11 +49,11 @@ pub(super) fn stream_of(element: TypeRef) -> TypeRef {
     generic(STREAM, &[element])
 }
 
-fn list_of(element: TypeRef) -> TypeRef {
+pub(super) fn list_of(element: TypeRef) -> TypeRef {
     generic(LIST, &[element])
 }
 
-fn collector(element: TypeRef, accumulation: TypeRef, result: TypeRef) -> TypeRef {
+pub(super) fn collector(element: TypeRef, accumulation: TypeRef, result: TypeRef) -> TypeRef {
     generic(COLLECTOR, &[element, accumulation, result])
 }
 

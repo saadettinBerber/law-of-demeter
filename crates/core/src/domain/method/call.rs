@@ -63,14 +63,14 @@ impl Call {
     pub(super) fn judge_expecting(&self, context: &Context, target: Option<Target>) -> Judged {
         let receiver = self.receiver.judge(context);
         let mut verdicts = receiver.verdicts;
-        let values = judge_values(context, &self.arguments);
-        let expected = self
-            .expected
-            .as_ref()
-            .or(target.map(|target| target.type_ref));
         let outer = target
             .and_then(|target| target.elements)
             .unwrap_or(&receiver.subject);
+        let values = judge_values(context, &self.arguments, outer);
+        let expected = self
+            .expected
+            .as_ref()
+            .or(target.and_then(|target| target.type_ref));
         let mut invocation = self.invocation(
             context.types,
             &receiver.subject,

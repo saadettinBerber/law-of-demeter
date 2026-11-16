@@ -9,10 +9,14 @@ pub(super) struct Judgement {
     pub(super) mapped: Option<Standing>,
 }
 
-pub(super) fn judge_values(context: &Context, arguments: &[Argument]) -> Vec<Option<Judged>> {
+pub(super) fn judge_values(
+    context: &Context,
+    arguments: &[Argument],
+    outer: &Subject,
+) -> Vec<Option<Judged>> {
     arguments
         .iter()
-        .map(|argument| argument.judge_value(context))
+        .map(|argument| argument.judge_value_expecting(context, Some(Target::elements_of(outer))))
         .collect()
 }
 

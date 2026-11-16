@@ -1,6 +1,6 @@
 use super::nested::{
-    collecting, collectors_call, collectors_static, customer, order, orders_collected_by,
-    orders_stream, stranger_customers, stream_of,
+    collecting, collector, collectors_call, collectors_static, customer, list_of, order,
+    orders_collected_by, orders_stream, stranger_customers, stream_of, wildcard,
 };
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 
@@ -137,4 +137,24 @@ fn a_result_the_link_feeds_into_the_return_gives_it_its_standing() {
         verdicts.last(),
         Some(&Verdict::violation("getWallet", 3, stranger_customers()))
     );
+}
+
+#[test]
+fn a_nested_call_with_a_resolved_return_is_judged_once_among_the_elements_of_the_enclosing_call() {
+    let each = Lambda::new(&["each"])
+        .resolving("each", order())
+        .fed_by_elements("each")
+        .yielding(wallet_of_each());
+    let grouping = collectors_call("groupingBy")
+        .returning(collector(order(), wildcard(), list_of(order())))
+        .with(each);
+    let group = Method::new("Billing", "group", 1).call(orders_collected_by(grouping));
+
+    let verdicts = group.verdicts(&collecting());
+
+    assert!(verdicts.contains(&Verdict::allowed(
+        "getWallet",
+        3,
+        Reason::lambda_parameter("each", Reason::parameter("orders"))
+    )));
 }

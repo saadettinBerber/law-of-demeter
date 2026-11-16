@@ -294,11 +294,11 @@ impl Creation {
             Reason::created(self.type_ref.clone()),
             self.type_ref.clone(),
         );
-        let values = judge_values(context, &self.arguments);
+        let values = judge_values(context, &self.arguments, &created);
         let mut invocation = context
             .types
             .construction(&self.type_ref, &value_types(&values))
-            .expecting(context.types, target.map(|target| target.type_ref));
+            .expecting(context.types, target.and_then(|target| target.type_ref));
         let judged = judge_arguments(
             context,
             &self.arguments,
@@ -346,10 +346,6 @@ impl From<MethodReference> for Argument {
 }
 
 impl Argument {
-    pub(super) fn judge_value(&self, context: &Context) -> Option<Judged> {
-        self.judge_value_expecting(context, None)
-    }
-
     pub(super) fn judge_value_expecting(
         &self,
         context: &Context,
@@ -429,7 +425,7 @@ impl MethodReference {
         let expected = self
             .expected
             .as_ref()
-            .or(target.map(|target| target.type_ref));
+            .or(target.and_then(|target| target.type_ref));
         let functional = expected.and_then(|expected| context.types.functional_method(expected));
         let given = Subject {
             standing: Standing::Friend(Reason::FunctionArgument),
@@ -670,7 +666,7 @@ impl Lambda {
         let expected = self
             .expected
             .as_ref()
-            .or(target.map(|target| target.type_ref));
+            .or(target.and_then(|target| target.type_ref));
         let functional = expected.and_then(|expected| context.types.functional_method(expected));
         let declared = functional
             .as_ref()
