@@ -5,7 +5,7 @@ use super::block::Block;
 use super::call::{Call, Called, standing_after_call, verdict_on};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject, Target};
-use crate::domain::classification::{FunctionalMethod, Types};
+use crate::domain::classification::Types;
 use crate::domain::type_shape::{FieldShape, TypeRef};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -351,13 +351,7 @@ impl Argument {
         }
     }
 
-    pub(super) fn judge(
-        &self,
-        context: &Context,
-        feed: &Subject,
-        functional: Option<&FunctionalMethod>,
-        outer: &Subject,
-    ) -> Produced {
+    pub(super) fn judge(&self, context: &Context, feed: &Subject, outer: &Subject) -> Produced {
         match self {
             Self::Value(value) => {
                 let judged = value.judge(context);
@@ -367,8 +361,8 @@ impl Argument {
                     standing: Some(judged.subject.standing),
                 }
             }
-            Self::Lambda(lambda) => lambda.judge(context, feed, functional, outer),
-            Self::MethodReference(reference) => reference.judge(context, feed, functional, outer),
+            Self::Lambda(lambda) => lambda.judge(context, feed, outer),
+            Self::MethodReference(reference) => reference.judge(context, feed, outer),
         }
     }
 }
@@ -434,37 +428,28 @@ impl MethodReference {
             .expected
             .as_ref()
             .or(target.and_then(|target| target.type_ref));
-        let functional = expected.and_then(|expected| context.types.functional_method(expected));
         let given = Subject::new(Standing::Friend(Reason::FunctionArgument), None);
-        let produced = self.judge(context, &given, functional.as_ref(), &given);
+        let produced = self.judge(context, &given, &given);
         Judged {
             verdicts: produced.verdicts,
             subject: functional_value(expected),
         }
     }
 
-    fn judge(
-        &self,
-        context: &Context,
-        feed: &Subject,
-        functional: Option<&FunctionalMethod>,
-        outer: &Subject,
-    ) -> Produced {
+    fn judge(&self, context: &Context, feed: &Subject, outer: &Subject) -> Produced {
         let types = context.types;
         let target = self.target.judge(context);
         let mut verdicts = target.verdicts;
-        let taken = self
-            .arity
-            .or_else(|| functional.map(|functional| functional.parameters.len()));
+        let taken = self.arity;
         let arity = taken.unwrap_or(0);
         let result = match &self.target {
             _ if self.name == "new" => taken.map(|_| self.constructed(types, &target.subject)),
             Expression::StaticType(owner) if types.declares_static(owner, &self.name) => {
                 verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
-                taken.map(|_| self.static_result(types, owner, arity))
+                taken.map(|_| self.static_result())
             }
             Expression::StaticType(owner) => {
-                let element = self.element(types, feed, outer, functional);
+                let element = self.element(types, feed, outer);
                 let receiver = element
                     .clone()
                     .through(|feed| Reason::method_reference(owner.clone(), &self.name, feed));
@@ -496,17 +481,8 @@ impl MethodReference {
         }
     }
 
-    fn element(
-        &self,
-        types: &Types,
-        feed: &Subject,
-        outer: &Subject,
-        functional: Option<&FunctionalMethod>,
-    ) -> Subject {
-        let known = self
-            .input
-            .as_ref()
-            .or_else(|| functional.and_then(|functional| functional.parameters.first()));
+    fn element(&self, types: &Types, feed: &Subject, outer: &Subject) -> Subject {
+        let known = self.input.as_ref();
         element_feed(types, outer, feed, known, self.feed)
             .element(types, |reason| reason)
             .declared_as(known)
@@ -521,9 +497,9 @@ impl MethodReference {
         }
     }
 
-    fn static_result(&self, types: &Types, owner: &TypeRef, arguments: usize) -> Subject {
-        types
-            .return_type_on(owner, &self.name, arguments)
+    fn static_result(&self) -> Subject {
+        self.resolved
+            .clone()
             .map(|type_ref| Subject::friend(Reason::static_result(&self.name), type_ref))
             .unwrap_or_else(|| self.unresolved())
     }
@@ -531,10 +507,7 @@ impl MethodReference {
     fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Subject {
         Subject::new(
             standing_after_call(types, target, &self.name, arguments, false),
-            target
-                .type_ref
-                .as_ref()
-                .and_then(|target_type| types.return_type_on(target_type, &self.name, arguments)),
+            None,
         )
     }
 
@@ -622,19 +595,10 @@ impl Lambda {
         self
     }
 
-    pub(super) fn judge(
-        &self,
-        context: &Context,
-        feed: &Subject,
-        functional: Option<&FunctionalMethod>,
-        outer: &Subject,
-    ) -> Produced {
-        let declared = functional
-            .map(|functional| functional.parameters.as_slice())
-            .unwrap_or_default();
+    pub(super) fn judge(&self, context: &Context, feed: &Subject, outer: &Subject) -> Produced {
         let mut inner = context.clone();
-        for (index, parameter) in self.parameters.iter().enumerate() {
-            let known = self.given_type(parameter).or(declared.get(index));
+        for parameter in &self.parameters {
+            let known = self.given_type(parameter);
             let linked = self
                 .feeds
                 .iter()
@@ -675,16 +639,10 @@ impl Lambda {
             .expected
             .as_ref()
             .or(target.and_then(|target| target.type_ref));
-        let functional = expected.and_then(|expected| context.types.functional_method(expected));
-        let declared = functional
-            .as_ref()
-            .map(|functional| functional.parameters.as_slice())
-            .unwrap_or_default();
         let mut inner = context.clone();
-        for (index, parameter) in self.parameters.iter().enumerate() {
+        for parameter in &self.parameters {
             let type_ref = self
                 .given_type(parameter)
-                .or(declared.get(index))
                 .cloned()
                 .or_else(|| context.types.root_supertype());
             inner.bind(

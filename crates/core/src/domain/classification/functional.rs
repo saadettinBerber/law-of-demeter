@@ -4,7 +4,6 @@ use super::{Types, class_name, substitute};
 use crate::domain::type_shape::{TypeKind, TypeRef};
 
 pub(crate) struct FunctionalMethod {
-    pub(crate) parameters: Vec<TypeRef>,
     pub(crate) returns: Option<TypeRef>,
 }
 
@@ -31,11 +30,6 @@ impl Types {
                     .entry((method.name(), method.parameters().len()))
                     .or_insert_with(|| {
                         method.is_abstract().then(|| FunctionalMethod {
-                            parameters: method
-                                .parameters()
-                                .iter()
-                                .map(|parameter| substitute(parameter, &bindings))
-                                .collect(),
                             returns: method
                                 .returns()
                                 .map(|returned| substitute(returned, &bindings)),

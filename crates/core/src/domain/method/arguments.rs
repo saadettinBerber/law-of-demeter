@@ -59,8 +59,7 @@ pub(super) fn judge_arguments(
                 }
             }
             None => {
-                let functional = invocation.functional_method(context.types, index);
-                let produced = argument.judge(context, feed, functional.as_ref(), outer);
+                let produced = argument.judge(context, feed, outer);
                 verdicts.extend(produced.verdicts);
                 invocation.yielded(context.types, index, produced.result.as_ref());
                 let feeds_return = match links.flows {

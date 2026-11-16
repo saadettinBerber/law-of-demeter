@@ -143,11 +143,7 @@ impl Invocation {
             })
     }
 
-    pub(crate) fn functional_method(
-        &self,
-        types: &Types,
-        index: usize,
-    ) -> Option<FunctionalMethod> {
+    fn functional_method(&self, types: &Types, index: usize) -> Option<FunctionalMethod> {
         let parameter = self.parameters.get(index)?;
         types.functional_method(&substitute(parameter, &self.bindings))
     }
