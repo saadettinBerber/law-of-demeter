@@ -189,9 +189,9 @@ impl MethodMapper<'_> {
             .enumerate()
             .map(|(index, argument)| match argument {
                 model::Expression::Call(nested) if self.produces_keys(nested) => {
-                    declared.flow(self.types, index, false)
+                    declared.value_flow(self.types, index)
                 }
-                _ if is_functional(argument) => declared.flow(self.types, index, true),
+                _ if is_functional(argument) => declared.result_flow(self.types, index),
                 _ => Flow::None,
             })
             .collect()

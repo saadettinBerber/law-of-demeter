@@ -138,28 +138,40 @@ impl Declared {
         aligned
     }
 
-    pub(super) fn flow(&self, types: &Types, index: usize, functional: bool) -> Flow {
-        let Some((parameter, returned)) = self.parameters.get(index).zip(self.returned.as_ref())
-        else {
+    pub(super) fn result_flow(&self, types: &Types, index: usize) -> Flow {
+        let result = self
+            .parameters
+            .get(index)
+            .and_then(|parameter| functional_method(types, parameter))
+            .and_then(|method| method.returns);
+        self.flow(types, result, |_| false)
+    }
+
+    pub(super) fn value_flow(&self, types: &Types, index: usize) -> Flow {
+        let returned = self.returned.as_ref();
+        let whole = |name: &String| returned == Some(&TypeRef::variable(name));
+        self.flow(types, self.parameters.get(index).cloned(), whole)
+    }
+
+    fn flow(
+        &self,
+        types: &Types,
+        result: Option<TypeRef>,
+        is_whole_return: impl Fn(&String) -> bool,
+    ) -> Flow {
+        let (Some(result), Some(returned)) = (result, self.returned.as_ref()) else {
             return Flow::None;
         };
-        let result = if functional {
-            functional_method(types, parameter).and_then(|method| method.returns)
-        } else {
-            Some(parameter.clone())
-        };
-        let shared: Vec<_> = result
-            .iter()
-            .flat_map(variables)
-            .filter(|name| self.free.contains(name) && variables(returned).contains(name))
+        let returned_variables = variables(returned);
+        let shared: Vec<_> = variables(&result)
+            .into_iter()
+            .filter(|name| self.free.contains(name) && returned_variables.contains(name))
             .collect();
         let keys = key_variables(types, returned);
-        let carries_keys = shared.iter().any(|name| keys.contains(name))
-            || (!functional
-                && shared
-                    .iter()
-                    .any(|name| *returned == TypeRef::variable(name)));
-        if carries_keys {
+        if shared
+            .iter()
+            .any(|name| keys.contains(name) || is_whole_return(name))
+        {
             Flow::Keys
         } else if shared.is_empty() {
             Flow::None
