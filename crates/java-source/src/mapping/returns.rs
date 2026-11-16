@@ -14,46 +14,37 @@ use super::types::named_type;
 
 impl MethodMapper<'_> {
     fn call_type(&mut self, call: &model::Call) -> Option<TypeRef> {
-        let key = address(call);
+        self.returned_by(call, None)
+    }
+
+    pub(super) fn returned_by(
+        &mut self,
+        call: &model::Call,
+        expected: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
+        let key = (address(call), expected.cloned());
         if let Some(known) = self.memo.calls.get(&key) {
             return known.clone();
         }
-        let returned = self.returned_by(call, None);
+        let types = self.types;
+        let returned = self
+            .resolve(call, expected)
+            .and_then(|resolved| resolved.invocation.returned(types, expected));
         self.memo.calls.insert(key, returned.clone());
         returned
     }
 
-    fn returned_by(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Option<TypeRef> {
-        let invocation = self.invocation_of(call)?;
-        let results = self.lambda_results(&call.arguments, &invocation);
-        invocation.returned(self.types, &results, expected)
-    }
-
-    fn lambda_results(
-        &mut self,
-        arguments: &[model::Expression],
-        invocation: &Invocation,
-    ) -> Vec<Option<TypeRef>> {
-        arguments
-            .iter()
-            .enumerate()
-            .map(|(index, argument)| match argument {
-                model::Expression::Lambda(lambda)
-                    if invocation.awaits_result(self.types, index) =>
-                {
-                    self.lambda(lambda, invocation.parameter(index)).result
-                }
-                model::Expression::MethodReference { target, name, .. }
-                    if invocation.awaits_result(self.types, index) =>
-                {
-                    self.reference_result(target, name, invocation.parameter(index))
-                }
-                _ => None,
-            })
-            .collect()
-    }
-
     pub(super) fn invocation_of(&mut self, call: &model::Call) -> Option<Invocation> {
+        let key = address(call);
+        if let Some(known) = self.memo.invocations.get(&key) {
+            return known.clone();
+        }
+        let found = self.find_invocation(call);
+        self.memo.invocations.insert(key, found.clone());
+        found
+    }
+
+    fn find_invocation(&mut self, call: &model::Call) -> Option<Invocation> {
         let receiver = self.receiver_type(call)?;
         let arguments = self.argument_types(&call.arguments);
         invoked(
@@ -145,12 +136,14 @@ impl MethodMapper<'_> {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct Invocation {
     parameters: Vec<TypeRef>,
     bindings: Bindings,
     returned: Option<TypeRef>,
     free: Vec<String>,
     bounds: Bindings,
+    results: Vec<(TypeRef, TypeRef)>,
 }
 
 impl Invocation {
@@ -185,7 +178,7 @@ impl Invocation {
     }
 
     pub(super) fn returns_to(&self, types: &Types) -> Option<TypeRef> {
-        self.returned(types, &[], None)
+        self.returned(types, None)
     }
 
     pub(super) fn awaits_result(&self, types: &Types, index: usize) -> bool {
@@ -193,14 +186,26 @@ impl Invocation {
             .is_some_and(|returned| has_variable(&returned))
     }
 
-    pub(super) fn returned(
-        &self,
-        types: &Types,
-        results: &[Option<TypeRef>],
-        expected: Option<&TypeRef>,
-    ) -> Option<TypeRef> {
+    pub(super) fn takes_known_inputs(&self, types: &Types, index: usize) -> bool {
+        self.parameter(index)
+            .and_then(|parameter| functional_method(types, parameter))
+            .is_some_and(|functional| !functional.parameters.iter().any(has_variable))
+    }
+
+    pub(super) fn binding(mut self, types: &Types, pattern: TypeRef, result: TypeRef) -> Self {
+        self.results.push((pattern, result));
+        let bound = self.bound_by(types);
+        self.parameters = self
+            .parameters
+            .iter()
+            .map(|parameter| apply_bindings(parameter, &bound))
+            .collect();
+        self
+    }
+
+    pub(super) fn returned(&self, types: &Types, expected: Option<&TypeRef>) -> Option<TypeRef> {
         let returned = self.returned.as_ref()?;
-        let bound = self.bound_by(types, results);
+        let bound = self.bound_by(types);
         let completed = match expected {
             Some(expected) => complete(types, &self.free, returned, &bound, expected)?,
             None => bound,
@@ -209,18 +214,11 @@ impl Invocation {
         (!has_variable(&applied)).then_some(applied)
     }
 
-    fn bound_by(&self, types: &Types, results: &[Option<TypeRef>]) -> Bindings {
-        let pairs: Vec<_> = results
-            .iter()
-            .enumerate()
-            .filter_map(|(index, result)| {
-                Some((self.functional_returns(types, index)?, result.clone()?))
-            })
-            .collect();
-        bind_results(types, &self.free, &self.bindings, &pairs)
+    fn bound_by(&self, types: &Types) -> Bindings {
+        bind_results(types, &self.free, &self.bindings, &self.results)
     }
 
-    fn functional_returns(&self, types: &Types, index: usize) -> Option<TypeRef> {
+    pub(super) fn functional_returns(&self, types: &Types, index: usize) -> Option<TypeRef> {
         functional_method(types, self.parameter(index)?)?.returns
     }
 
@@ -274,6 +272,7 @@ pub(super) fn invoked(
             returned: agreed_return(&candidates),
             free: Vec::new(),
             bounds: Bindings::new(),
+            results: Vec::new(),
         }),
         Selection::Unresolvable => None,
     }
@@ -308,6 +307,7 @@ impl Candidate<'_> {
             returned: self.returned(),
             free: self.method.type_parameters().to_vec(),
             bounds: self.declared_bounds(),
+            results: Vec::new(),
         }
     }
 

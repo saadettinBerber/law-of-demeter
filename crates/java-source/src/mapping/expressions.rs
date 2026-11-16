@@ -81,6 +81,14 @@ impl MethodMapper<'_> {
     }
 
     fn call(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Expression {
+        let mapped = self.mapped_call(call, expected);
+        match self.returned_by(call, expected) {
+            Some(returned) => Expression::return_of(mapped.returning(returned)),
+            None => Expression::return_of(mapped),
+        }
+    }
+
+    fn mapped_call(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Call {
         let receiver = match (&call.receiver, &call.implicit_target) {
             (Some(receiver), _) => self.expression(receiver),
             (None, Some(ImplicitTarget::StaticImport { owner })) => {
@@ -88,22 +96,16 @@ impl MethodMapper<'_> {
             }
             (None, _) => Expression::This,
         };
-        let invocation = self
-            .invocation_of(call)
-            .map(|found| found.expecting(self.types, expected));
+        let targets = self
+            .resolve(call, expected)
+            .map(|resolved| resolved.targets)
+            .unwrap_or_default();
         let mut mapped = Call::new(receiver, &call.name, call.line);
-        let mut results = Vec::new();
         for (index, argument) in call.arguments.iter().enumerate() {
-            let target = invocation.as_ref().and_then(|found| found.parameter(index));
-            let (argument, result) = self.argument(argument, target);
-            mapped = mapped.with(argument);
-            results.push(result);
+            let target = targets.get(index).and_then(Option::as_ref);
+            mapped = mapped.with(self.argument(argument, target));
         }
-        let returned = invocation.and_then(|found| found.returned(self.types, &results, expected));
-        match returned {
-            Some(returned) => Expression::return_of(mapped.returning(returned)),
-            None => Expression::return_of(mapped),
-        }
+        mapped
     }
 
     fn creation(&mut self, created: &model::New) -> Expression {
@@ -111,20 +113,15 @@ impl MethodMapper<'_> {
         let mut creation = Creation::new(self.type_ref_or_object(&created.created));
         for (index, argument) in created.arguments.iter().enumerate() {
             let target = invocation.as_ref().and_then(|found| found.parameter(index));
-            creation = creation.with(self.argument(argument, target).0);
+            creation = creation.with(self.argument(argument, target));
         }
         Expression::created(creation)
     }
 
-    fn argument(
-        &mut self,
-        argument: &model::Expression,
-        target: Option<&TypeRef>,
-    ) -> (Argument, Option<TypeRef>) {
+    fn argument(&mut self, argument: &model::Expression, target: Option<&TypeRef>) -> Argument {
         match argument {
             model::Expression::Lambda(lambda) => {
-                let mapped = self.lambda(lambda, target);
-                (Argument::Lambda(mapped.lambda), mapped.result)
+                Argument::Lambda(self.lambda(lambda, target).lambda)
             }
             model::Expression::MethodReference {
                 target: referenced,
@@ -134,14 +131,11 @@ impl MethodMapper<'_> {
                 let result = self.reference_result(referenced, name, target);
                 let reference = MethodReference::new(self.expression(referenced), name, *line);
                 match result {
-                    Some(returned) => (
-                        Argument::MethodReference(reference.returning(returned.clone())),
-                        Some(returned),
-                    ),
-                    None => (Argument::MethodReference(reference), None),
+                    Some(returned) => Argument::MethodReference(reference.returning(returned)),
+                    None => Argument::MethodReference(reference),
                 }
             }
-            other => (Argument::Value(self.expression(other)), None),
+            other => Argument::Value(self.expression(other)),
         }
     }
 
