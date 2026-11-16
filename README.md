@@ -216,6 +216,9 @@ Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve ned
 
 ## Mimari
 
+<details>
+<summary><strong>Katmanlar ve port'lar</strong></summary>
+
 Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de durur. Java'yı, dosyaları ve ayrıştırıcıyı yalnızca adapter'lar bilir.
 
 ![law-of-demeter mimarisi: ortada Domain, çevresinde port'larıyla Application; solda CLI, sağda Java ayrıştırıcı, .class okuyucu ve metin raporu. Oklar içe yönelir.](assets/architecture.svg)
@@ -256,3 +259,5 @@ class OrderService {
 </details>
 
 Kaynak: Alistair Cockburn, [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture).
+
+</details>
