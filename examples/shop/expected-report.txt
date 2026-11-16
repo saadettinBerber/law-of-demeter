@@ -1,4 +1,4 @@
-İhlaller (38):
+İhlaller (39):
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  İhlal: getEntry() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  İhlal: getPosting() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -7,6 +7,7 @@ src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.c
 src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  clear()  İhlal: getCart() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  applyDiscount()  İhlal: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  port()  İhlal: gateway() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/DiscountService.java:14  shop.service.DiscountService.discount  applyDiscount()  İhlal: findLine() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  close()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -38,7 +39,7 @@ src/main/java/shop/service/ReportingService.java:65  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:71  shop.service.ReportingService.discountLines  applyDiscount()  İhlal: line lambda parametresi: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Uygun çağrılar (163):
+Uygun çağrılar (165):
 src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Customer.java:31  shop.domain.Customer.balance  getBalance()  Uygun: wallet sınıfın alanı
@@ -83,8 +84,9 @@ src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService
 src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  checkout()  Uygun: carts sınıfın alanı
 src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  getLines()  Uygun: order f'ye argüman olarak verildi
 src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  get()  Uygun: java.util.List<shop.domain.OrderLine> bir konteyner
-src/main/java/shop/service/Connector.java:7  shop.service.Connector.portOf  server()  Uygun: config f'ye argüman olarak verildi
-src/main/java/shop/service/Connector.java:7  shop.service.Connector.portOf  port()  Uygun: shop.domain.Server bir veri yapısı
+src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  server()  Uygun: config f'ye argüman olarak verildi
+src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  port()  Uygun: shop.domain.Server bir veri yapısı
+src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  gateway()  Uygun: settings f'ye argüman olarak verildi
 src/main/java/shop/service/DiscountService.java:14  shop.service.DiscountService.discount  findLine()  Uygun: f'nin kendi nesnesi
 src/main/java/shop/service/DiscountService.java:18  shop.service.DiscountService.findLine  get()  Uygun: lines sınıfın alanı
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  getReceipt()  Uygun: e lambda parametresi: java.util.Map tipi üzerinde statik çağrı
@@ -132,13 +134,14 @@ src/main/java/shop/service/PriceCache.java:16  shop.service.PriceCache.update  l
 src/main/java/shop/service/PriceCache.java:18  shop.service.PriceCache.update  put()  Uygun: prices sınıfın alanı
 src/main/java/shop/service/PriceCache.java:20  shop.service.PriceCache.update  writeLock()  Uygun: lock sınıfın alanı
 src/main/java/shop/service/PriceCache.java:20  shop.service.PriceCache.update  unlock()  Uygun: kütüphane tipi (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)
-src/main/java/shop/service/RefundService.java:21  shop.service.RefundService.refund  withdraw()  Uygun: wallet sınıfın alanı
-src/main/java/shop/service/RefundService.java:22  shop.service.RefundService.refund  audit()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/service/RefundService.java:26  shop.service.RefundService.notifyCustomer  getCustomer()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/RefundService.java:26  shop.service.RefundService.notifyCustomer  send()  Uygun: notifier sınıfın alanı
-src/main/java/shop/service/RefundService.java:30  shop.service.RefundService.settle  getBalance()  Uygun: account f'ye argüman olarak verildi
-src/main/java/shop/service/RefundService.java:30  shop.service.RefundService.settle  setBalance()  Uygun: account f'ye argüman olarak verildi
-src/main/java/shop/service/RefundService.java:34  shop.service.RefundService.audit  add()  Uygun: journal sınıfın alanı
+src/main/java/shop/service/RefundService.java:22  shop.service.RefundService.refund  withdraw()  Uygun: wallet sınıfın alanı
+src/main/java/shop/service/RefundService.java:23  shop.service.RefundService.refund  audit()  Uygun: f'nin kendi nesnesi
+src/main/java/shop/service/RefundService.java:27  shop.service.RefundService.notifyCustomer  getCustomer()  Uygun: order f'ye argüman olarak verildi
+src/main/java/shop/service/RefundService.java:27  shop.service.RefundService.notifyCustomer  send()  Uygun: notifier sınıfın alanı
+src/main/java/shop/service/RefundService.java:31  shop.service.RefundService.settle  getBalance()  Uygun: account f'ye argüman olarak verildi
+src/main/java/shop/service/RefundService.java:31  shop.service.RefundService.settle  setBalance()  Uygun: account f'ye argüman olarak verildi
+src/main/java/shop/service/RefundService.java:35  shop.service.RefundService.audit  add()  Uygun: journal sınıfın alanı
+src/main/java/shop/service/RefundService.java:39  shop.service.RefundService.settleCredit  withdraw()  Uygun: credit f'ye argüman olarak verildi
 src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  create()  Uygun: factory f'ye argüman olarak verildi
 src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  render()  Uygun: create() factory çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Uygun: f'nin içinde oluşturulan nesne (java.lang.StringBuilder)
@@ -207,19 +210,19 @@ Hibrit sınıflar (1):
 src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
 
 Özet:
-  Dosya: 46
-  Metot: 148
-  Çağrı: 201 (uygun 163, ihlal 38, belirsiz 0)
+  Dosya: 49
+  Metot: 157
+  Çağrı: 204 (uygun 165, ihlal 39, belirsiz 0)
   Hibrit sınıf: 1
   Kaynak hatası: 0
   Tip okuma hatası: 0
 
 İhlal nedenleri:
-  37  Döndürülen nesne f'nin arkadaşı değil
+  38  Döndürülen nesne f'nin arkadaşı değil
   1  Döndürülen koleksiyon değiştiriliyor
 
 Uygun nedenleri:
-  56  Argüman
+  58  Argüman
   45  Sınıfın alanı
   16  Statik çağrı
   15  Statik çağrının sonucu

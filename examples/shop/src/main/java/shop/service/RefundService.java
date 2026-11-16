@@ -2,6 +2,7 @@ package shop.service;
 
 import java.util.List;
 import shop.domain.Account;
+import shop.domain.Credit;
 import shop.domain.Notifier;
 import shop.domain.Order;
 import shop.domain.Wallet;
@@ -32,5 +33,9 @@ public class RefundService {
 
     private void audit() {
         journal.add("refund");
+    }
+
+    public void settleCredit(Credit credit, int amount) {
+        credit.withdraw(amount);
     }
 }

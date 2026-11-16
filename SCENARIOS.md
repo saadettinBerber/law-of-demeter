@@ -146,7 +146,7 @@ class Account {
 
 - **Kütüphane üst sınıfı:** Setter'lar kütüphanedeki bir üst sınıftan geliyorsa sınıf hibrit sayılmaz. Karar yalnızca projenin kendi metotlarına bakar.
 
-- **Örnek projede:** [`Account.java:6-17`](examples/shop/src/main/java/shop/domain/Account.java#L6-L17), [`RefundService.java:30`](examples/shop/src/main/java/shop/service/RefundService.java#L30)
+- **Örnek projede:** [`Account.java:6-17`](examples/shop/src/main/java/shop/domain/Account.java#L6-L17), [`RefundService.java:31`](examples/shop/src/main/java/shop/service/RefundService.java#L31)
 
 </details>
 
@@ -372,7 +372,7 @@ String keyOf(Customer customer) {
 
 - **Not:** Lombok `@Data` ile yazılmış DTO'lar da bu gruba girer.
 
-- **Örnek projede:** [`Connector.java:7`](examples/shop/src/main/java/shop/service/Connector.java#L7), [`ShippingService.java:20`](examples/shop/src/main/java/shop/service/ShippingService.java#L20), [`ShippingService.java:24`](examples/shop/src/main/java/shop/service/ShippingService.java#L24)
+- **Örnek projede:** [`Connector.java:8`](examples/shop/src/main/java/shop/service/Connector.java#L8), [`ShippingService.java:20`](examples/shop/src/main/java/shop/service/ShippingService.java#L20), [`ShippingService.java:24`](examples/shop/src/main/java/shop/service/ShippingService.java#L24)
 
 </details>
 
@@ -449,7 +449,7 @@ void notifyCustomer(Order order) {
 
 - **Not:** `notifier` C'nin bir alanı.
 
-- **Örnek projede:** [`RefundService.java:26`](examples/shop/src/main/java/shop/service/RefundService.java#L26)
+- **Örnek projede:** [`RefundService.java:27`](examples/shop/src/main/java/shop/service/RefundService.java#L27)
 
 </details>
 
@@ -465,7 +465,7 @@ void pay(int amount) {
 
 - **Neden:** `wallet` C'nin bir alanı, `audit()` C'nin kendi metodu.
 
-- **Örnek projede:** [`RefundService.java:21-22`](examples/shop/src/main/java/shop/service/RefundService.java#L21-L22)
+- **Örnek projede:** [`RefundService.java:22-23`](examples/shop/src/main/java/shop/service/RefundService.java#L22-L23)
 
 </details>
 
