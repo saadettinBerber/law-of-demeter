@@ -35,7 +35,7 @@
 | Değişmez argümanın tipini kullan: `Map.of("created", handler)` içinde `K`, `String` olsun. | Yapılmadı |
 | Blok gövdeli lambdada son `return` dışındaki `return` ifadelerinin tipini de kullan. | Yapılmadı |
 | İç içe generic çağrının maliyetini sınırla: her iç içe seviye yargılamayı ikiye katlıyor. | Yapılmadı |
-| Rapor metninde statik sabiti metot çağrısı gibi yazma: `PAID() statik çağrısı` yerine `PAID statik sabiti`. | Yapılmadı |
+| Rapor metninde statik sabiti metot çağrısı gibi yazma: `PAID() statik çağrısı` yerine `PAID statik sabiti`. | Yapıldı |
 | Gruplama anahtarının durumunu sınıflandırıcıdan al: `groupingBy(Order::getCustomer)` haritasının anahtarları yabancı, değerleri arkadaş olsun. | Yapılmadı |
 | Değer konumundaki metot referansını da yargıla: `Function<Order, Customer> f = Order::getCustomer;`, `return this::handle;`. | Yapılmadı |
 | Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
