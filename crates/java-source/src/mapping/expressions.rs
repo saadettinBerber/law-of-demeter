@@ -218,9 +218,9 @@ impl MethodMapper<'_> {
                     None => Argument::MethodReference(reference),
                 }
             }
-            model::Expression::Call(call) if self.is_open(call) => Argument::Value(
-                Expression::return_of(self.mapped_call(call, target, &links.inherited)),
-            ),
+            model::Expression::Call(call) if self.is_open(call) => {
+                Argument::Value(self.returning_call(call, target, &links.inherited))
+            }
             other => Argument::Value(self.expression(other)),
         }
     }

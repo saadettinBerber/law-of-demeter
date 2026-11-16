@@ -173,7 +173,8 @@ fn a_lambda_that_receives_a_collected_result_is_fed_by_its_receiver() {
         .resolving("list", list_of(order()))
         .fed_by_receiver("list")
         .yielding(Expression::local("list"));
-    let to_list = call(Expression::static_type(class(COLLECTORS)), "toList", 4);
+    let to_list = call(Expression::static_type(class(COLLECTORS)), "toList", 4)
+        .returning(collector_of(order(), list_of(order())));
     let finishing = call(
         Expression::static_type(class(COLLECTORS)),
         "collectingAndThen",
@@ -181,6 +182,7 @@ fn a_lambda_that_receives_a_collected_result_is_fed_by_its_receiver() {
     )
     .with(Expression::return_of(to_list))
     .with(finisher)
+    .returning(collector_of(order(), list_of(order())))
     .returning_from(&[1]);
     let collect = call(streamed_orders(), "collect", 4)
         .with(Expression::return_of(finishing))
@@ -199,6 +201,7 @@ fn a_lambda_in_a_nested_call_is_fed_by_the_elements_of_the_outer_stream() {
         .yielding(customer_of_order());
     let grouping = call(Expression::static_type(class(COLLECTORS)), "groupingBy", 4)
         .with(classifier)
+        .returning(collector_of(order(), map_of(customer(), list_of(order()))))
         .returning_from(&[0]);
     let collect = call(streamed_orders(), "collect", 4)
         .with(Expression::return_of(grouping))

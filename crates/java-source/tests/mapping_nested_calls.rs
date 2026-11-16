@@ -215,8 +215,9 @@ fn reading(method: &str, returned: TypeRef) -> Expression {
 fn an_argument_that_is_a_generic_call_selects_the_overload_by_its_return_class() {
     let mapped = mapped_collect("Util.take(Collectors.toList())");
 
+    let to_list = collectors_call("toList").returning(collected(order(), list_of(order())));
     let take = call(Expression::static_type(class("Util")), "take", 3)
-        .with(Expression::return_of(collectors_call("toList")))
+        .with(Expression::return_of(to_list))
         .returning(wallet());
     assert_eq!(mapped, f(2).call(take));
 }
@@ -233,6 +234,7 @@ fn a_lambda_inside_a_nested_call_gets_its_parameter_from_the_outer_stream() {
         .yielding(reading("getWallet", wallet()));
     let grouping = collectors_call("groupingBy")
         .with(classifier)
+        .returning(collected(customer(), map_of(wallet(), list_of(customer()))))
         .returning_from(&[0]);
     assert_eq!(
         mapped,
@@ -255,6 +257,7 @@ fn a_method_reference_inside_a_nested_call_binds_the_group_key() {
         .fed_by_receiver();
     let grouping = collectors_call("groupingBy")
         .with(classifier)
+        .returning(collected(customer(), map_of(wallet(), list_of(customer()))))
         .returning_from(&[0]);
     assert_eq!(
         mapped,
@@ -274,7 +277,7 @@ fn collecting_into_a_list_types_the_result_by_the_stream_elements() {
         mapped,
         collecting(
             streamed("orders", order()),
-            collectors_call("toList"),
+            collectors_call("toList").returning(collected(order(), list_of(order()))),
             list_of(order())
         )
     );
@@ -286,13 +289,15 @@ fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
         "orders.stream().collect(Collectors.groupingBy(Order::getCustomer, Collectors.mapping(Order::getTotal, Collectors.toList())))",
     );
 
+    let to_list = collectors_call("toList").returning(collected(money(), list_of(money())));
     let total = through(order(), "getTotal")
         .returning(money())
         .resolving(order())
         .fed_by_receiver();
     let mapping = collectors_call("mapping")
         .with(total)
-        .with(Expression::return_of(collectors_call("toList")))
+        .with(Expression::return_of(to_list))
+        .returning(collected(order(), list_of(money())))
         .returning_from(&[]);
     let customer_of = through(order(), "getCustomer")
         .returning(customer())
@@ -301,6 +306,7 @@ fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
     let grouping = collectors_call("groupingBy")
         .with(customer_of)
         .with(Expression::return_of(mapping))
+        .returning(collected(order(), map_of(customer(), list_of(money()))))
         .returning_from(&[0]);
     assert_eq!(
         mapped,
@@ -325,9 +331,11 @@ fn a_lambda_after_a_nested_call_gets_its_parameter_from_the_nested_result() {
         .resolving("list", list_of(order()))
         .fed_by_receiver("list")
         .yielding(Expression::return_of(first));
+    let to_list = collectors_call("toList").returning(collected(order(), list_of(order())));
     let finishing = collectors_call("collectingAndThen")
-        .with(Expression::return_of(collectors_call("toList")))
+        .with(Expression::return_of(to_list))
         .with(finisher)
+        .returning(collected(order(), order()))
         .returning_from(&[1]);
     assert_eq!(
         mapped,
