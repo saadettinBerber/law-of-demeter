@@ -212,7 +212,7 @@ void discount(String id, int rate) {
 
 - **Not:** Kural metodun gövdesine bakmaz; döndürülen nesne bir alandan gelse de yabancı sayılır. Adı `find` ile başlasa da depo sorgusu sayılmaz, çünkü depo sorgusunun alıcısı bir alan ya da parametre olmalı: Uygun 9.
 
-- **Örnek projede:** [`DiscountService.java:14`](examples/shop/src/main/java/shop/service/DiscountService.java#L14)
+- **Örnek projede:** [`DiscountService.java:15`](examples/shop/src/main/java/shop/service/DiscountService.java#L15)
 
 </details>
 

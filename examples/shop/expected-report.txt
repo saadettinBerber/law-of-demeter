@@ -8,7 +8,7 @@ src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.c
 src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  clear()  İhlal: getCart() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  applyDiscount()  İhlal: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  port()  İhlal: gateway() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/DiscountService.java:14  shop.service.DiscountService.discount  applyDiscount()  İhlal: findLine() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/DiscountService.java:15  shop.service.DiscountService.discount  applyDiscount()  İhlal: findLine() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  close()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -39,7 +39,7 @@ src/main/java/shop/service/ReportingService.java:65  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:71  shop.service.ReportingService.discountLines  applyDiscount()  İhlal: line lambda parametresi: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Uygun çağrılar (165):
+Uygun çağrılar (170):
 src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Customer.java:31  shop.domain.Customer.balance  getBalance()  Uygun: wallet sınıfın alanı
@@ -79,6 +79,10 @@ src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.p
 src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  count()  Uygun: batch f'ye argüman olarak verildi
 src/main/java/shop/service/BillingService.java:31  shop.service.BillingService.chargeOrders  charge()  Uygun: order lambda parametresi: orders sınıfın alanı
 src/main/java/shop/service/BillingService.java:31  shop.service.BillingService.chargeOrders  forEach()  Uygun: orders sınıfın alanı
+src/main/java/shop/service/BuyerService.java:8  shop.service.BuyerService.activate  activateCustomer()  Uygun: Order::activateCustomer metot referansı: orders f'ye argüman olarak verildi
+src/main/java/shop/service/BuyerService.java:8  shop.service.BuyerService.activate  forEach()  Uygun: orders f'ye argüman olarak verildi
+src/main/java/shop/service/BuyerService.java:13  shop.service.BuyerService.rewardBuyers  reward()  Uygun: order döngü değişkeni: orders f'ye argüman olarak verildi
+src/main/java/shop/service/BuyerService.java:14  shop.service.BuyerService.rewardBuyers  ship()  Uygun: order döngü değişkeni: orders f'ye argüman olarak verildi
 src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  getCart()  Uygun: session f'ye argüman olarak verildi
 src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  get()  Uygun: carts sınıfın alanı
 src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  checkout()  Uygun: carts sınıfın alanı
@@ -87,8 +91,9 @@ src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService
 src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  server()  Uygun: config f'ye argüman olarak verildi
 src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  port()  Uygun: shop.domain.Server bir veri yapısı
 src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  gateway()  Uygun: settings f'ye argüman olarak verildi
-src/main/java/shop/service/DiscountService.java:14  shop.service.DiscountService.discount  findLine()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/service/DiscountService.java:18  shop.service.DiscountService.findLine  get()  Uygun: lines sınıfın alanı
+src/main/java/shop/service/DiscountService.java:15  shop.service.DiscountService.discount  findLine()  Uygun: f'nin kendi nesnesi
+src/main/java/shop/service/DiscountService.java:19  shop.service.DiscountService.findLine  get()  Uygun: lines sınıfın alanı
+src/main/java/shop/service/DiscountService.java:23  shop.service.DiscountService.discountOrder  applyDiscount()  Uygun: order f'ye argüman olarak verildi
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  getReceipt()  Uygun: e lambda parametresi: java.util.Map tipi üzerinde statik çağrı
 src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  of()  Uygun: java.util.Map tipi üzerinde statik çağrı
 src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  get()  Uygun: handlers sınıfın alanı
@@ -210,9 +215,9 @@ Hibrit sınıflar (1):
 src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
 
 Özet:
-  Dosya: 49
-  Metot: 157
-  Çağrı: 204 (uygun 165, ihlal 39, belirsiz 0)
+  Dosya: 50
+  Metot: 160
+  Çağrı: 209 (uygun 170, ihlal 39, belirsiz 0)
   Hibrit sınıf: 1
   Kaynak hatası: 0
   Tip okuma hatası: 0
@@ -222,7 +227,7 @@ src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: dav
   1  Döndürülen koleksiyon değiştiriliyor
 
 Uygun nedenleri:
-  58  Argüman
+  63  Argüman
   45  Sınıfın alanı
   16  Statik çağrı
   15  Statik çağrının sonucu

@@ -1,6 +1,7 @@
 package shop.service;
 
 import java.util.Map;
+import shop.domain.Order;
 import shop.domain.OrderLine;
 
 public class DiscountService {
@@ -16,5 +17,9 @@ public class DiscountService {
 
     private OrderLine findLine(String id) {
         return lines.get(id);
+    }
+
+    public void discountOrder(Order order) {
+        order.applyDiscount(10);
     }
 }
