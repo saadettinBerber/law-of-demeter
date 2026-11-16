@@ -124,7 +124,18 @@ impl Candidate<'_> {
             )?,
             None => bindings.clone(),
         };
-        Some(apply_bindings(&returned, &completed))
+        Some(apply_bindings(&returned, &self.declared_bounds(completed)))
+    }
+
+    fn declared_bounds(&self, mut bindings: Bindings) -> Bindings {
+        for name in self.method.type_parameters() {
+            if let Some(bound) = self.method.type_parameter_bound(name) {
+                bindings
+                    .entry(name.clone())
+                    .or_insert_with(|| bound.clone());
+            }
+        }
+        bindings
     }
 
     fn returned(&self) -> Option<TypeRef> {

@@ -468,3 +468,67 @@ fn the_argument_type_is_kept_when_the_type_variable_is_the_whole_return_type() {
     let value = Expression::return_of(util_pick(vec![a_premium()]).returning(class("Premium")));
     assert_eq!(mapped, f(3).assign("chosen", class("Customer"), value));
 }
+
+fn bounded(method: MethodShape, bound: TypeRef) -> MethodShape {
+    method.with_type_parameter_bound("T", bound)
+}
+
+#[test]
+fn the_declared_bound_binds_a_type_variable_nothing_else_binds() {
+    let methods = vec![bounded(
+        pick(&["T"], vec![], variable("T")),
+        class("Customer"),
+    )];
+
+    let mapped = mapped_pick("", methods);
+
+    assert_eq!(mapped, expected_pick(vec![], Some(class("Customer"))));
+}
+
+#[test]
+fn the_declared_bound_binds_a_type_variable_inside_a_generic_return_type() {
+    let methods = vec![bounded(listing(vec![]), class("Customer"))];
+
+    let mapped = mapped_pick("", methods);
+
+    assert_eq!(
+        mapped,
+        expected_pick(vec![], Some(list_of(class("Customer"))))
+    );
+}
+
+#[test]
+fn an_argument_binds_a_type_variable_before_its_declared_bound_does() {
+    let methods = vec![bounded(
+        pick(&["T"], vec![variable("T")], variable("T")),
+        class("Customer"),
+    )];
+
+    let mapped = mapped_pick("premium", methods);
+
+    assert_eq!(
+        mapped,
+        expected_pick(vec![a_premium()], Some(class("Premium")))
+    );
+}
+
+#[test]
+fn the_expected_type_binds_a_type_variable_before_its_declared_bound_does() {
+    let types = util(vec![bounded(listing(vec![]), class("Customer"))]);
+
+    let mapped = mapped_in(&types, "List<Premium> premiums = Util.pick();");
+
+    let bound = list_of(class("Premium"));
+    let value = Expression::return_of(util_pick(vec![]).returning(bound.clone()));
+    assert_eq!(mapped, f(3).assign("premiums", bound, value));
+}
+
+#[test]
+fn a_declared_bound_that_mentions_its_own_type_variable_leaves_the_call_unresolved() {
+    let comparable = generic("java.lang.Comparable", &[variable("T")]);
+    let methods = vec![bounded(pick(&["T"], vec![], variable("T")), comparable)];
+
+    let mapped = mapped_pick("", methods);
+
+    assert_eq!(mapped, expected_pick(vec![], None));
+}
