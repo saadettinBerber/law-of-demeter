@@ -54,4 +54,4 @@
 | [İç içe generic çağrının tiplerini adapter çözsün: `collect(Collectors.groupingBy(...))`.](README.md#mimari) | Yapıldı |
 | [Veri akışı bağlarını adapter versin: hangi lambda parametresi alıcının elemanlarıyla besleniyor, lambda sonucu dönüşe akıyor mu; domain arkadaş ya da yabancı durumunu bu bağlar boyunca taşısın.](README.md#mimari) | Yapıldı |
 | [Tip çıkarımını domain'den sil: `invocation.rs`, `functional.rs`, aşırı yükleme ve generic bağlama; domain testleri çözülmüş tiplerle sadeleşsin.](README.md#mimari) | Yapıldı |
-| [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapılmadı |
+| [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapıldı |
