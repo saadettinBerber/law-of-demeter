@@ -14,4 +14,20 @@ public class Registry<V> extends Container<String, V> implements Repository<V, S
     public List<V> findAll() {
         return List.of();
     }
+
+    public static <T extends Entity> T asEntity(T value) {
+        return value;
+    }
+
+    public static <T extends Comparable<T>> T asComparable(T value) {
+        return value;
+    }
+
+    public static <T extends Entity & Comparable<T>> T asBoth(T value) {
+        return value;
+    }
+
+    public static <T> T asIs(T value) {
+        return value;
+    }
 }

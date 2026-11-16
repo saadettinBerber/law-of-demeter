@@ -1183,3 +1183,48 @@ fn record_components_are_final_fields() {
     assert_eq!(fields.len(), 2);
     assert!(fields.iter().all(FieldShape::is_final));
 }
+
+#[test]
+fn reads_the_class_bound_of_a_method_type_parameter() {
+    let registry = shape("shop.Registry");
+
+    let as_entity = method(&registry, "asEntity");
+
+    assert_eq!(
+        as_entity.type_parameter_bound("T"),
+        Some(&TypeRef::class("shop.Entity"))
+    );
+}
+
+#[test]
+fn reads_the_interface_bound_of_a_method_type_parameter() {
+    let registry = shape("shop.Registry");
+
+    let as_comparable = method(&registry, "asComparable");
+
+    assert_eq!(
+        as_comparable.type_parameter_bound("T"),
+        Some(&TypeRef::generic(
+            "java.lang.Comparable",
+            vec![TypeRef::variable("T")]
+        ))
+    );
+}
+
+#[test]
+fn leaves_out_the_bound_of_a_type_parameter_with_several_bounds() {
+    let registry = shape("shop.Registry");
+
+    let as_both = method(&registry, "asBoth");
+
+    assert_eq!(as_both.type_parameter_bound("T"), None);
+}
+
+#[test]
+fn leaves_out_the_bound_of_an_unbounded_type_parameter() {
+    let registry = shape("shop.Registry");
+
+    let as_is = method(&registry, "asIs");
+
+    assert_eq!(as_is.type_parameter_bound("T"), None);
+}

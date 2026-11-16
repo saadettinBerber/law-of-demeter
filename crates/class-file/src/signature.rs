@@ -7,8 +7,13 @@ pub(crate) fn field_type(text: &str) -> Result<TypeRef, String> {
     Ok(type_ref)
 }
 
+pub(crate) struct TypeParameter {
+    pub(crate) name: String,
+    pub(crate) bounds: Vec<TypeRef>,
+}
+
 pub(crate) struct MethodSignature {
-    pub(crate) type_parameters: Vec<String>,
+    pub(crate) type_parameters: Vec<TypeParameter>,
     pub(crate) parameters: Vec<TypeRef>,
     pub(crate) returns: Option<TypeRef>,
 }
@@ -52,7 +57,10 @@ pub(crate) fn class_signature(text: &str) -> Result<ClassSignature, String> {
         interfaces.push(parser.type_ref()?);
     }
     Ok(ClassSignature {
-        type_parameters,
+        type_parameters: type_parameters
+            .into_iter()
+            .map(|parameter| parameter.name)
+            .collect(),
         superclass,
         interfaces,
     })
@@ -173,18 +181,24 @@ impl<'a> Parser<'a> {
         self.type_ref()
     }
 
-    fn type_parameters(&mut self) -> Result<Vec<String>, String> {
-        let mut names = Vec::new();
+    fn type_parameters(&mut self) -> Result<Vec<TypeParameter>, String> {
+        let mut parameters = Vec::new();
         if self.consume('<') {
             while !self.consume('>') {
-                names.push(self.identifier(&[':'])?.to_owned());
-                while self.consume(':') {
-                    if self.peek() != Some(':') {
-                        self.type_ref()?;
-                    }
-                }
+                parameters.push(self.type_parameter()?);
             }
         }
-        Ok(names)
+        Ok(parameters)
+    }
+
+    fn type_parameter(&mut self) -> Result<TypeParameter, String> {
+        let name = self.identifier(&[':'])?.to_owned();
+        let mut bounds = Vec::new();
+        while self.consume(':') {
+            if self.peek() != Some(':') {
+                bounds.push(self.type_ref()?);
+            }
+        }
+        Ok(TypeParameter { name, bounds })
     }
 }

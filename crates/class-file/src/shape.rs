@@ -139,8 +139,13 @@ fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShap
     let signature = signature::method_signature(text)
         .map_err(|error| format!("method {}: {error}", method.name))?;
     let mut shape = MethodShape::new(&method.name).with_parameters(signature.parameters);
-    for name in signature.type_parameters {
-        shape = shape.with_type_parameter(&name);
+    for parameter in signature.type_parameters {
+        shape = shape.with_type_parameter(&parameter.name);
+        if let [bound] = &parameter.bounds[..]
+            && *bound != TypeRef::class("java.lang.Object")
+        {
+            shape = shape.with_type_parameter_bound(&parameter.name, bound.clone());
+        }
     }
     if let Some(returns) = signature.returns {
         shape = shape.returning(returns);
