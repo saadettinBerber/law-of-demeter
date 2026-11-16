@@ -99,6 +99,7 @@ pub struct MethodShape {
     is_abstract: bool,
     is_varargs: bool,
     type_parameters: Vec<String>,
+    type_parameter_bounds: Vec<(String, TypeRef)>,
     reads_field: Option<String>,
     writes_field: Option<String>,
 }
@@ -116,6 +117,7 @@ impl MethodShape {
             is_abstract: false,
             is_varargs: false,
             type_parameters: Vec::new(),
+            type_parameter_bounds: Vec::new(),
             reads_field: None,
             writes_field: None,
         }
@@ -123,6 +125,11 @@ impl MethodShape {
 
     pub fn with_type_parameter(mut self, name: &str) -> Self {
         self.type_parameters.push(name.to_owned());
+        self
+    }
+
+    pub fn with_type_parameter_bound(mut self, name: &str, bound: TypeRef) -> Self {
+        self.type_parameter_bounds.push((name.to_owned(), bound));
         self
     }
 
@@ -217,6 +224,12 @@ impl MethodShape {
         &self.type_parameters
     }
 
+    pub fn type_parameter_bound(&self, name: &str) -> Option<&TypeRef> {
+        self.type_parameter_bounds
+            .iter()
+            .find_map(|(parameter, bound)| (parameter == name).then_some(bound))
+    }
+
     pub fn reads_field(&self) -> Option<&str> {
         self.reads_field.as_deref()
     }
@@ -302,5 +315,24 @@ impl TypeShape {
 
     pub fn methods(&self) -> &[MethodShape] {
         &self.methods
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_type_parameter_reports_the_bound_it_was_given() {
+        let method = MethodShape::new("pick")
+            .with_type_parameter("T")
+            .with_type_parameter("U")
+            .with_type_parameter_bound("T", TypeRef::class("Shape"));
+
+        assert_eq!(
+            method.type_parameter_bound("T"),
+            Some(&TypeRef::class("Shape"))
+        );
+        assert_eq!(method.type_parameter_bound("U"), None);
     }
 }
