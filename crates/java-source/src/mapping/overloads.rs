@@ -34,15 +34,48 @@ pub(super) enum Selection {
     Undecided,
 }
 
+pub(super) struct Signature {
+    pub(super) parameters: Vec<TypeRef>,
+    pub(super) variable_arity: bool,
+}
+
+impl Signature {
+    pub(super) fn takes(&self, count: usize) -> bool {
+        self.parameters.len() == count
+            || (self.variable_arity && self.parameters.len() <= count + 1)
+    }
+
+    fn parameters_for(&self, phase: Phase, length: usize) -> Option<Vec<TypeRef>> {
+        match phase {
+            Phase::VariableArity => self.expanded(length),
+            Phase::Strict | Phase::Loose => {
+                (self.parameters.len() == length).then(|| self.parameters.clone())
+            }
+        }
+    }
+
+    fn expanded(&self, length: usize) -> Option<Vec<TypeRef>> {
+        let (TypeRef::Array(element), fixed) = self.parameters.split_last()? else {
+            return None;
+        };
+        if !self.variable_arity || fixed.len() > length {
+            return None;
+        }
+        let repeated = std::iter::repeat_n(element.as_ref().clone(), length - fixed.len());
+        Some(fixed.iter().cloned().chain(repeated).collect())
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum Phase {
     Strict,
     Loose,
+    VariableArity,
 }
 
 pub(super) fn select(
     types: &Types,
-    candidates: &[Vec<TypeRef>],
+    signatures: &[Signature],
     arguments: &[Option<ArgumentType>],
 ) -> Selection {
     let Some(arguments) = arguments
@@ -52,15 +85,19 @@ pub(super) fn select(
     else {
         return Selection::Undecided;
     };
-    if candidates.iter().flatten().any(has_variable) {
+    if signatures
+        .iter()
+        .flat_map(|signature| &signature.parameters)
+        .any(has_variable)
+    {
         return Selection::Undecided;
     }
-    [Phase::Strict, Phase::Loose]
+    [Phase::Strict, Phase::Loose, Phase::VariableArity]
         .into_iter()
-        .map(|phase| applicable(types, candidates, &arguments, phase))
-        .find(|applicable| !applicable.is_empty())
-        .map_or(Selection::Unresolvable, |applicable| {
-            most_specific(types, candidates, &applicable)
+        .map(|phase| (phase, applicable(types, signatures, &arguments, phase)))
+        .find(|(_, applicable)| !applicable.is_empty())
+        .map_or(Selection::Unresolvable, |(phase, applicable)| {
+            most_specific(types, signatures, &applicable, phase, arguments.len())
         })
 }
 
@@ -77,16 +114,20 @@ pub(super) fn is_known(types: &Types, type_ref: &TypeRef) -> bool {
 
 fn applicable(
     types: &Types,
-    candidates: &[Vec<TypeRef>],
+    signatures: &[Signature],
     arguments: &[&ArgumentType],
     phase: Phase,
 ) -> Vec<usize> {
-    (0..candidates.len())
+    (0..signatures.len())
         .filter(|&index| {
-            candidates[index]
-                .iter()
-                .zip(arguments)
-                .all(|(parameter, argument)| accepts(types, parameter, argument, phase))
+            signatures[index]
+                .parameters_for(phase, arguments.len())
+                .is_some_and(|parameters| {
+                    parameters
+                        .iter()
+                        .zip(arguments)
+                        .all(|(parameter, argument)| accepts(types, parameter, argument, phase))
+                })
         })
         .collect()
 }
@@ -96,18 +137,25 @@ fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: P
         ArgumentType::Null => !matches!(parameter, TypeRef::Primitive(_)),
         ArgumentType::Typed(argument) => {
             substitutable(types, argument, parameter)
-                || (phase == Phase::Loose && converts_by_boxing(types, argument, parameter))
+                || (phase != Phase::Strict && converts_by_boxing(types, argument, parameter))
         }
     }
 }
 
-fn most_specific(types: &Types, candidates: &[Vec<TypeRef>], applicable: &[usize]) -> Selection {
+fn most_specific(
+    types: &Types,
+    signatures: &[Signature],
+    applicable: &[usize],
+    phase: Phase,
+    count: usize,
+) -> Selection {
     let specific: Vec<_> = applicable
         .iter()
         .copied()
         .filter(|&index| {
             applicable.iter().all(|&other| {
-                index == other || more_specific(types, &candidates[index], &candidates[other])
+                index == other
+                    || more_specific(types, phase, count, &signatures[index], &signatures[other])
             })
         })
         .collect();
@@ -117,11 +165,26 @@ fn most_specific(types: &Types, candidates: &[Vec<TypeRef>], applicable: &[usize
     }
 }
 
-fn more_specific(types: &Types, parameters: &[TypeRef], others: &[TypeRef]) -> bool {
-    parameters
-        .iter()
-        .zip(others)
-        .all(|(parameter, other)| substitutable(types, parameter, other))
+fn more_specific(
+    types: &Types,
+    phase: Phase,
+    count: usize,
+    signature: &Signature,
+    other: &Signature,
+) -> bool {
+    let length = count
+        .max(signature.parameters.len())
+        .max(other.parameters.len());
+    match (
+        signature.parameters_for(phase, length),
+        other.parameters_for(phase, length),
+    ) {
+        (Some(parameters), Some(others)) => parameters
+            .iter()
+            .zip(&others)
+            .all(|(parameter, other)| substitutable(types, parameter, other)),
+        _ => false,
+    }
 }
 
 fn substitutable(types: &Types, from: &TypeRef, to: &TypeRef) -> bool {

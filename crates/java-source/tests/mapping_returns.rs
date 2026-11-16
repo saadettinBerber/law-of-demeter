@@ -358,29 +358,6 @@ fn a_generic_return_type_leaves_the_call_unresolved() {
 }
 
 #[test]
-fn a_varargs_method_leaves_the_call_unresolved() {
-    let source = "class OrderService {\n void f(Order order) {\n  order.pick(1).go();\n }\n}";
-    let types = shop().with_shape(
-        shape("Order").with_method(
-            returning("pick", "Customer")
-                .as_varargs()
-                .with_parameters(vec![TypeRef::array(class("java.lang.Object"))]),
-        ),
-    );
-
-    let mapped = method_f_in(source, &types);
-
-    assert_eq!(
-        mapped,
-        f(2).call(
-            call(parameter("order", class("Order")), "pick", 3)
-                .with(Expression::literal())
-                .then("go", 3)
-        )
-    );
-}
-
-#[test]
 fn a_method_that_returns_nothing_leaves_the_call_unresolved() {
     let source = "class OrderService {\n void f(Order order) {\n  order.cancel().go();\n }\n}";
     let types = shop().with_shape(shape("Order").with_method(MethodShape::new("cancel")));
@@ -390,33 +367,6 @@ fn a_method_that_returns_nothing_leaves_the_call_unresolved() {
     assert_eq!(
         mapped,
         f(2).call(call(parameter("order", class("Order")), "cancel", 3).then("go", 3))
-    );
-}
-
-#[test]
-fn a_varargs_overload_next_to_a_fixed_one_leaves_the_call_unresolved() {
-    let source = "class OrderService {\n void f(Order order) {\n  order.pick(1).go();\n }\n}";
-    let types = shop().with_shape(
-        shape("Order")
-            .with_method(
-                returning("pick", "Customer").with_parameters(vec![TypeRef::primitive("int")]),
-            )
-            .with_method(
-                returning("pick", "Wallet")
-                    .as_varargs()
-                    .with_parameters(vec![TypeRef::array(class("java.lang.Object"))]),
-            ),
-    );
-
-    let mapped = method_f_in(source, &types);
-
-    assert_eq!(
-        mapped,
-        f(2).call(
-            call(parameter("order", class("Order")), "pick", 3)
-                .with(Expression::literal())
-                .then("go", 3)
-        )
     );
 }
 

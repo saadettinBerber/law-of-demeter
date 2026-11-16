@@ -5,7 +5,7 @@ use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
 use super::lineage::{Ancestor, has_variable, lineage, substitute};
-use super::overloads::{ArgumentType, Selection, is_known, select};
+use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
@@ -65,15 +65,11 @@ fn declared_return(
 ) -> Option<TypeRef> {
     let ancestors = lineage(types, receiver);
     let candidates = candidates(&ancestors, method, arguments.len());
-    if candidates.is_empty()
-        || candidates
-            .iter()
-            .any(|candidate| candidate.method.is_varargs())
-    {
+    if candidates.is_empty() {
         return None;
     }
-    let parameters: Vec<_> = candidates.iter().map(Candidate::parameters).collect();
-    let returned = match select(types, &parameters, arguments) {
+    let signatures: Vec<_> = candidates.iter().map(Candidate::signature).collect();
+    let returned = match select(types, &signatures, arguments) {
         Selection::Chosen(index) => candidates[index].returned(),
         Selection::Undecided => agreed_return(&candidates),
         Selection::Unresolvable => None,
@@ -93,6 +89,13 @@ impl Candidate<'_> {
             .iter()
             .map(|parameter| self.specialize(parameter))
             .collect()
+    }
+
+    fn signature(&self) -> Signature {
+        Signature {
+            parameters: self.parameters(),
+            variable_arity: self.method.is_varargs(),
+        }
     }
 
     fn returned(&self) -> Option<TypeRef> {
@@ -127,7 +130,7 @@ fn candidates<'a>(
             let overridden = candidates
                 .iter()
                 .any(|known| known.parameters() == candidate.parameters());
-            if declared.parameters().len() == argument_count && !overridden {
+            if candidate.signature().takes(argument_count) && !overridden {
                 candidates.push(candidate);
             }
         }

@@ -222,18 +222,14 @@ fn a_variable_arity_builder_method_stays_fluent_with_any_number_of_arguments() {
 }
 
 #[test]
-fn several_variable_arity_overloads_that_all_fit_leave_the_return_unresolved() {
+fn the_most_specific_of_several_fitting_variable_arity_overloads_decides_the_return() {
     let snippet = "void print(String title, Order first, Order second) {\n    printer.print(title, first, second).withdraw();\n}";
 
     let verdicts = verdicts_in_c("", "Printer printer;", snippet, "print", &helpers());
 
     assert_eq!(
         verdicts[1],
-        Verdict::violation(
-            "withdraw",
-            3,
-            Reason::unresolved_type(None, Reason::return_of("print"))
-        )
+        Verdict::violation("withdraw", 3, Reason::return_of("print"))
     );
 }
 
