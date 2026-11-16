@@ -540,7 +540,7 @@ Araç repo kökünden kurulur:
 cargo install --path crates/cli
 ```
 
-Araç, Java kaynağını ve derlenmiş sınıfları birlikte okur. Lombok'un ürettiği metotlar yalnızca derlenmiş sınıflarda göründüğü için proje önce derlenir.
+Lombok'un ürettiği metotlar yalnızca derlenmiş sınıflarda göründüğü için proje önce derlenir.
 
 ```bash
 mvn -q compile dependency:build-classpath -Dmdep.outputFile=classpath.txt
@@ -610,22 +610,20 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 | Katman | Sorumluluk |
 |---|---|
-| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit, değer ya da konteyner olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz; hiçbir dilin tip kuralını ve adını bilmez. |
+| **Domain** | Kuralın kendisi: arkadaş listesi, tip sınıflandırması (veri yapısı, nesne, hibrit, değer, konteyner), yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz. |
 | **Application** | "Projeyi denetle" kullanım senaryosu. Domain kurallarını yürütür; dışarıdan istediklerini port'larla ister. |
 | **Adapter** | Port'ları gerçek teknolojiye bağlar: komut satırı, Java ayrıştırıcı, `.class` okuyucu ve rapor. |
 
 | Port | Ne sağlar | Adapter |
 |---|---|---|
 | Denetim isteği | Denetlenecek kaynaklar ve derlenmiş sınıflar | CLI |
-| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin nereden geldiği: parametre, alan, `new` ya da başka bir çağrının dönüşü. Okurken tip kataloğunu alır: tip şekilleri ve platform. Tipleri de kendisi çözer: aşırı yükleme, generic çıkarım, değişken sayıda argüman, lambda ve metot referansı tipleri, veri akışı bağları. Çözümü çağrıların, lambdaların ve metot referanslarının köprü alanlarıyla domain'e verir. | Java ayrıştırıcı |
-| Tip kataloğu | Bir tipin alanları ve metotları, Lombok'un ürettikleri dahil; dilin platformu: standart kütüphanesinden bilinen değer, konteyner ve veri yapısı tipleri, kök ve davranışsız üst tipleri, nesne ve eşitlik metotları, kurucu adı, builder metodu, iç tip ayracı ve değiştirici metot adları | `.class` okuyucu; platform için Java ayrıştırıcının Java platformu |
+| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin kaynağı: parametre, alan, `new` ya da başka bir çağrının dönüşü. Tip kataloğunu alır, tipleri çözer (aşırı yükleme, generic, lambda, veri akışı) ve sonucu köprü alanlarıyla domain'e verir. | Java ayrıştırıcı |
+| Tip kataloğu | Bir tipin alanları ve metotları (Lombok'un ürettikleri dahil) ve dilin platformu: bilinen tipler ile nesne, kurucu ve builder kuralları | `.class` okuyucu; platform için Java ayrıştırıcının Java platformu |
 | Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural. Kullanıcı isterse uygun çağrılar da uydukları kuralla birlikte. | Metin raporu |
 
-Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
+Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Her katman ayrı bir crate'tir (`core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır; `cli` hepsini bağlar), bu yüzden yönü derleyici korur. Domain verinin hangi yoldan geldiğini bilmez; domain testleri Java dosyası olmadan yazılır.
 
-Dile özgü her şey, yani tip kuralları ve dilin değerleri adapter'dadır: Java ayrıştırıcı bunları çözer ve Java platformunu kurar. Domain'in dile özgü bir bilgiye ihtiyacı olursa köprü alanı eklenir ve alanı adapter doldurur. Yeni dil için yeni bir adapter crate'i yazılır: kendi kaynak okuyucusu, tip çözümlemesi ve platformu olur; domain değişmez. Domain'in dil bilmemesi bir testle korunur: domain üretim kodunda dil adı geçerse test kırılır.
-
-Her katman ayrı bir crate'tir: `core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır; `cli` hepsini bağlar. Bağımlılık yönünü derleyici korur.
+Domain'in dile özgü bir bilgiye ihtiyacı olursa köprü alanı eklenir ve alanı adapter doldurur. Yeni dil, yeni bir adapter crate'idir: kendi kaynak okuyucusu, tip çözümlemesi ve platformu olur; domain değişmez. Domain üretim kodunda dil adı geçerse test kırılır.
 
 <details>
 <summary><strong>Örnek: bir çağrının yolu</strong></summary>
