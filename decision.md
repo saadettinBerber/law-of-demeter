@@ -39,3 +39,7 @@
 | Gruplama anahtarının durumunu sınıflandırıcıdan al: `groupingBy(Order::getCustomer)` haritasının anahtarları yabancı, değerleri arkadaş olsun. | Yapılmadı |
 | Değer konumundaki metot referansını da yargıla: `Function<Order, Customer> f = Order::getCustomer;`, `return this::handle;`. | Yapılmadı |
 | Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
+| [JDK tip kataloğunu domain'den Java adapter'ına taşı: değer, konteyner, veri yapısı ve davranışsız tipleri dil versin; domain yalnızca bilinen tiplerin sınıfını alsın.](README.md#mimari) | Yapılmadı |
+| [Java'nın nesne modelini domain'den çıkar: gizli üst tipler (`Object`, `Enum`, `Record`), `equals`, `hashCode`, `toString`, `canEqual`, kurucu adı `<init>`, Lombok'un `toBuilder`'ı ve değiştirici metot adları dilden gelsin.](README.md#mimari) | Yapılmadı |
+| [İfade tiplerini dil adapter'ı çözsün: aşırı yükleme seçimi, değişken sayıda argüman, generic çıkarım, lambda ve metot referansı tipi; domain her çağrının alıcı ve dönüş tipini çözülmüş alsın.](README.md#mimari) | Yapılmadı |
+| [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapılmadı |
