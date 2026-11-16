@@ -7,7 +7,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
+use super::{Call, Creation, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::Types;
 use crate::domain::type_shape::TypeRef;
 
@@ -425,4 +425,98 @@ fn collectors_nested_twenty_four_levels_deep_are_judged_within_the_budget() {
     });
 
     assert!(judged_within_budget(nested));
+}
+
+fn orders_a_stranger_returned() -> Expression {
+    let session = Expression::parameter("session", TypeRef::class("Session"));
+    Expression::return_of(Call::new(session, "getOrders", 2).returning(list_of(order())))
+}
+
+fn shipped_by_each() -> Lambda {
+    Lambda::new(&["each"])
+        .resolving("each", order())
+        .call(Call::new(Expression::local("each"), "ship", 3))
+}
+
+fn ship_of_a_stranger_order() -> Verdict {
+    Verdict::violation(
+        "ship",
+        3,
+        Reason::lambda_parameter("each", Reason::return_of("getOrders")),
+    )
+}
+
+#[test]
+fn a_lambda_parameter_linked_to_an_argument_takes_the_standing_of_its_elements() {
+    let batch = Creation::new(TypeRef::class("Batch"))
+        .with(orders_a_stranger_returned())
+        .with(shipped_by_each().fed_by_argument_elements("each", 0));
+    let method = Method::new("Billing", "batch", 1).evaluate(Expression::created(batch));
+
+    let verdicts = method.verdicts(&collecting());
+
+    assert!(verdicts.contains(&ship_of_a_stranger_order()));
+}
+
+#[test]
+fn a_lambda_parameter_linked_to_the_receiver_keeps_the_created_object_in_a_creation() {
+    let batch = Creation::new(TypeRef::class("Batch"))
+        .with(orders_a_stranger_returned())
+        .with(shipped_by_each().fed_by_receiver("each"));
+    let method = Method::new("Billing", "batch", 1).evaluate(Expression::created(batch));
+
+    let verdicts = method.verdicts(&collecting());
+
+    assert!(verdicts.contains(&Verdict::allowed(
+        "ship",
+        3,
+        Reason::lambda_parameter("each", Reason::created(TypeRef::class("Batch")))
+    )));
+}
+
+#[test]
+fn a_method_reference_linked_to_an_argument_takes_the_standing_of_its_elements() {
+    let ship = MethodReference::new(Expression::static_type(order()), "ship", 3)
+        .taking(1)
+        .fed_by_argument_elements(0);
+    let batch = Creation::new(TypeRef::class("Batch"))
+        .with(orders_a_stranger_returned())
+        .with(ship);
+    let method = Method::new("Billing", "batch", 1).evaluate(Expression::created(batch));
+
+    let verdicts = method.verdicts(&collecting());
+
+    assert!(verdicts.contains(&Verdict::violation(
+        "ship",
+        3,
+        Reason::method_reference(order(), "ship", Reason::return_of("getOrders"))
+    )));
+}
+
+#[test]
+fn a_lambda_parameter_linked_to_an_argument_of_a_static_call_takes_the_standing_of_its_elements() {
+    let sort = Call::new(
+        Expression::static_type(TypeRef::class("Batches")),
+        "each",
+        3,
+    )
+    .with(orders_a_stranger_returned())
+    .with(shipped_by_each().fed_by_argument_elements("each", 0));
+    let method = Method::new("Billing", "batch", 1).call(sort);
+
+    let verdicts = method.verdicts(&collecting());
+
+    assert!(verdicts.contains(&ship_of_a_stranger_order()));
+}
+
+#[test]
+fn a_lambda_parameter_linked_to_a_missing_argument_keeps_its_receiver_feed() {
+    let batch = Creation::new(TypeRef::class("Batch"))
+        .with(orders_a_stranger_returned())
+        .with(shipped_by_each().fed_by_argument_elements("each", 5));
+    let method = Method::new("Billing", "batch", 1).evaluate(Expression::created(batch));
+
+    let verdicts = method.verdicts(&collecting());
+
+    assert!(!verdicts.contains(&ship_of_a_stranger_order()));
 }

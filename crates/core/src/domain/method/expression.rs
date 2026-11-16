@@ -177,11 +177,17 @@ impl Expression {
 enum Feed {
     Elements,
     Receiver,
+    Argument(usize),
 }
 
-fn element_feed<'a>(outer: &'a Subject, feed: &'a Subject, linked: Option<Feed>) -> &'a Subject {
+fn element_feed<'a>(
+    (feed, outer): (&'a Subject, &'a Subject),
+    siblings: &'a [Option<Subject>],
+    linked: Option<Feed>,
+) -> &'a Subject {
     match linked {
         Some(Feed::Elements) => outer,
+        Some(Feed::Argument(index)) => siblings.get(index).and_then(Option::as_ref).unwrap_or(feed),
         Some(Feed::Receiver) | None => feed,
     }
 }
@@ -322,7 +328,12 @@ impl Argument {
         }
     }
 
-    pub(super) fn judge(&self, context: &Context, feed: &Subject, outer: &Subject) -> Produced {
+    pub(super) fn judge(
+        &self,
+        context: &Context,
+        feeds: (&Subject, &Subject),
+        siblings: &[Option<Subject>],
+    ) -> Produced {
         match self {
             Self::Value(value) => {
                 let judged = value.judge(context);
@@ -331,8 +342,8 @@ impl Argument {
                     standing: Some(judged.subject.standing),
                 }
             }
-            Self::Lambda(lambda) => lambda.judge(context, feed, outer),
-            Self::MethodReference(reference) => reference.judge(context, feed, outer),
+            Self::Lambda(lambda) => lambda.judge(context, feeds, siblings),
+            Self::MethodReference(reference) => reference.judge(context, feeds, siblings),
         }
     }
 }
@@ -393,20 +404,30 @@ impl MethodReference {
         self
     }
 
+    pub fn fed_by_argument_elements(mut self, argument: usize) -> Self {
+        self.feed = Some(Feed::Argument(argument));
+        self
+    }
+
     fn judge_value(&self, context: &Context, target: Option<Target>) -> Judged {
         let expected = self
             .expected
             .as_ref()
             .or(target.and_then(|target| target.type_ref));
         let given = Subject::new(Standing::Friend(Reason::FunctionArgument), None);
-        let produced = self.judge(context, &given, &given);
+        let produced = self.judge(context, (&given, &given), &[]);
         Judged {
             verdicts: produced.verdicts,
             subject: functional_value(expected),
         }
     }
 
-    fn judge(&self, context: &Context, feed: &Subject, outer: &Subject) -> Produced {
+    fn judge(
+        &self,
+        context: &Context,
+        feeds: (&Subject, &Subject),
+        siblings: &[Option<Subject>],
+    ) -> Produced {
         let types = context.types;
         let target = self.target.judge(context);
         let mut verdicts = target.verdicts;
@@ -419,7 +440,7 @@ impl MethodReference {
                 taken.map(|_| self.static_result())
             }
             Expression::StaticType(owner) => {
-                let element = self.element(types, feed, outer);
+                let element = self.element(types, feeds, siblings);
                 let receiver = element
                     .clone()
                     .through(|feed| Reason::method_reference(owner.clone(), &self.name, feed));
@@ -443,9 +464,14 @@ impl MethodReference {
         }
     }
 
-    fn element(&self, types: &Types, feed: &Subject, outer: &Subject) -> Subject {
+    fn element(
+        &self,
+        types: &Types,
+        feeds: (&Subject, &Subject),
+        siblings: &[Option<Subject>],
+    ) -> Subject {
         let known = self.input.as_ref();
-        element_feed(outer, feed, self.feed)
+        element_feed(feeds, siblings, self.feed)
             .element(types, |reason| reason)
             .declared_as(known)
     }
@@ -518,6 +544,12 @@ impl Lambda {
         self
     }
 
+    pub fn fed_by_argument_elements(mut self, parameter: &str, argument: usize) -> Self {
+        self.feeds
+            .push((parameter.to_owned(), Feed::Argument(argument)));
+        self
+    }
+
     pub fn yielding(mut self, value: Expression) -> Self {
         self.result = Some(value);
         self
@@ -548,7 +580,12 @@ impl Lambda {
         self
     }
 
-    pub(super) fn judge(&self, context: &Context, feed: &Subject, outer: &Subject) -> Produced {
+    pub(super) fn judge(
+        &self,
+        context: &Context,
+        feeds: (&Subject, &Subject),
+        siblings: &[Option<Subject>],
+    ) -> Produced {
         let mut inner = context.clone();
         for parameter in &self.parameters {
             let known = self.given_type(parameter);
@@ -557,7 +594,7 @@ impl Lambda {
                 .iter()
                 .find(|(name, _)| name == parameter)
                 .map(|(_, linked)| *linked);
-            let source = element_feed(outer, feed, linked);
+            let source = element_feed(feeds, siblings, linked);
             let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });

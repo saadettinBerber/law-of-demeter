@@ -34,6 +34,10 @@ pub(super) fn judge_arguments(
     links: &Links,
     (feed, outer): (&Subject, &Subject),
 ) -> Judgement {
+    let siblings: Vec<Option<Subject>> = values
+        .iter()
+        .map(|value| value.as_ref().map(|judged| judged.subject.clone()))
+        .collect();
     let mut verdicts = Vec::new();
     let mut mapped = None;
     let mut keys = None;
@@ -50,7 +54,7 @@ pub(super) fn judge_arguments(
                 }
             }
             None => {
-                let produced = argument.judge(context, feed, outer);
+                let produced = argument.judge(context, (feed, outer), &siblings);
                 verdicts.extend(produced.verdicts);
                 if links.keyed_by == Some(index) {
                     keys = keys.or(produced.standing.clone());
