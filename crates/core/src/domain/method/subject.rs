@@ -28,6 +28,7 @@ pub(super) struct Subject {
     pub(super) standing: Standing,
     pub(super) type_ref: Option<TypeRef>,
     pub(super) keys: Option<Standing>,
+    pub(super) values: Option<Standing>,
 }
 
 impl Subject {
@@ -36,6 +37,7 @@ impl Subject {
             standing,
             type_ref,
             keys: None,
+            values: None,
         }
     }
 

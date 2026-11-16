@@ -17,6 +17,8 @@ pub struct Call {
     flows: Vec<usize>,
     keyed_by: Option<usize>,
     reads_keys: bool,
+    valued_by: Option<usize>,
+    reads_values: bool,
 }
 
 impl Call {
@@ -30,6 +32,8 @@ impl Call {
             flows: Vec::new(),
             keyed_by: None,
             reads_keys: false,
+            valued_by: None,
+            reads_values: false,
         }
     }
 
@@ -50,6 +54,16 @@ impl Call {
 
     pub fn yielding_keys(mut self) -> Self {
         self.reads_keys = true;
+        self
+    }
+
+    pub fn valued_by(mut self, argument: usize) -> Self {
+        self.valued_by = Some(argument);
+        self
+    }
+
+    pub fn yielding_values(mut self) -> Self {
+        self.reads_values = true;
         self
     }
 
@@ -80,6 +94,7 @@ impl Call {
             &Links {
                 flows: &self.flows,
                 keyed_by: self.keyed_by,
+                valued_by: self.valued_by,
             },
             (&receiver.subject, outer),
         );
@@ -99,7 +114,12 @@ impl Call {
                 && Self::is_container(context.types, type_ref.as_ref())
         });
         let read_keys = receiver.subject.keys.clone().filter(|_| self.reads_keys);
-        let standing = read_keys.or(mapped).unwrap_or_else(|| {
+        let read_values = receiver
+            .subject
+            .values
+            .clone()
+            .filter(|_| self.reads_values);
+        let standing = read_keys.or(read_values).or(mapped).unwrap_or_else(|| {
             standing_after_call(
                 context.types,
                 &receiver.subject,
@@ -110,6 +130,7 @@ impl Call {
         });
         let subject = Subject {
             keys: judged.keys,
+            values: judged.values,
             ..Subject::new(standing, type_ref)
         };
         Judged { verdicts, subject }

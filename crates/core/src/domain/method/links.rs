@@ -252,6 +252,65 @@ fn a_call_passes_on_the_keys_of_the_argument_the_link_names() {
     assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
 }
 
+fn mapping_to_customers() -> Call {
+    collectors_call("toMap")
+        .with(MethodReference::new(Expression::static_type(order()), "getCustomer", 2).taking(1))
+        .returning(orders_by_customer())
+        .returning_from(&[])
+}
+
+fn customers_collection() -> TypeRef {
+    generic("java.util.Set", &[customer()])
+}
+
+#[test]
+fn a_call_reading_the_values_takes_the_standing_the_link_gave_them() {
+    let values = mapping_to_customers()
+        .valued_by(0)
+        .then("values", 2)
+        .returning(customers_collection())
+        .yielding_values();
+
+    let verdicts = withdrawing_from_each_of(values).verdicts(&keyed());
+
+    assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
+}
+
+#[test]
+fn a_call_that_does_not_read_the_values_keeps_the_standing_of_its_receiver() {
+    let values = mapping_to_customers()
+        .valued_by(0)
+        .then("values", 2)
+        .returning(customers_collection());
+
+    let verdicts = withdrawing_from_each_of(values).verdicts(&keyed());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::allowed(
+            "getWallet",
+            3,
+            Reason::loop_variable("customer", Reason::static_result("toMap"))
+        ))
+    );
+}
+
+#[test]
+fn a_call_passes_on_the_values_of_the_argument_the_link_names() {
+    let collected = orders_collected_by(mapping_to_customers().valued_by(0))
+        .returning(orders_by_customer())
+        .valued_by(0);
+
+    let values = collected
+        .then("values", 2)
+        .returning(customers_collection())
+        .yielding_values();
+
+    let verdicts = withdrawing_from_each_of(values).verdicts(&keyed());
+
+    assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
+}
+
 #[test]
 fn a_method_reference_takes_its_resolved_input_type_when_its_functional_parameter_is_open() {
     let wallet = MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
