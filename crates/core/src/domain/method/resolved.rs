@@ -240,3 +240,34 @@ fn a_method_reference_with_a_resolved_arity_yields_its_result_without_the_functi
         )
     );
 }
+
+fn unresolved_return_of(name: &str) -> Reason {
+    Reason::unresolved_type(None, Reason::return_of(name))
+}
+
+#[test]
+fn without_a_resolved_return_the_domain_does_not_infer_a_type_variable_from_the_arguments() {
+    let types = shop().with_shape(
+        class("Picker").with_method(
+            MethodShape::new("first")
+                .with_parameters(vec![generic(LIST, &[TypeRef::variable("T")])])
+                .returning(TypeRef::variable("T")),
+        ),
+    );
+    let pick = Method::new("Warehouse", "pick", 1).call(
+        Call::new(
+            Expression::parameter("picker", TypeRef::class("Picker")),
+            "first",
+            2,
+        )
+        .with(Expression::parameter("orders", generic(LIST, &[order()])))
+        .then("getCustomer", 2),
+    );
+
+    let verdicts = pick.verdicts(&types);
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("getCustomer", 2, unresolved_return_of("first"))
+    );
+}
