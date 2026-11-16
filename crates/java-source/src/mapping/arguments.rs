@@ -24,22 +24,23 @@ impl MethodMapper<'_> {
         expected: Option<&TypeRef>,
     ) -> Option<Resolved> {
         let mut invocation = self.invocation_of(call)?.expecting(self.types, expected);
-        let mut attempted: Vec<Option<Option<TypeRef>>> = vec![None; call.arguments.len()];
+        let count = call.arguments.len();
+        let mut targets: Vec<Option<TypeRef>> = vec![None; count];
+        let mut attempted = vec![false; count];
         for round in [Round::Ready, Round::Nested, Round::Remaining] {
             for (index, argument) in call.arguments.iter().enumerate() {
-                if attempted[index].is_none()
-                    && self.takes_part(argument, round, &invocation, index)
-                {
-                    attempted[index] = Some(invocation.parameter(index).cloned());
+                if !attempted[index] && self.takes_part(argument, round, &invocation, index) {
+                    attempted[index] = true;
+                    targets[index] = invocation.parameter(index).cloned();
                     invocation = self.bound_by(argument, invocation, index);
                 }
             }
         }
-        let targets = attempted
-            .into_iter()
-            .enumerate()
-            .map(|(index, target)| target.unwrap_or_else(|| invocation.parameter(index).cloned()))
-            .collect();
+        for (index, target) in targets.iter_mut().enumerate() {
+            if !attempted[index] {
+                *target = invocation.parameter(index).cloned();
+            }
+        }
         Some(Resolved {
             invocation,
             targets,
