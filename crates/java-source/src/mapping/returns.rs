@@ -23,6 +23,15 @@ impl MethodMapper<'_> {
         call: &model::Call,
         expected: Option<&TypeRef>,
     ) -> Option<TypeRef> {
+        self.open_returned_by(call, expected)
+            .filter(|returned| !has_variable(returned))
+    }
+
+    pub(super) fn open_returned_by(
+        &mut self,
+        call: &model::Call,
+        expected: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
         let key = (address(call), expected.cloned());
         if let Some(known) = self.memo.calls.get(&key) {
             return known.clone();
@@ -30,7 +39,7 @@ impl MethodMapper<'_> {
         let types = self.types;
         let returned = self
             .resolve(call, expected)
-            .and_then(|resolved| resolved.invocation.returned(types, expected));
+            .and_then(|resolved| resolved.invocation.returned_open(types, expected));
         self.memo.calls.insert(key, returned.clone());
         returned
     }
@@ -240,14 +249,25 @@ impl Invocation {
     }
 
     pub(super) fn returned(&self, types: &Types, expected: Option<&TypeRef>) -> Option<TypeRef> {
+        self.returned_open(types, expected)
+            .filter(|returned| !has_variable(returned))
+    }
+
+    pub(super) fn returned_open(
+        &self,
+        types: &Types,
+        expected: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
         let returned = self.returned.as_ref()?;
         let bound = self.bound_by(types);
         let completed = match expected {
             Some(expected) => complete(types, &self.free, returned, &bound, expected)?,
             None => bound,
         };
-        let applied = apply_bindings(returned, &self.with_declared_bounds(completed));
-        (!has_variable(&applied)).then_some(applied)
+        Some(apply_bindings(
+            returned,
+            &self.with_declared_bounds(completed),
+        ))
     }
 
     fn bound_by(&self, types: &Types) -> Bindings {

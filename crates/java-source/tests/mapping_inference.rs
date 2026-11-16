@@ -246,7 +246,10 @@ fn a_type_variable_bound_only_by_null_stays_unresolved() {
 
     let mapped = mapped_pick("null", methods);
 
-    assert_eq!(mapped, expected_pick(vec![literal()], None));
+    assert_eq!(
+        mapped,
+        expected_pick(vec![literal()], Some(list_of(variable("T"))))
+    );
 }
 
 #[test]
@@ -297,7 +300,10 @@ fn argument_types_without_a_widest_one_leave_the_type_variable_unresolved() {
 
     let mapped = mapped_pick("order, customer", methods);
 
-    assert_eq!(mapped, expected_pick(vec![an_order(), a_customer()], None));
+    assert_eq!(
+        mapped,
+        expected_pick(vec![an_order(), a_customer()], Some(list_of(variable("T"))))
+    );
 }
 
 #[test]
@@ -318,7 +324,10 @@ fn a_primitive_array_does_not_bind_an_element_type_variable() {
 
     let mapped = mapped_pick("ids", methods);
 
-    assert_eq!(mapped, expected_pick(vec![the_ids()], None));
+    assert_eq!(
+        mapped,
+        expected_pick(vec![the_ids()], Some(list_of(variable("T"))))
+    );
 }
 
 #[test]
@@ -371,7 +380,7 @@ fn a_type_variable_no_argument_binds_stays_unresolved_without_an_expected_type()
 
     let mapped = mapped_pick("", methods);
 
-    assert_eq!(mapped, expected_pick(vec![], None));
+    assert_eq!(mapped, expected_pick(vec![], Some(list_of(variable("T")))));
 }
 
 #[test]
@@ -524,13 +533,16 @@ fn the_expected_type_binds_a_type_variable_before_its_declared_bound_does() {
 }
 
 #[test]
-fn a_declared_bound_that_mentions_its_own_type_variable_leaves_the_call_unresolved() {
+fn a_declared_bound_that_mentions_its_own_type_variable_leaves_the_type_variable_open() {
     let comparable = generic("java.lang.Comparable", &[variable("T")]);
-    let methods = vec![bounded(pick(&["T"], vec![], variable("T")), comparable)];
+    let methods = vec![bounded(
+        pick(&["T"], vec![], variable("T")),
+        comparable.clone(),
+    )];
 
     let mapped = mapped_pick("", methods);
 
-    assert_eq!(mapped, expected_pick(vec![], None));
+    assert_eq!(mapped, expected_pick(vec![], Some(comparable)));
 }
 
 #[test]

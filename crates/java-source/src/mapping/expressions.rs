@@ -96,7 +96,7 @@ impl MethodMapper<'_> {
         inherited: &[String],
     ) -> Expression {
         let mapped = self.mapped_call(call, expected, inherited);
-        match self.returned_by(call, expected) {
+        match self.open_returned_by(call, expected) {
             Some(returned) => Expression::return_of(mapped.returning(returned)),
             None => Expression::return_of(mapped),
         }

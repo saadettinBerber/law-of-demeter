@@ -161,6 +161,10 @@ fn streamed() -> Expression {
     Expression::return_of(stream)
 }
 
+fn open_stream() -> Option<TypeRef> {
+    Some(stream_of(variable("R")))
+}
+
 fn mapping(reference: MethodReference, returned: Option<TypeRef>) -> Method {
     let map = call(streamed(), "map", 3)
         .with(reference.taking(1).fed_by_receiver())
@@ -253,7 +257,7 @@ fn a_reference_to_a_method_that_returns_nothing_leaves_the_result_unresolved() {
 
     assert_eq!(
         mapped,
-        mapping(through(order(), "touch").resolving(order()), None)
+        mapping(through(order(), "touch").resolving(order()), open_stream())
     );
 }
 
@@ -263,7 +267,7 @@ fn a_reference_to_a_method_the_type_does_not_have_leaves_the_result_unresolved()
 
     assert_eq!(
         mapped,
-        mapping(through(order(), "vanish").resolving(order()), None)
+        mapping(through(order(), "vanish").resolving(order()), open_stream())
     );
 }
 
@@ -275,7 +279,7 @@ fn a_reference_on_a_type_the_catalog_does_not_know_leaves_the_result_unresolved(
         mapped,
         mapping(
             MethodReference::new(Expression::unresolved("Ghost"), "getCustomer", 3),
-            None
+            open_stream()
         )
     );
 }
@@ -284,7 +288,10 @@ fn a_reference_on_a_type_the_catalog_does_not_know_leaves_the_result_unresolved(
 fn a_constructor_reference_to_a_generic_class_leaves_the_result_unresolved() {
     let mapped = mapped_map("Stream::new");
 
-    assert_eq!(mapped, mapping(through(class("Stream"), "new"), None));
+    assert_eq!(
+        mapped,
+        mapping(through(class("Stream"), "new"), open_stream())
+    );
 }
 
 #[test]
@@ -293,7 +300,7 @@ fn a_reference_that_is_both_static_and_unbound_leaves_the_result_unresolved() {
 
     assert_eq!(
         mapped,
-        mapping(through(order(), "lookup").resolving(order()), None)
+        mapping(through(order(), "lookup").resolving(order()), open_stream())
     );
 }
 

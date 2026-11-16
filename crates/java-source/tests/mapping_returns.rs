@@ -346,7 +346,7 @@ fn an_argument_of_unknown_type_leaves_only_the_overloads_that_take_a_class() {
 }
 
 #[test]
-fn a_generic_return_type_leaves_the_call_unresolved() {
+fn a_generic_return_type_keeps_its_open_type_variable() {
     let source = "class OrderService {\n void f(Order order) {\n  order.getItems().go();\n }\n}";
     let items = TypeRef::generic("java.util.List", vec![TypeRef::variable("T")]);
     let types = shop()
@@ -356,7 +356,14 @@ fn a_generic_return_type_leaves_the_call_unresolved() {
 
     assert_eq!(
         mapped,
-        f(2).call(call(parameter("order", class("Order")), "getItems", 3).then("go", 3))
+        f(2).call(
+            call(parameter("order", class("Order")), "getItems", 3)
+                .returning(TypeRef::generic(
+                    "java.util.List",
+                    vec![TypeRef::variable("T")]
+                ))
+                .then("go", 3)
+        )
     );
 }
 
@@ -487,7 +494,7 @@ fn a_raw_receiver_leaves_a_call_returning_a_type_variable_unresolved() {
 }
 
 #[test]
-fn a_method_type_variable_shadowing_the_class_one_leaves_the_call_unresolved() {
+fn a_method_type_variable_shadowing_the_class_one_stays_open() {
     let source = "class OrderService {\n void f(Box<Order> box) {\n  box.pick().go();\n }\n}";
     let types = shop().with_shape(
         shape("Box").with_type_parameter("T").with_method(
@@ -507,6 +514,7 @@ fn a_method_type_variable_shadowing_the_class_one_leaves_the_call_unresolved() {
                 "pick",
                 3
             )
+            .returning(TypeRef::variable("T"))
             .then("go", 3)
         )
     );

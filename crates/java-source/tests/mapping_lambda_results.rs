@@ -104,6 +104,10 @@ fn reading(method: &str, returned: TypeRef, line: usize) -> Expression {
     Expression::return_of(read)
 }
 
+fn open_stream() -> TypeRef {
+    stream_of(variable("R"))
+}
+
 fn mapping(lambda: Lambda, returned: Option<TypeRef>) -> Call {
     let map = call(streamed(), "map", 3).with(lambda).returning_from(&[0]);
     match returned {
@@ -179,7 +183,7 @@ fn the_returns_of_a_block_lambda_that_disagree_leave_the_result_unresolved() {
     let mapped = mapped_branches("getCustomer", "getWallet");
 
     let lambda = branching_lambda(("getCustomer", customer()), ("getWallet", wallet()));
-    assert_eq!(mapped, f(2).call(mapping(lambda, None)));
+    assert_eq!(mapped, f(2).call(mapping(lambda, Some(open_stream()))));
 }
 
 #[test]
@@ -206,7 +210,7 @@ fn a_return_of_unknown_type_leaves_the_result_unresolved() {
     let early = call(Expression::local("o"), "getCustomer", 5).returning(customer());
     let last = Expression::return_of(call(Expression::local("o"), "getMystery", 7));
     let lambda = ordering().call(early).yielding(last);
-    assert_eq!(mapped, f(2).call(mapping(lambda, None)));
+    assert_eq!(mapped, f(2).call(mapping(lambda, Some(open_stream()))));
 }
 
 #[test]
