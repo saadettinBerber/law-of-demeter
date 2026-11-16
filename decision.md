@@ -34,7 +34,7 @@
 | Aşırı yükleme seçiminde kutulama ile genişletmeyi destekle: `int` argüman `long` ya da `Integer` parametresine uysun. | Yapıldı |
 | Değişmez argümanın tipini kullan: `Map.of("created", handler)` içinde `K`, `String` olsun. | Yapıldı |
 | Blok gövdeli lambdada son `return` dışındaki `return` ifadelerinin tipini de kullan. | Yapıldı |
-| İç içe generic çağrının maliyetini sınırla: her iç içe seviye yargılamayı ikiye katlıyor. | Yapılmadı |
+| İç içe generic çağrının maliyetini sınırla: her iç içe seviye yargılamayı ikiye katlıyor. | Yapıldı |
 | Rapor metninde statik sabiti metot çağrısı gibi yazma: `PAID() statik çağrısı` yerine `PAID statik sabiti`. | Yapıldı |
 | Gruplama anahtarının durumunu sınıflandırıcıdan al: `groupingBy(Order::getCustomer)` haritasının anahtarları yabancı, değerleri arkadaş olsun. | Yapılmadı |
 | Değer konumundaki metot referansını da yargıla: `Function<Order, Customer> f = Order::getCustomer;`, `return this::handle;`. | Yapıldı |
@@ -51,7 +51,7 @@
 | [Generic metodun tip değişkenini adapter çıkarsın: argümandan, beklenen tipten ve sınırından (`<T extends Shape>`).](README.md#mimari) | Yapıldı |
 | [Lambda parametresinin tipini adapter bulsun: fonksiyonel arayüzün tek soyut metodundan; hedef tip atamadan, dönüşten ya da kurucu parametresinden.](README.md#mimari) | Yapıldı |
 | [Metot referansının tipini adapter çözsün: `Order::getCustomer`, `this::handle`, kurucu referansı.](README.md#mimari) | Yapıldı |
-| [İç içe generic çağrının tiplerini adapter çözsün: `collect(Collectors.groupingBy(...))`.](README.md#mimari) | Yapılmadı |
+| [İç içe generic çağrının tiplerini adapter çözsün: `collect(Collectors.groupingBy(...))`.](README.md#mimari) | Yapıldı |
 | [Veri akışı bağlarını adapter versin: hangi lambda parametresi alıcının elemanlarıyla besleniyor, lambda sonucu dönüşe akıyor mu; domain arkadaş ya da yabancı durumunu bu bağlar boyunca taşısın.](README.md#mimari) | Yapılmadı |
 | [Tip çıkarımını domain'den sil: `invocation.rs`, `functional.rs`, aşırı yükleme ve generic bağlama; domain testleri çözülmüş tiplerle sadeleşsin.](README.md#mimari) | Yapılmadı |
 | [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapılmadı |
