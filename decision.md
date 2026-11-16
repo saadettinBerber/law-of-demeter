@@ -57,5 +57,5 @@
 | [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapıldı |
 | [Haritanın değer ve girdi bağlarını adapter versin: `toMap` değerleri, `entrySet()`, `getKey()` ve `values()` durumu doğru kaynaktan alsın.](README.md#mimari) | Yapıldı |
 | [Kurucuya verilen lambda ve metot referansının besleyen bağını adapter versin: `new Worker(e -> ...)`.](README.md#mimari) | Yapıldı |
-| [Yıldızlı statik importla gelen alıcısız çağrının dönüş tipini adapter bulsun: `import static shop.Orders.*;` sonrası `create()`.](README.md#mimari) | Yapılmadı |
+| [Yıldızlı statik importla gelen alıcısız çağrının dönüş tipini adapter bulsun: `import static shop.Orders.*;` sonrası `create()`.](README.md#mimari) | Yapıldı |
 | [Ham generic alıcıda generic dönüşü silinmiş tiple çöz: ham `List` üzerinde `get(0)` → `Object`.](README.md#mimari) | Yapılmadı |
