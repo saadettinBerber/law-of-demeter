@@ -235,7 +235,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 |---|---|---|
 | Denetim isteği | Denetlenecek kaynaklar ve derlenmiş sınıflar | CLI |
 | Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin nereden geldiği: parametre, alan, `new` ya da başka bir çağrının dönüşü | Java ayrıştırıcı |
-| Tip kataloğu | Bir tipin alanları ve metotları; Lombok'un ürettikleri dahil | `.class` okuyucu |
+| Tip kataloğu | Bir tipin alanları ve metotları, Lombok'un ürettikleri dahil; dilin standart kütüphanesinden bilinen değer, konteyner ve veri yapısı tipleri | `.class` okuyucu; bilinen tipler için Java ayrıştırıcının JDK kataloğu |
 | Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural. Kullanıcı isterse uygun çağrılar da uydukları kuralla birlikte. | Metin raporu |
 
 Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Domain verinin hangi yoldan geldiğini bilmez. Bu yüzden domain testleri Java dosyası olmadan yazılır.
