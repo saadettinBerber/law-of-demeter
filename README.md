@@ -175,6 +175,43 @@ law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/c
 
 Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir ama çıkış kodunu değiştirmez.
 
+### Örnek
+
+Repodaki `examples/shop` projesini denetlemek için repo kökünden:
+
+```bash
+cd examples/shop
+```
+
+```bash
+mvn -q compile dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
+```
+
+```bash
+law-of-demeter --source src/main/java --classpath "$(cat target/classpath.txt):target/classes"
+```
+
+<details>
+<summary><strong>Örnek çıktı</strong></summary>
+
+```text
+İhlaller:
+...
+src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+...
+
+Hibrit sınıflar:
+src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
+
+Özet:
+...
+```
+
+Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve nedeni gösterir. Raporun tamamı [beklenen raporda](examples/shop/expected-report.txt) durur; bu rapor `--show-allowed` ile uygun çağrıları da listeler.
+
+</details>
+
 Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
 
 ## Mimari
