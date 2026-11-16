@@ -156,7 +156,7 @@ pub(super) fn functional_method(types: &Types, target: &TypeRef) -> Option<Funct
             .shape
             .methods()
             .iter()
-            .filter(|m| !is_object_method(m))
+            .filter(|method| !is_object_method(method))
         {
             let key = (method.name(), method.parameters().len());
             if declared.iter().any(|(known, _)| *known == key) {

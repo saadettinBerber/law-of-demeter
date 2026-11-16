@@ -178,16 +178,12 @@ impl Invocation {
     }
 
     fn bound_by(&self, types: &Types, results: &[Option<TypeRef>]) -> Bindings {
-        let returns: Vec<_> = results
+        let pairs: Vec<_> = results
             .iter()
             .enumerate()
             .filter_map(|(index, result)| {
-                Some((self.functional_returns(types, index)?, result.as_ref()?))
+                Some((self.functional_returns(types, index)?, result.clone()?))
             })
-            .collect();
-        let pairs: Vec<_> = returns
-            .iter()
-            .map(|(returned, result)| (returned, *result))
             .collect();
         bind_results(types, &self.free, &self.bindings, &pairs)
     }

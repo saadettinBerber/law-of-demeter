@@ -86,7 +86,7 @@ pub(super) fn bind_results(
     types: &Types,
     free: &[String],
     bound: &Bindings,
-    results: &[(&TypeRef, &TypeRef)],
+    results: &[(TypeRef, TypeRef)],
 ) -> Bindings {
     let mut constraints = Constraints::default();
     for (returned, result) in results {
