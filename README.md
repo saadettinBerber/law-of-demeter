@@ -1,15 +1,15 @@
 # Law of Demeter
 
-Kaynak kodda Law of Demeter ihlallerini bulan bir araç. Kodu tip bilgisiyle birlikte okur ve kuralı çiğneyen her çağrıyı nedeniyle raporlar.
+Kaynak kodda Law of Demeter ihlallerini bulur. Kodu tip bilgisiyle okur ve kuralı çiğneyen her çağrıyı nedeniyle raporlar.
 
-Şu anda Java'yı destekliyor: Java kaynağını derlenmiş sınıflarla birlikte okur. Python, Rust gibi diller ileride eklenecek.
+Şimdilik Java'yı destekler; kaynağı derlenmiş sınıflarla birlikte okur. Python, Rust gibi diller ileride eklenecek.
 
 ## Ajanlar için
 
-Araç, kod yazan her ajana sınır koymak için yazıldı: yapay zekâ ajanlarına, süper zekâya (Super Intelligence) ve insan ajanlara. Ajan kod yazarken aracı çalıştırır, kuralı çiğneyen çağrıları rapordan görür ve düzeltir.
+Araç, kod yazan her ajana sınır koymak için yazıldı: yapay zekâ ajanlarına, süper zekâya (Super Intelligence) ve insanlara. Ajan kod yazarken aracı çalıştırır, ihlalleri rapordan görür ve düzeltir.
 
 - **Çıkış kodu sınırı çizer:** İhlal ya da hibrit sınıf varsa araç 1 ile çıkar. Ajan bu sonucu başarısız bir test gibi ele alır.
-- **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir. Ajan neyi neden düzelteceğini buradan öğrenir.
+- **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir; ajan neyi neden düzelteceğini bilir.
 
 Kurulum, komut, seçenekler ve çıkış kodları [Kullanım](#kullanım) bölümünde.
 
@@ -89,7 +89,7 @@ Sonuç: f yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ula
 
 ## Veri yapıları
 
-Kural nesneler içindir. Nesne verisini gizler ve davranışını açar. Veri yapısı ise verisini açar ve davranış taşımaz. İki durumu da karıştırmamak gerekir.
+Kural nesneler içindir. Nesne verisini gizleyip davranışını açar; veri yapısı verisini açar ve davranış taşımaz. İkisi karıştırılmamalıdır.
 
 <details>
 <summary><strong>Hibrit sınıf</strong></summary>
@@ -228,7 +228,7 @@ class Connector {
 1. `config.server()`: Serbest. `config`, f'ye argüman olarak verildi.
 2. `.port()`: Serbest. `server()`'ın döndürdüğü `Server` bir veri yapısı; yalnızca veri taşıyor.
 
-Sonuç: `portOf` aynı kalıyor. `Config` ve `Server` davranış taşımadığı için yapılarını açmaları beklenen bir durum.
+Sonuç: `portOf` aynı kalıyor; `Config` ve `Server` davranış taşımadığı için yapılarını açmaları normal.
 
 </details>
 
