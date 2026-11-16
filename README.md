@@ -26,8 +26,6 @@ Law of Demeter bu bağımlılığı sınırlar: metot yalnızca yakın çevresin
 
 Zincirleri gözle aramak büyük projede zordur ve her zincir ihlal değildir: veri yapısında, akıcı zincirde ya da Java koleksiyonlarında zincir serbesttir. Araç bu ayrımı derlenmiş sınıflardan okuduğu tip bilgisiyle yapar.
 
-Kaynak: Karl Lieberherr ve Ian Holland, *Assuring Good Style for Object-Oriented Programs*, IEEE Software, 1989.
-
 ## Kural
 
 <details>
@@ -158,8 +156,6 @@ Sonuç: `Config` ve `Server` davranış taşımadığı için yapılarını açm
 
 </details>
 
-Kaynak: Robert C. Martin, *Clean Code*, 6. bölüm.
-
 ## Kullanım
 
 Araç repo kökünden kurulur:
@@ -269,6 +265,10 @@ class OrderService {
 
 </details>
 
-Kaynak: Alistair Cockburn, [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture).
-
 </details>
+
+## Kaynaklar
+
+- **Law of Demeter:** Karl Lieberherr ve Ian Holland, *Assuring Good Style for Object-Oriented Programs*, IEEE Software, 1989.
+- **Veri yapıları ve hibrit sınıflar:** Robert C. Martin, *Clean Code*, 6. bölüm.
+- **Altıgen mimari:** Alistair Cockburn, [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture).
