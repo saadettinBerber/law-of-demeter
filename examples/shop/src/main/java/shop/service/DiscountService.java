@@ -22,4 +22,8 @@ public class DiscountService {
     public void discountOrder(Order order) {
         order.applyDiscount(10);
     }
+
+    public void discountLines(Order order) {
+        new Batch<>(order.getLines(), line -> line.applyDiscount(10));
+    }
 }

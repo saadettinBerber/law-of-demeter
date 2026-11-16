@@ -239,7 +239,7 @@ void discountLines(Order order) {
 
 - **Not (kurucu):** Lambdanın girdisini başka bir argüman beslemiyorsa lambda, çağrının alıcısına bağlı kalır; kurucuda bu, oluşturulan nesnedir: `new Worker(e -> ...)`. Metot referansı da aynı yoldan beslenir: `new Batch<>(order.getLines(), OrderLine::getId)`. Kurucu ya da metot belirlenemezse bağ kurulmaz.
 
-- **Örnek projede:** [`BillingService.java:15`](examples/shop/src/main/java/shop/service/BillingService.java#L15), [`BillingService.java:19`](examples/shop/src/main/java/shop/service/BillingService.java#L19), [`ReportingService.java:71`](examples/shop/src/main/java/shop/service/ReportingService.java#L71)
+- **Örnek projede:** [`BillingService.java:15`](examples/shop/src/main/java/shop/service/BillingService.java#L15), [`BillingService.java:19`](examples/shop/src/main/java/shop/service/BillingService.java#L19), [`DiscountService.java:27`](examples/shop/src/main/java/shop/service/DiscountService.java#L27)
 
 </details>
 
@@ -286,7 +286,7 @@ void ship(List<Order> orders) {
 
 - **Not:** Haritanın değerleri akışın elemanlarından gelir ve elemanların durumunu korur: `grouped.get(customer).get(0).getStatus()` arkadaş olan siparişle konuşur. Anahtarın durumu yalnızca anahtarları veren çağrıdan okunur (`keySet()`, `getKey()`), değerin durumu yalnızca değerleri veren çağrıdan (`values()`, `getValue()`, `get`); `entrySet()` ve onu süren çağrılar (`stream()` gibi) girdilerin ikisini de taşır. Haritanın kendisi değişmez.
 
-- **Örnek projede:** [`ReportingService.java:53`](examples/shop/src/main/java/shop/service/ReportingService.java#L53), [`ReportingService.java:59`](examples/shop/src/main/java/shop/service/ReportingService.java#L59), [`ReportingService.java:65-66`](examples/shop/src/main/java/shop/service/ReportingService.java#L65-L66)
+- **Örnek projede:** [`BuyerService.java:23`](examples/shop/src/main/java/shop/service/BuyerService.java#L23), [`BuyerService.java:29`](examples/shop/src/main/java/shop/service/BuyerService.java#L29), [`BuyerService.java:35-36`](examples/shop/src/main/java/shop/service/BuyerService.java#L35-L36)
 
 </details>
 

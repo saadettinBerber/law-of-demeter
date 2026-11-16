@@ -48,29 +48,6 @@ public class ReportingService {
         wallets.stream().map(Optional::of).forEach(System.out::println);
     }
 
-    public void renameBuyers(List<Order> orders, String prefix) {
-        for (Customer buyer : orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()) {
-            buyer.rename(prefix);
-        }
-    }
-
-    public void renameByOrder(List<Order> orders, String prefix) {
-        for (Customer buyer : orders.stream().collect(Collectors.toMap(Order::getId, Order::getCustomer)).values()) {
-            buyer.rename(prefix);
-        }
-    }
-
-    public void shipByBuyer(List<Order> orders) {
-        for (Map.Entry<Customer, Order> entry : orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order)).entrySet()) {
-            entry.getKey().getWallet();
-            entry.getValue().ship();
-        }
-    }
-
-    public void discountLines(Order order) {
-        new Batch<>(order.getLines(), line -> line.applyDiscount(10));
-    }
-
     public List<Integer> balancesOf(Order[] batch) {
         return Arrays.stream(batch).map(Order::balance).toList();
     }
