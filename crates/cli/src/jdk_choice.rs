@@ -12,14 +12,14 @@ pub fn choose_jdk(
     let jdk = match &arguments.jdk_home {
         Some(home) => Jdk::at(home),
         None => Jdk::locate_in(java_home, path).ok_or_else(|| {
-            UsageError("JDK bulunamadı: --jdk-home verin ya da JAVA_HOME ayarlayın".to_owned())
+            UsageError("no JDK found: pass --jdk-home or set JAVA_HOME".to_owned())
         })?,
     };
     let release = match arguments.release {
         Some(release) => release,
         None => jdk
             .feature_version()
-            .map_err(|error| UsageError(format!("JDK sürümü okunamadı: {error}")))?,
+            .map_err(|error| UsageError(format!("cannot read the JDK version: {error}")))?,
     };
     Ok((jdk, release))
 }

@@ -1,242 +1,242 @@
-İhlaller (39):
-src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  İhlal: getEntry() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  İhlal: getPosting() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BuyerService.java:23  shop.service.BuyerService.renameBuyers  rename()  İhlal: buyer döngü değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BuyerService.java:29  shop.service.BuyerService.renameByOrder  rename()  İhlal: buyer döngü değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/BuyerService.java:35  shop.service.BuyerService.shipByBuyer  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  clear()  İhlal: getCart() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  applyDiscount()  İhlal: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  port()  İhlal: gateway() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/DiscountService.java:15  shop.service.DiscountService.discount  applyDiscount()  İhlal: findLine() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/DiscountService.java:27  shop.service.DiscountService.discountLines  applyDiscount()  İhlal: line lambda parametresi: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  close()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:39  shop.service.EventDispatcher.shipping  getOrder()  İhlal: getReceipt() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/EventDispatcher.java:39  shop.service.EventDispatcher.shipping  ship()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/GuestService.java:7  shop.service.GuestService.deposit  deposit()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/OrderService.java:52  shop.service.OrderService.move  setAddress()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/OrderService.java:56  shop.service.OrderService.addLine  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List<shop.domain.OrderLine>): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  applyDiscount()  İhlal: line lambda parametresi: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.payFromCustomer  getWallet()  İhlal: customer yerel değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.payFromCustomer  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  rename()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  length()  İhlal: getOutline() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getWallet()  İhlal: Customer::getWallet metot referansı: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+Violations (39):
+src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  Violation: the object returned by getEntry() is not a friend of f
+src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  Violation: the object returned by getPosting() is not a friend of f
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  Violation: lambda parameter customer: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  withdraw()  Violation: the object returned by getWallet() is not a friend of f
+src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  getWallet()  Violation: lambda parameter customer: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  withdraw()  Violation: the object returned by getWallet() is not a friend of f
+src/main/java/shop/service/BuyerService.java:23  shop.service.BuyerService.renameBuyers  rename()  Violation: loop variable buyer: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/BuyerService.java:29  shop.service.BuyerService.renameByOrder  rename()  Violation: loop variable buyer: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/BuyerService.java:35  shop.service.BuyerService.shipByBuyer  getWallet()  Violation: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  clear()  Violation: the object returned by getCart() is not a friend of f
+src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  applyDiscount()  Violation: the object returned by getLines() is not a friend of f
+src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  port()  Violation: the object returned by gateway() is not a friend of f
+src/main/java/shop/service/DiscountService.java:15  shop.service.DiscountService.discount  applyDiscount()  Violation: the object returned by findLine() is not a friend of f
+src/main/java/shop/service/DiscountService.java:27  shop.service.DiscountService.discountLines  applyDiscount()  Violation: lambda parameter line: the object returned by getLines() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  close()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getOrder()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  ship()  Violation: the object returned by getOrder() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  getOrder()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  ship()  Violation: the object returned by getOrder() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  getOrder()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  ship()  Violation: the object returned by getOrder() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  getOrder()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  ship()  Violation: the object returned by getOrder() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  getOrder()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  ship()  Violation: the object returned by getOrder() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:39  shop.service.EventDispatcher.shipping  getOrder()  Violation: the object returned by getReceipt() is not a friend of f
+src/main/java/shop/service/EventDispatcher.java:39  shop.service.EventDispatcher.shipping  ship()  Violation: the object returned by getOrder() is not a friend of f
+src/main/java/shop/service/GuestService.java:7  shop.service.GuestService.deposit  deposit()  Violation: the object returned by getWallet() is not a friend of f
+src/main/java/shop/service/OrderService.java:52  shop.service.OrderService.move  setAddress()  Violation: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/OrderService.java:56  shop.service.OrderService.addLine  add()  Violation: collection modified from outside (java.util.List<shop.domain.OrderLine>): the object returned by getLines() is not a friend of f
+src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  applyDiscount()  Violation: lambda parameter line: the object returned by getLines() is not a friend of f
+src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  getWallet()  Violation: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  withdraw()  Violation: the object returned by getWallet() is not a friend of f
+src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.payFromCustomer  getWallet()  Violation: local variable customer: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.payFromCustomer  withdraw()  Violation: the object returned by getWallet() is not a friend of f
+src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  rename()  Violation: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  length()  Violation: the object returned by getOutline() is not a friend of f
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getWallet()  Violation: method reference Customer::getWallet: the object returned by getCustomer() is not a friend of f
+src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  Violation: the object returned by getOrder() is not a friend of f
 
-Uygun çağrılar (170):
-src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
-src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
-src/main/java/shop/domain/Customer.java:31  shop.domain.Customer.balance  getBalance()  Uygun: wallet sınıfın alanı
-src/main/java/shop/domain/Customer.java:35  shop.domain.Customer.charge  withdraw()  Uygun: wallet sınıfın alanı
-src/main/java/shop/domain/Customer.java:39  shop.domain.Customer.deposit  deposit()  Uygun: wallet sınıfın alanı
-src/main/java/shop/domain/Event.java:15  shop.domain.Event.acknowledge  close()  Uygun: receipt sınıfın alanı
-src/main/java/shop/domain/Order.java:56  shop.domain.Order.addLine  size()  Uygun: lines sınıfın alanı
-src/main/java/shop/domain/Order.java:59  shop.domain.Order.addLine  add()  Uygun: lines sınıfın alanı
-src/main/java/shop/domain/Order.java:63  shop.domain.Order.ship  isPaid()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/domain/Order.java:64  shop.domain.Order.ship  markShipped()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/domain/Order.java:73  shop.domain.Order.charge  charge()  Uygun: customer sınıfın alanı
-src/main/java/shop/domain/Order.java:77  shop.domain.Order.balance  balance()  Uygun: customer sınıfın alanı
-src/main/java/shop/domain/Order.java:81  shop.domain.Order.activateCustomer  activate()  Uygun: customer sınıfın alanı
-src/main/java/shop/domain/Order.java:85  shop.domain.Order.reward  deposit()  Uygun: customer sınıfın alanı
-src/main/java/shop/domain/Order.java:89  shop.domain.Order.applyDiscount  applyDiscount()  Uygun: line lambda parametresi: lines sınıfın alanı
-src/main/java/shop/domain/Order.java:89  shop.domain.Order.applyDiscount  forEach()  Uygun: lines sınıfın alanı
-src/main/java/shop/domain/Session.java:21  shop.domain.Session.checkout  checkout()  Uygun: cart sınıfın alanı
-src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getEntry()  Uygun: statement f'ye argüman olarak verildi
-src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getMemo()  Uygun: statement f'ye argüman olarak verildi
-src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getText()  Uygun: shop.ledger.Memo bir veri yapısı
-src/main/java/shop/service/Batch.java:16  shop.service.Batch.run  forEach()  Uygun: items sınıfın alanı
-src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  stream()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getCustomer()  Uygun: Order::getCustomer metot referansı: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  map()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  forEach()  Uygun: java.util.stream.Stream<shop.domain.Customer> bir konteyner
-src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  stream()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  getCustomer()  Uygun: order lambda parametresi: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  map()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  forEach()  Uygun: java.util.stream.Stream<shop.domain.Customer> bir konteyner
-src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  stream()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  map()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  close()  Uygun: receipt lambda parametresi: f'nin içinde oluşturulan nesne (shop.domain.Receipt)
-src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  forEach()  Uygun: f'nin içinde oluşturulan nesne (shop.domain.Receipt)
-src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  stream()  Uygun: batch f'ye argüman olarak verildi
-src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  isPaid()  Uygun: Order::isPaid metot referansı: batch f'ye argüman olarak verildi
-src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  filter()  Uygun: batch f'ye argüman olarak verildi
-src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  count()  Uygun: batch f'ye argüman olarak verildi
-src/main/java/shop/service/BillingService.java:31  shop.service.BillingService.chargeOrders  charge()  Uygun: order lambda parametresi: orders sınıfın alanı
-src/main/java/shop/service/BillingService.java:31  shop.service.BillingService.chargeOrders  forEach()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/BuyerService.java:11  shop.service.BuyerService.activate  activateCustomer()  Uygun: Order::activateCustomer metot referansı: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:11  shop.service.BuyerService.activate  forEach()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:16  shop.service.BuyerService.rewardBuyers  reward()  Uygun: order döngü değişkeni: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:17  shop.service.BuyerService.rewardBuyers  ship()  Uygun: order döngü değişkeni: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  stream()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  getCustomer()  Uygun: Order::getCustomer metot referansı: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  groupingBy()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
-src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  collect()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  keySet()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  stream()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  getId()  Uygun: Order::getId metot referansı: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  getCustomer()  Uygun: Order::getCustomer metot referansı: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  toMap()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
-src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  collect()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  values()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  stream()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  getCustomer()  Uygun: Order::getCustomer metot referansı: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  toMap()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
-src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  collect()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  entrySet()  Uygun: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:35  shop.service.BuyerService.shipByBuyer  getKey()  Uygun: entry döngü değişkeni: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:36  shop.service.BuyerService.shipByBuyer  getValue()  Uygun: entry döngü değişkeni: orders f'ye argüman olarak verildi
-src/main/java/shop/service/BuyerService.java:36  shop.service.BuyerService.shipByBuyer  ship()  Uygun: order lambda parametresi: orders f'ye argüman olarak verildi
-src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  getCart()  Uygun: session f'ye argüman olarak verildi
-src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  get()  Uygun: carts sınıfın alanı
-src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  checkout()  Uygun: carts sınıfın alanı
-src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  getLines()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  get()  Uygun: java.util.List<shop.domain.OrderLine> bir konteyner
-src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  server()  Uygun: config f'ye argüman olarak verildi
-src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  port()  Uygun: shop.domain.Server bir veri yapısı
-src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  gateway()  Uygun: settings f'ye argüman olarak verildi
-src/main/java/shop/service/DiscountService.java:15  shop.service.DiscountService.discount  findLine()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/service/DiscountService.java:19  shop.service.DiscountService.findLine  get()  Uygun: lines sınıfın alanı
-src/main/java/shop/service/DiscountService.java:23  shop.service.DiscountService.discountOrder  applyDiscount()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/DiscountService.java:27  shop.service.DiscountService.discountLines  getLines()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  getReceipt()  Uygun: e lambda parametresi: java.util.Map tipi üzerinde statik çağrı
-src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  of()  Uygun: java.util.Map tipi üzerinde statik çağrı
-src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  get()  Uygun: handlers sınıfın alanı
-src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  accept()  Uygun: handlers sınıfın alanı
-src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getReceipt()  Uygun: e f'ye argüman olarak verildi
-src/main/java/shop/service/EventDispatcher.java:22  shop.service.EventDispatcher.listen  accept()  Uygun: handler yerel değişkeni: f'nin içinde oluşturulan nesne (java.util.function.Consumer<shop.domain.Event>)
-src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  getReceipt()  Uygun: e f'ye argüman olarak verildi
-src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  getReceipt()  Uygun: e f'ye argüman olarak verildi
-src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  getReceipt()  Uygun: e lambda parametresi: f'nin içinde oluşturulan nesne (shop.service.Worker)
-src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  getReceipt()  Uygun: e f'ye argüman olarak verildi
-src/main/java/shop/service/EventDispatcher.java:39  shop.service.EventDispatcher.shipping  getReceipt()  Uygun: event f'ye argüman olarak verildi
-src/main/java/shop/service/GuestService.java:7  shop.service.GuestService.deposit  guest()  Uygun: shop.domain.Defaults tipi üzerinde statik çağrı
-src/main/java/shop/service/GuestService.java:7  shop.service.GuestService.deposit  getWallet()  Uygun: guest() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/GuestService.java:11  shop.service.GuestService.topUp  guest()  Uygun: shop.domain.Defaults tipi üzerinde statik çağrı
-src/main/java/shop/service/GuestService.java:11  shop.service.GuestService.topUp  deposit()  Uygun: guest() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/OrderService.java:22  shop.service.OrderService.canShip  getStatus()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  plus()  Uygun: issuedAt f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  truncatedTo()  Uygun: issuedAt f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:30  shop.service.OrderService.compatible  getVersion()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:30  shop.service.OrderService.compatible  isCompatibleWith()  Uygun: shop.domain.Version bir değer
-src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  builder()  Uygun: shop.domain.Order tipi üzerinde statik çağrı
-src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  id()  Uygun: builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  total()  Uygun: builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  build()  Uygun: builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/OrderService.java:38  shop.service.OrderService.dispatch  findById()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/OrderService.java:38  shop.service.OrderService.dispatch  ship()  Uygun: findById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/OrderService.java:42  shop.service.OrderService.totalOf  getPrice()  Uygun: line f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:42  shop.service.OrderService.totalOf  getQuantity()  Uygun: line f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:46  shop.service.OrderService.ship  getStatus()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:47  shop.service.OrderService.ship  markShipped()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:52  shop.service.OrderService.move  getCustomer()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:56  shop.service.OrderService.addLine  getLines()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  getLines()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  forEach()  Uygun: java.util.List<shop.domain.OrderLine> bir konteyner
-src/main/java/shop/service/OrderService.java:64  shop.service.OrderService.dispatchById  getById()  Uygun: orders sınıfın alanı
-src/main/java/shop/service/OrderService.java:64  shop.service.OrderService.dispatchById  ship()  Uygun: getById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  getCustomer()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/PaymentService.java:17  shop.service.PaymentService.payFromCustomer  getCustomer()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/PaymentService.java:22  shop.service.PaymentService.withdraw  withdraw()  Uygun: wallet sınıfın alanı
-src/main/java/shop/service/PaymentService.java:26  shop.service.PaymentService.charge  charge()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/PriceCache.java:16  shop.service.PriceCache.update  writeLock()  Uygun: lock sınıfın alanı
-src/main/java/shop/service/PriceCache.java:16  shop.service.PriceCache.update  lock()  Uygun: kütüphane tipi (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)
-src/main/java/shop/service/PriceCache.java:18  shop.service.PriceCache.update  put()  Uygun: prices sınıfın alanı
-src/main/java/shop/service/PriceCache.java:20  shop.service.PriceCache.update  writeLock()  Uygun: lock sınıfın alanı
-src/main/java/shop/service/PriceCache.java:20  shop.service.PriceCache.update  unlock()  Uygun: kütüphane tipi (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)
-src/main/java/shop/service/RefundService.java:22  shop.service.RefundService.refund  withdraw()  Uygun: wallet sınıfın alanı
-src/main/java/shop/service/RefundService.java:23  shop.service.RefundService.refund  audit()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/service/RefundService.java:27  shop.service.RefundService.notifyCustomer  getCustomer()  Uygun: order f'ye argüman olarak verildi
-src/main/java/shop/service/RefundService.java:27  shop.service.RefundService.notifyCustomer  send()  Uygun: notifier sınıfın alanı
-src/main/java/shop/service/RefundService.java:31  shop.service.RefundService.settle  getBalance()  Uygun: account f'ye argüman olarak verildi
-src/main/java/shop/service/RefundService.java:31  shop.service.RefundService.settle  setBalance()  Uygun: account f'ye argüman olarak verildi
-src/main/java/shop/service/RefundService.java:35  shop.service.RefundService.audit  add()  Uygun: journal sınıfın alanı
-src/main/java/shop/service/RefundService.java:39  shop.service.RefundService.settleCredit  withdraw()  Uygun: credit f'ye argüman olarak verildi
-src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  create()  Uygun: factory f'ye argüman olarak verildi
-src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  render()  Uygun: create() factory çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Uygun: f'nin içinde oluşturulan nesne (java.lang.StringBuilder)
-src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Uygun: f'nin içinde oluşturulan nesne (java.lang.StringBuilder)
-src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  toString()  Uygun: f'nin içinde oluşturulan nesne (java.lang.StringBuilder)
-src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  stream()  Uygun: java.util.Arrays tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  getCustomer()  Uygun: order lambda parametresi: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  forEach()  Uygun: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  of()  Uygun: java.util.stream.Stream tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  stream()  Uygun: Optional::stream metot referansı: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  flatMap()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  toList()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  collect()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  stream()  Uygun: customers sınıfın alanı
-src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  getWallet()  Uygun: customer lambda parametresi: customers sınıfın alanı
-src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  groupingBy()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  collect()  Uygun: customers sınıfın alanı
-src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  get()  Uygun: shapes f'ye argüman olarak verildi
-src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  getOutline()  Uygun: shapes f'ye argüman olarak verildi
-src/main/java/shop/service/ReportingService.java:40  shop.service.ReportingService.paidName  name()  Uygun: PAID statik sabiti f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  stream()  Uygun: java.util.Arrays tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getCustomer()  Uygun: Order::getCustomer metot referansı: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Uygun: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Uygun: java.util.stream.Stream<shop.domain.Customer> bir konteyner
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  toList()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  collect()  Uygun: java.util.stream.Stream<shop.domain.Wallet> bir konteyner
-src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  stream()  Uygun: wallets f'ye argüman olarak verildi
-src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  of()  Uygun: java.util.Optional tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  map()  Uygun: wallets f'ye argüman olarak verildi
-src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  println()  Uygun: out statik sabiti f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  forEach()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  stream()  Uygun: java.util.Arrays tipi üzerinde statik çağrı
-src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  balance()  Uygun: Order::balance metot referansı: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  map()  Uygun: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
-src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  toList()  Uygun: java.util.stream.Stream<java.lang.Integer> bir konteyner
-src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getOrder()  Uygun: event f'ye argüman olarak verildi
-src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  log()  Uygun: f'nin kendi nesnesi
-src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService.cityOf  getAddress()  Uygun: request f'ye argüman olarak verildi
-src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService.cityOf  getCity()  Uygun: shop.domain.Address bir veri yapısı
-src/main/java/shop/service/ShippingService.java:24  shop.service.ShippingService.keyOf  getId()  Uygun: customer f'ye argüman olarak verildi
-src/main/java/shop/service/ShippingService.java:24  shop.service.ShippingService.keyOf  getValue()  Uygun: shop.domain.CustomerId bir değer
-src/main/java/shop/service/ShippingService.java:28  shop.service.ShippingService.log  add()  Uygun: journal sınıfın alanı
-src/main/java/shop/service/Worker.java:14  shop.service.Worker.run  accept()  Uygun: task sınıfın alanı
+Allowed calls (170):
+src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Allowed: lines is a field of the class
+src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Allowed: lines is a field of the class
+src/main/java/shop/domain/Customer.java:31  shop.domain.Customer.balance  getBalance()  Allowed: wallet is a field of the class
+src/main/java/shop/domain/Customer.java:35  shop.domain.Customer.charge  withdraw()  Allowed: wallet is a field of the class
+src/main/java/shop/domain/Customer.java:39  shop.domain.Customer.deposit  deposit()  Allowed: wallet is a field of the class
+src/main/java/shop/domain/Event.java:15  shop.domain.Event.acknowledge  close()  Allowed: receipt is a field of the class
+src/main/java/shop/domain/Order.java:56  shop.domain.Order.addLine  size()  Allowed: lines is a field of the class
+src/main/java/shop/domain/Order.java:59  shop.domain.Order.addLine  add()  Allowed: lines is a field of the class
+src/main/java/shop/domain/Order.java:63  shop.domain.Order.ship  isPaid()  Allowed: f's own object
+src/main/java/shop/domain/Order.java:64  shop.domain.Order.ship  markShipped()  Allowed: f's own object
+src/main/java/shop/domain/Order.java:73  shop.domain.Order.charge  charge()  Allowed: customer is a field of the class
+src/main/java/shop/domain/Order.java:77  shop.domain.Order.balance  balance()  Allowed: customer is a field of the class
+src/main/java/shop/domain/Order.java:81  shop.domain.Order.activateCustomer  activate()  Allowed: customer is a field of the class
+src/main/java/shop/domain/Order.java:85  shop.domain.Order.reward  deposit()  Allowed: customer is a field of the class
+src/main/java/shop/domain/Order.java:89  shop.domain.Order.applyDiscount  applyDiscount()  Allowed: lambda parameter line: lines is a field of the class
+src/main/java/shop/domain/Order.java:89  shop.domain.Order.applyDiscount  forEach()  Allowed: lines is a field of the class
+src/main/java/shop/domain/Session.java:21  shop.domain.Session.checkout  checkout()  Allowed: cart is a field of the class
+src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getEntry()  Allowed: statement is an argument of f
+src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getMemo()  Allowed: statement is an argument of f
+src/main/java/shop/ledger/Reconciler.java:9  shop.ledger.Reconciler.noteOf  getText()  Allowed: shop.ledger.Memo is a data structure
+src/main/java/shop/service/Batch.java:16  shop.service.Batch.run  forEach()  Allowed: items is a field of the class
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  stream()  Allowed: orders is a field of the class
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getCustomer()  Allowed: method reference Order::getCustomer: orders is a field of the class
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  map()  Allowed: orders is a field of the class
+src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  forEach()  Allowed: java.util.stream.Stream<shop.domain.Customer> is a container
+src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  stream()  Allowed: orders is a field of the class
+src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  getCustomer()  Allowed: lambda parameter order: orders is a field of the class
+src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  map()  Allowed: orders is a field of the class
+src/main/java/shop/service/BillingService.java:19  shop.service.BillingService.chargeAll  forEach()  Allowed: java.util.stream.Stream<shop.domain.Customer> is a container
+src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  stream()  Allowed: orders is a field of the class
+src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  map()  Allowed: orders is a field of the class
+src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  close()  Allowed: lambda parameter receipt: object created in f (shop.domain.Receipt)
+src/main/java/shop/service/BillingService.java:23  shop.service.BillingService.closeReceipts  forEach()  Allowed: object created in f (shop.domain.Receipt)
+src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  stream()  Allowed: batch is an argument of f
+src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  isPaid()  Allowed: method reference Order::isPaid: batch is an argument of f
+src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  filter()  Allowed: batch is an argument of f
+src/main/java/shop/service/BillingService.java:27  shop.service.BillingService.paidCount  count()  Allowed: batch is an argument of f
+src/main/java/shop/service/BillingService.java:31  shop.service.BillingService.chargeOrders  charge()  Allowed: lambda parameter order: orders is a field of the class
+src/main/java/shop/service/BillingService.java:31  shop.service.BillingService.chargeOrders  forEach()  Allowed: orders is a field of the class
+src/main/java/shop/service/BuyerService.java:11  shop.service.BuyerService.activate  activateCustomer()  Allowed: method reference Order::activateCustomer: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:11  shop.service.BuyerService.activate  forEach()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:16  shop.service.BuyerService.rewardBuyers  reward()  Allowed: loop variable order: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:17  shop.service.BuyerService.rewardBuyers  ship()  Allowed: loop variable order: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  stream()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  getCustomer()  Allowed: method reference Order::getCustomer: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  groupingBy()  Allowed: static call on type java.util.stream.Collectors
+src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  collect()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:22  shop.service.BuyerService.renameBuyers  keySet()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  stream()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  getId()  Allowed: method reference Order::getId: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  getCustomer()  Allowed: method reference Order::getCustomer: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  toMap()  Allowed: static call on type java.util.stream.Collectors
+src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  collect()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:28  shop.service.BuyerService.renameByOrder  values()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  stream()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  getCustomer()  Allowed: method reference Order::getCustomer: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  toMap()  Allowed: static call on type java.util.stream.Collectors
+src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  collect()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:34  shop.service.BuyerService.shipByBuyer  entrySet()  Allowed: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:35  shop.service.BuyerService.shipByBuyer  getKey()  Allowed: loop variable entry: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:36  shop.service.BuyerService.shipByBuyer  getValue()  Allowed: loop variable entry: orders is an argument of f
+src/main/java/shop/service/BuyerService.java:36  shop.service.BuyerService.shipByBuyer  ship()  Allowed: lambda parameter order: orders is an argument of f
+src/main/java/shop/service/CheckoutService.java:16  shop.service.CheckoutService.clearCart  getCart()  Allowed: session is an argument of f
+src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  get()  Allowed: carts is a field of the class
+src/main/java/shop/service/CheckoutService.java:20  shop.service.CheckoutService.checkout  checkout()  Allowed: carts is a field of the class
+src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  getLines()  Allowed: order is an argument of f
+src/main/java/shop/service/CheckoutService.java:24  shop.service.CheckoutService.discountFirstLine  get()  Allowed: java.util.List<shop.domain.OrderLine> is a container
+src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  server()  Allowed: config is an argument of f
+src/main/java/shop/service/Connector.java:8  shop.service.Connector.portOf  port()  Allowed: shop.domain.Server is a data structure
+src/main/java/shop/service/Connector.java:12  shop.service.Connector.gatewayPortOf  gateway()  Allowed: settings is an argument of f
+src/main/java/shop/service/DiscountService.java:15  shop.service.DiscountService.discount  findLine()  Allowed: f's own object
+src/main/java/shop/service/DiscountService.java:19  shop.service.DiscountService.findLine  get()  Allowed: lines is a field of the class
+src/main/java/shop/service/DiscountService.java:23  shop.service.DiscountService.discountOrder  applyDiscount()  Allowed: order is an argument of f
+src/main/java/shop/service/DiscountService.java:27  shop.service.DiscountService.discountLines  getLines()  Allowed: order is an argument of f
+src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  getReceipt()  Allowed: lambda parameter e: static call on type java.util.Map
+src/main/java/shop/service/EventDispatcher.java:11  shop.service.EventDispatcher.<init>  of()  Allowed: static call on type java.util.Map
+src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  get()  Allowed: handlers is a field of the class
+src/main/java/shop/service/EventDispatcher.java:15  shop.service.EventDispatcher.dispatch  accept()  Allowed: handlers is a field of the class
+src/main/java/shop/service/EventDispatcher.java:21  shop.service.EventDispatcher.listen  getReceipt()  Allowed: e is an argument of f
+src/main/java/shop/service/EventDispatcher.java:22  shop.service.EventDispatcher.listen  accept()  Allowed: local variable handler: object created in f (java.util.function.Consumer<shop.domain.Event>)
+src/main/java/shop/service/EventDispatcher.java:23  shop.service.EventDispatcher.listen  getReceipt()  Allowed: e is an argument of f
+src/main/java/shop/service/EventDispatcher.java:27  shop.service.EventDispatcher.shipper  getReceipt()  Allowed: e is an argument of f
+src/main/java/shop/service/EventDispatcher.java:31  shop.service.EventDispatcher.worker  getReceipt()  Allowed: lambda parameter e: object created in f (shop.service.Worker)
+src/main/java/shop/service/EventDispatcher.java:35  shop.service.EventDispatcher.listenTyped  getReceipt()  Allowed: e is an argument of f
+src/main/java/shop/service/EventDispatcher.java:39  shop.service.EventDispatcher.shipping  getReceipt()  Allowed: event is an argument of f
+src/main/java/shop/service/GuestService.java:7  shop.service.GuestService.deposit  guest()  Allowed: static call on type shop.domain.Defaults
+src/main/java/shop/service/GuestService.java:7  shop.service.GuestService.deposit  getWallet()  Allowed: the object returned by static call guest() is a friend of f
+src/main/java/shop/service/GuestService.java:11  shop.service.GuestService.topUp  guest()  Allowed: static call on type shop.domain.Defaults
+src/main/java/shop/service/GuestService.java:11  shop.service.GuestService.topUp  deposit()  Allowed: the object returned by static call guest() is a friend of f
+src/main/java/shop/service/OrderService.java:22  shop.service.OrderService.canShip  getStatus()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  plus()  Allowed: issuedAt is an argument of f
+src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  truncatedTo()  Allowed: issuedAt is an argument of f
+src/main/java/shop/service/OrderService.java:30  shop.service.OrderService.compatible  getVersion()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:30  shop.service.OrderService.compatible  isCompatibleWith()  Allowed: shop.domain.Version is a value
+src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  builder()  Allowed: static call on type shop.domain.Order
+src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  id()  Allowed: the object returned by static call builder() is a friend of f
+src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  total()  Allowed: the object returned by static call builder() is a friend of f
+src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  build()  Allowed: the object returned by static call builder() is a friend of f
+src/main/java/shop/service/OrderService.java:38  shop.service.OrderService.dispatch  findById()  Allowed: orders is a field of the class
+src/main/java/shop/service/OrderService.java:38  shop.service.OrderService.dispatch  ship()  Allowed: the object returned by repository query findById() is a friend of f
+src/main/java/shop/service/OrderService.java:42  shop.service.OrderService.totalOf  getPrice()  Allowed: line is an argument of f
+src/main/java/shop/service/OrderService.java:42  shop.service.OrderService.totalOf  getQuantity()  Allowed: line is an argument of f
+src/main/java/shop/service/OrderService.java:46  shop.service.OrderService.ship  getStatus()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:47  shop.service.OrderService.ship  markShipped()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:52  shop.service.OrderService.move  getCustomer()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:56  shop.service.OrderService.addLine  getLines()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  getLines()  Allowed: order is an argument of f
+src/main/java/shop/service/OrderService.java:60  shop.service.OrderService.discount  forEach()  Allowed: java.util.List<shop.domain.OrderLine> is a container
+src/main/java/shop/service/OrderService.java:64  shop.service.OrderService.dispatchById  getById()  Allowed: orders is a field of the class
+src/main/java/shop/service/OrderService.java:64  shop.service.OrderService.dispatchById  ship()  Allowed: the object returned by repository query getById() is a friend of f
+src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  getCustomer()  Allowed: order is an argument of f
+src/main/java/shop/service/PaymentService.java:17  shop.service.PaymentService.payFromCustomer  getCustomer()  Allowed: order is an argument of f
+src/main/java/shop/service/PaymentService.java:22  shop.service.PaymentService.withdraw  withdraw()  Allowed: wallet is a field of the class
+src/main/java/shop/service/PaymentService.java:26  shop.service.PaymentService.charge  charge()  Allowed: order is an argument of f
+src/main/java/shop/service/PriceCache.java:16  shop.service.PriceCache.update  writeLock()  Allowed: lock is a field of the class
+src/main/java/shop/service/PriceCache.java:16  shop.service.PriceCache.update  lock()  Allowed: library type (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)
+src/main/java/shop/service/PriceCache.java:18  shop.service.PriceCache.update  put()  Allowed: prices is a field of the class
+src/main/java/shop/service/PriceCache.java:20  shop.service.PriceCache.update  writeLock()  Allowed: lock is a field of the class
+src/main/java/shop/service/PriceCache.java:20  shop.service.PriceCache.update  unlock()  Allowed: library type (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)
+src/main/java/shop/service/RefundService.java:22  shop.service.RefundService.refund  withdraw()  Allowed: wallet is a field of the class
+src/main/java/shop/service/RefundService.java:23  shop.service.RefundService.refund  audit()  Allowed: f's own object
+src/main/java/shop/service/RefundService.java:27  shop.service.RefundService.notifyCustomer  getCustomer()  Allowed: order is an argument of f
+src/main/java/shop/service/RefundService.java:27  shop.service.RefundService.notifyCustomer  send()  Allowed: notifier is a field of the class
+src/main/java/shop/service/RefundService.java:31  shop.service.RefundService.settle  getBalance()  Allowed: account is an argument of f
+src/main/java/shop/service/RefundService.java:31  shop.service.RefundService.settle  setBalance()  Allowed: account is an argument of f
+src/main/java/shop/service/RefundService.java:35  shop.service.RefundService.audit  add()  Allowed: journal is a field of the class
+src/main/java/shop/service/RefundService.java:39  shop.service.RefundService.settleCredit  withdraw()  Allowed: credit is an argument of f
+src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  create()  Allowed: factory is an argument of f
+src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  render()  Allowed: the object returned by factory call create() is a friend of f
+src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Allowed: object created in f (java.lang.StringBuilder)
+src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Allowed: object created in f (java.lang.StringBuilder)
+src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  toString()  Allowed: object created in f (java.lang.StringBuilder)
+src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  stream()  Allowed: static call on type java.util.Arrays
+src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  getCustomer()  Allowed: lambda parameter order: the object returned by static call stream() is a friend of f
+src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  forEach()  Allowed: the object returned by static call stream() is a friend of f
+src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  of()  Allowed: static call on type java.util.stream.Stream
+src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  stream()  Allowed: method reference Optional::stream: the object returned by static call of() is a friend of f
+src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  flatMap()  Allowed: the object returned by static call of() is a friend of f
+src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  toList()  Allowed: static call on type java.util.stream.Collectors
+src/main/java/shop/service/ReportingService.java:28  shop.service.ReportingService.wallets  collect()  Allowed: the object returned by static call of() is a friend of f
+src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  stream()  Allowed: customers is a field of the class
+src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  getWallet()  Allowed: lambda parameter customer: customers is a field of the class
+src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  groupingBy()  Allowed: static call on type java.util.stream.Collectors
+src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  collect()  Allowed: customers is a field of the class
+src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  get()  Allowed: shapes is an argument of f
+src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  getOutline()  Allowed: shapes is an argument of f
+src/main/java/shop/service/ReportingService.java:40  shop.service.ReportingService.paidName  name()  Allowed: static constant PAID is a friend of f
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  stream()  Allowed: static call on type java.util.Arrays
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getCustomer()  Allowed: method reference Order::getCustomer: the object returned by static call stream() is a friend of f
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Allowed: the object returned by static call stream() is a friend of f
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Allowed: java.util.stream.Stream<shop.domain.Customer> is a container
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  toList()  Allowed: static call on type java.util.stream.Collectors
+src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  collect()  Allowed: java.util.stream.Stream<shop.domain.Wallet> is a container
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  stream()  Allowed: wallets is an argument of f
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  of()  Allowed: static call on type java.util.Optional
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  map()  Allowed: wallets is an argument of f
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  println()  Allowed: static constant out is a friend of f
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  forEach()  Allowed: the object returned by static call of() is a friend of f
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  stream()  Allowed: static call on type java.util.Arrays
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  balance()  Allowed: method reference Order::balance: the object returned by static call stream() is a friend of f
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  map()  Allowed: the object returned by static call stream() is a friend of f
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.balancesOf  toList()  Allowed: java.util.stream.Stream<java.lang.Integer> is a container
+src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getOrder()  Allowed: event is an argument of f
+src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  log()  Allowed: f's own object
+src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService.cityOf  getAddress()  Allowed: request is an argument of f
+src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService.cityOf  getCity()  Allowed: shop.domain.Address is a data structure
+src/main/java/shop/service/ShippingService.java:24  shop.service.ShippingService.keyOf  getId()  Allowed: customer is an argument of f
+src/main/java/shop/service/ShippingService.java:24  shop.service.ShippingService.keyOf  getValue()  Allowed: shop.domain.CustomerId is a value
+src/main/java/shop/service/ShippingService.java:28  shop.service.ShippingService.log  add()  Allowed: journal is a field of the class
+src/main/java/shop/service/Worker.java:14  shop.service.Worker.run  accept()  Allowed: task is a field of the class
 
-Hibrit sınıflar (1):
-src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
+Hybrid classes (1):
+src/main/java/shop/domain/Account.java  shop.domain.Account  Hybrid class: behavior: withdraw; setters: setBalance
 
-Özet:
-  Dosya: 50
-  Metot: 160
-  Çağrı: 209 (uygun 170, ihlal 39, belirsiz 0)
-  Hibrit sınıf: 1
-  Kaynak hatası: 0
-  Tip okuma hatası: 0
+Summary:
+  Files: 50
+  Methods: 160
+  Calls: 209 (allowed 170, violations 39, unresolved 0)
+  Hybrid classes: 1
+  Source errors: 0
+  Type reading errors: 0
 
-İhlal nedenleri:
-  38  Döndürülen nesne f'nin arkadaşı değil
-  1  Döndürülen koleksiyon değiştiriliyor
+Reasons for violations:
+  38  Returned object is not a friend of f
+  1  Returned collection is modified
 
-Uygun nedenleri:
-  63  Argüman
-  45  Sınıfın alanı
-  16  Statik çağrı
-  15  Statik çağrının sonucu
-  7  Konteyner
-  7  Metotta oluşturulan nesne
-  5  Kendi nesnesi
-  3  Veri yapısı
-  2  Depo sorgusunun sonucu
-  2  Değer
-  2  Kütüphane tipi
-  2  Statik sabit
-  1  Factory'nin sonucu
+Reasons for allowed calls:
+  63  Argument
+  45  Field of the class
+  16  Static call
+  15  Result of a static call
+  7  Container
+  7  Object created in the method
+  5  Own object
+  3  Data structure
+  2  Library type
+  2  Result of a repository query
+  2  Static constant
+  2  Value
+  1  Result of a factory

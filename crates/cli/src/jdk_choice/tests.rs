@@ -48,7 +48,7 @@ fn a_missing_jdk_is_a_usage_error() {
 
     assert_eq!(
         error.map(|error| error.0),
-        Some("JDK bulunamadı: --jdk-home verin ya da JAVA_HOME ayarlayın".to_owned())
+        Some("no JDK found: pass --jdk-home or set JAVA_HOME".to_owned())
     );
 }
 
@@ -62,6 +62,6 @@ fn a_jdk_home_without_a_release_file_is_a_usage_error() {
     let error = choose_jdk(&arguments, None, None).err();
 
     assert!(error.map(|error| error.0).is_some_and(|message| {
-        message.starts_with("JDK sürümü okunamadı: /nonexistent/jdk/release")
+        message.starts_with("cannot read the JDK version: /nonexistent/jdk/release")
     }));
 }

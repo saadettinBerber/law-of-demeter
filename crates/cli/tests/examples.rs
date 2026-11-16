@@ -9,7 +9,7 @@ use std::process::{Command, Output};
 const EXPECTED_REPORT: &str = "expected-report.txt";
 const SOURCE_ROOT: &str = "src/main/java";
 const CLASSPATH_FILE: &str = "classpath.txt";
-const NO_VIOLATIONS: &str = "İhlal bulunamadı.";
+const NO_VIOLATIONS: &str = "No violations found.";
 const CONTEXT_LINES: usize = 2;
 
 #[test]

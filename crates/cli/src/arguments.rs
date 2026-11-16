@@ -18,19 +18,19 @@ pub enum Command {
 }
 
 pub fn usage() -> &'static str {
-    "Kullanım: law-of-demeter --source <DİZİN>... [SEÇENEKLER]
+    "Usage: law-of-demeter --source <DIR>... [OPTIONS]
 
-Java kaynağında Law of Demeter ihlallerini bulur.
+Finds Law of Demeter violations in Java source code.
 
-Seçenekler:
-  -s, --source <DİZİN>      Kaynak kökü; birden çok kez verilebilir (zorunlu)
-  -c, --classpath <YOL>     Dizin ya da jar; birden çok kez ya da ':' ile ayrılmış liste verilebilir
-      --jdk-home <DİZİN>    JDK dizini (varsayılan: JAVA_HOME, sonra PATH'teki javac)
-      --release <SÜRÜM>     Okunacak Java sürümü (varsayılan: JDK'nın kendi sürümü)
-      --show-allowed        Uygun çağrıları da uydukları kuralla birlikte listeler
-  -h, --help                Bu yardımı gösterir
+Options:
+  -s, --source <DIR>        Source root; can be given more than once (required)
+  -c, --classpath <PATH>    Directory or jar; can be given more than once or as a ':'-separated list
+      --jdk-home <DIR>      JDK directory (default: JAVA_HOME, then javac on PATH)
+      --release <VERSION>   Java release to read (default: the JDK's own release)
+      --show-allowed        Also lists the allowed calls with the rule they follow
+  -h, --help                Shows this help
 
-Çıkış kodu: 0 ihlal yok, 1 ihlal var, 2 kullanım ya da ölümcül hata.
+Exit code: 0 no violations, 1 violations found, 2 usage or fatal error.
 "
 }
 
@@ -53,13 +53,13 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
             "--release" => parsed.release = Some(release(&value(&option, &mut arguments)?)?),
             "--show-allowed" => parsed.show_allowed = true,
             _ if option.starts_with('-') => {
-                return Err(UsageError(format!("bilinmeyen seçenek: {option}")));
+                return Err(UsageError(format!("unknown option: {option}")));
             }
-            _ => return Err(UsageError(format!("beklenmeyen argüman: {option}"))),
+            _ => return Err(UsageError(format!("unexpected argument: {option}"))),
         }
     }
     if parsed.sources.is_empty() {
-        return Err(UsageError("en az bir --source gerekli".to_owned()));
+        return Err(UsageError("at least one --source is required".to_owned()));
     }
     Ok(Command::Check(parsed))
 }
@@ -81,7 +81,7 @@ fn value(
 ) -> Result<OsString, UsageError> {
     arguments
         .next()
-        .ok_or_else(|| UsageError(format!("{option} için değer gerekli")))
+        .ok_or_else(|| UsageError(format!("{option} needs a value")))
 }
 
 fn release(value: &OsString) -> Result<u32, UsageError> {
@@ -90,7 +90,7 @@ fn release(value: &OsString) -> Result<u32, UsageError> {
         .and_then(|text| text.parse().ok())
         .ok_or_else(|| {
             UsageError(format!(
-                "--release bir sürüm numarası olmalı: {}",
+                "--release must be a version number: {}",
                 value.to_string_lossy()
             ))
         })

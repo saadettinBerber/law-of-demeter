@@ -65,7 +65,7 @@ fn a_usage_error_is_explained_with_the_usage_and_fails() {
         (
             FAILURE,
             String::new(),
-            format!("Hata: bilinmeyen seçenek: --verbose\n\n{}", usage())
+            format!("Error: unknown option: --verbose\n\n{}", usage())
         )
     );
 }
@@ -137,7 +137,7 @@ fn mapper_by_text(path: &Path, text: &str, types: &Types) -> Result<Declarations
                 types.shape("app.Missing").is_some()
             ),
         )),
-        "broken" => Err(ReadError::at_line(path, 1, "beklenmeyen simge")),
+        "broken" => Err(ReadError::at_line(path, 1, "unexpected token")),
         "unresolved" => Ok(Declarations {
             classes: Vec::new(),
             methods: vec![
@@ -178,7 +178,7 @@ fn a_source_root_that_is_not_a_directory_fails() {
         (
             FAILURE,
             String::new(),
-            format!("Hata: kaynak kökü bulunamadı: {}\n", missing.display())
+            format!("Error: source root not found: {}\n", missing.display())
         )
     );
 }
@@ -194,7 +194,7 @@ fn a_missing_jdk_fails() {
         (outcome.code, outcome.err),
         (
             FAILURE,
-            "Hata: JDK bulunamadı: --jdk-home verin ya da JAVA_HOME ayarlayın\n".to_owned()
+            "Error: no JDK found: pass --jdk-home or set JAVA_HOME\n".to_owned()
         )
     );
 }
@@ -210,7 +210,7 @@ fn a_binary_without_a_source_mapper_fails_instead_of_pretending() {
         (
             FAILURE,
             String::new(),
-            "Hata: kaynak ayrıştırıcı bağlı değil\n".to_owned()
+            "Error: no source parser is connected\n".to_owned()
         )
     );
 }
@@ -224,7 +224,7 @@ fn a_project_without_violations_reports_so_and_succeeds() {
     assert_eq!(
         (
             outcome.code,
-            outcome.out.starts_with("İhlal bulunamadı.\n"),
+            outcome.out.starts_with("No violations found.\n"),
             outcome.err
         ),
         (CLEAN, true, String::new())
@@ -240,7 +240,7 @@ fn a_violation_is_listed_and_fails_with_exit_code_one() {
 
     assert_eq!(
         (outcome.code, outcome.out.contains(&format!(
-            "İhlaller (1):\n{}:5  app.Shipping.discount  applyDiscount()  İhlal: line döngü değişkeni: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil\n",
+            "Violations (1):\n{}:5  app.Shipping.discount  applyDiscount()  Violation: loop variable line: the object returned by getLines() is not a friend of f\n",
             file.display()
         ))),
         (VIOLATIONS, true)
@@ -254,7 +254,7 @@ fn a_hybrid_class_is_listed_and_fails_with_exit_code_one() {
     let outcome = check(root.path(), &[], Some(&mapper_by_text));
 
     assert_eq!(
-        (outcome.code, outcome.out.contains("Hibrit sınıflar (1):\n")),
+        (outcome.code, outcome.out.contains("Hybrid classes (1):\n")),
         (VIOLATIONS, true)
     );
 }
@@ -268,7 +268,7 @@ fn unresolved_types_alone_do_not_fail_the_run() {
     assert_eq!(
         (
             outcome.code,
-            outcome.out.contains("Çözülemeyen tipler (1):\n")
+            outcome.out.contains("Unresolved types (1):\n")
         ),
         (CLEAN, true)
     );
@@ -283,8 +283,8 @@ fn show_allowed_adds_the_allowed_calls_to_the_report() {
 
     assert_eq!(
         (
-            hidden.out.contains("Uygun çağrılar"),
-            shown.out.contains("Uygun çağrılar (1):\n")
+            hidden.out.contains("Allowed calls"),
+            shown.out.contains("Allowed calls (1):\n")
         ),
         (false, true)
     );
@@ -301,10 +301,10 @@ fn a_file_that_does_not_parse_is_reported_and_the_others_are_still_checked() {
         (
             outcome.code,
             outcome.out.contains(&format!(
-                "Kaynak hataları (1):\n{}:1  Hata: beklenmeyen simge\n",
+                "Source errors (1):\n{}:1  Error: unexpected token\n",
                 broken.display()
             )),
-            outcome.out.contains("  Dosya: 1\n")
+            outcome.out.contains("  Files: 1\n")
         ),
         (CLEAN, true, true)
     );
@@ -321,7 +321,7 @@ fn every_source_root_is_walked() {
     let outcome = execute_with(&arguments, Some(&mapper_by_text));
 
     assert_eq!(
-        (outcome.code, outcome.out.contains("  Dosya: 2\n")),
+        (outcome.code, outcome.out.contains("  Files: 2\n")),
         (VIOLATIONS, true)
     );
 }
@@ -335,7 +335,7 @@ fn the_source_mapper_is_told_which_types_the_classpath_and_the_jdk_provide() {
     assert!(
         outcome
             .out
-            .contains("Hata: jdk=true classpath=true unknown=false\n")
+            .contains("Error: jdk=true classpath=true unknown=false\n")
     );
 }
 
@@ -356,7 +356,7 @@ fn a_directory_that_cannot_be_walked_shows_up_among_the_source_errors() {
     assert!(
         walkable
             || outcome.out.contains(&format!(
-                "Kaynak hataları (1):\n{}  Hata: ",
+                "Source errors (1):\n{}  Error: ",
                 locked.display()
             ))
     );

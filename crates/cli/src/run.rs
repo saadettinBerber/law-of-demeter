@@ -42,7 +42,7 @@ pub fn run<I: IntoIterator<Item = OsString>>(
         }
         Ok(Command::Check(arguments)) => check(&arguments, environment, mapper, out, err),
         Err(UsageError(message)) => {
-            write!(err, "Hata: {message}\n\n{}", usage()).ok();
+            write!(err, "Error: {message}\n\n{}", usage()).ok();
             FAILURE
         }
     }
@@ -56,11 +56,11 @@ fn check(
     err: &mut dyn Write,
 ) -> u8 {
     let mut fail = |message: String| {
-        writeln!(err, "Hata: {message}").ok();
+        writeln!(err, "Error: {message}").ok();
         FAILURE
     };
     if let Some(root) = arguments.sources.iter().find(|root| !root.is_dir()) {
-        return fail(format!("kaynak kökü bulunamadı: {}", root.display()));
+        return fail(format!("source root not found: {}", root.display()));
     }
     let (jdk, release) = match choose_jdk(
         arguments,
@@ -71,7 +71,7 @@ fn check(
         Err(UsageError(message)) => return fail(message),
     };
     let Some(mapper) = mapper else {
-        return fail("kaynak ayrıştırıcı bağlı değil".to_owned());
+        return fail("no source parser is connected".to_owned());
     };
     let walked = java_files(&arguments.sources);
     let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);

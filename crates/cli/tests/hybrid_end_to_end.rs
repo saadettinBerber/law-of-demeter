@@ -34,7 +34,7 @@ fn a_declared_class_with_lombok_setters_and_behavior_is_reported_as_hybrid() {
             output.status.code(),
             report
                 .lines()
-                .any(|line| line.contains("shop.Account") && line.contains("Hibrit sınıf")),
+                .any(|line| line.contains("shop.Account") && line.contains("Hybrid class")),
         ),
         (Some(1), true),
         "stdout:\n{report}"

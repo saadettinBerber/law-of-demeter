@@ -5,74 +5,74 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 pub fn describe(reason: &Reason) -> String {
     match reason {
         Reason::ReturnOf(call) => {
-            format!("{call}() çağrısının döndürdüğü nesne f'nin arkadaşı değil")
+            format!("the object returned by {call}() is not a friend of f")
         }
         Reason::Local { name, origin } => {
-            format!("{name} yerel değişkeni: {}", describe(origin))
+            format!("local variable {name}: {}", describe(origin))
         }
         Reason::LambdaParameter { name, feed } => {
-            format!("{name} lambda parametresi: {}", describe(feed))
+            format!("lambda parameter {name}: {}", describe(feed))
         }
         Reason::LoopVariable { name, feed } => {
-            format!("{name} döngü değişkeni: {}", describe(feed))
+            format!("loop variable {name}: {}", describe(feed))
         }
         Reason::MethodReference { owner, name, feed } => {
             format!(
-                "{}::{name} metot referansı: {}",
+                "method reference {}::{name}: {}",
                 simple_name(owner),
                 describe(feed)
             )
         }
         Reason::ContainerMutation { type_ref, source } => format!(
-            "koleksiyon dışarıdan değiştiriliyor ({}): {}",
+            "collection modified from outside ({}): {}",
             type_name(type_ref),
             describe(source)
         ),
         Reason::UnresolvedType { type_ref, source } => match type_ref {
             Some(type_ref) => format!(
-                "tip çözülemedi ({}): {}",
+                "type not resolved ({}): {}",
                 type_name(type_ref),
                 describe(source)
             ),
-            None => format!("tip çözülemedi: {}", describe(source)),
+            None => format!("type not resolved: {}", describe(source)),
         },
-        Reason::This => "f'nin kendi nesnesi".to_owned(),
-        Reason::Field(name) => format!("{name} sınıfın alanı"),
+        Reason::This => "f's own object".to_owned(),
+        Reason::Field(name) => format!("{name} is a field of the class"),
         Reason::FieldOf(name) => {
-            format!("başka bir nesnenin {name} alanı f'nin arkadaşı değil")
+            format!("field {name} of another object is not a friend of f")
         }
-        Reason::Parameter(name) => format!("{name} f'ye argüman olarak verildi"),
+        Reason::Parameter(name) => format!("{name} is an argument of f"),
         Reason::Created(type_ref) => {
-            format!("f'nin içinde oluşturulan nesne ({})", type_name(type_ref))
+            format!("object created in f ({})", type_name(type_ref))
         }
         Reason::StaticType(type_ref) => {
-            format!("{} tipi üzerinde statik çağrı", type_name(type_ref))
+            format!("static call on type {}", type_name(type_ref))
         }
-        Reason::Literal => "sabit değer".to_owned(),
-        Reason::FunctionArgument => "fonksiyona argüman olarak verilen nesne".to_owned(),
-        Reason::UnassignedLocal(name) => format!("{name} değişkenine değer atanmamış"),
-        Reason::UnresolvedName(name) => format!("{name} adı çözülemedi"),
+        Reason::Literal => "literal value".to_owned(),
+        Reason::FunctionArgument => "object passed to a function as an argument".to_owned(),
+        Reason::UnassignedLocal(name) => format!("variable {name} has no assigned value"),
+        Reason::UnresolvedName(name) => format!("name {name} could not be resolved"),
         Reason::Classified {
             classification,
             type_ref,
         } => format!(
-            "{} {}",
+            "{} is {}",
             type_name(type_ref),
             classification_text(*classification)
         ),
-        Reason::Library(type_ref) => format!("kütüphane tipi ({})", type_name(type_ref)),
+        Reason::Library(type_ref) => format!("library type ({})", type_name(type_ref)),
         Reason::Fluent(type_ref) => {
-            format!("{} üzerinde akıcı (fluent) çağrı", type_name(type_ref))
+            format!("fluent call on {}", type_name(type_ref))
         }
         Reason::StaticResult(call) => {
-            format!("{call}() statik çağrısının döndürdüğü nesne f'nin arkadaşı")
+            format!("the object returned by static call {call}() is a friend of f")
         }
-        Reason::StaticField(name) => format!("{name} statik sabiti f'nin arkadaşı"),
+        Reason::StaticField(name) => format!("static constant {name} is a friend of f"),
         Reason::FactoryResult(call) => {
-            format!("{call}() factory çağrısının döndürdüğü nesne f'nin arkadaşı")
+            format!("the object returned by factory call {call}() is a friend of f")
         }
         Reason::QueryResult(call) => {
-            format!("{call}() depo sorgusunun döndürdüğü nesne f'nin arkadaşı")
+            format!("the object returned by repository query {call}() is a friend of f")
         }
     }
 }
@@ -83,44 +83,44 @@ pub fn category(reason: &Reason) -> &'static str {
         Reason::LambdaParameter { feed, .. }
         | Reason::LoopVariable { feed, .. }
         | Reason::MethodReference { feed, .. } => category(feed),
-        Reason::ReturnOf(_) => "Döndürülen nesne f'nin arkadaşı değil",
-        Reason::ContainerMutation { .. } => "Döndürülen koleksiyon değiştiriliyor",
-        Reason::UnresolvedType { .. } => "Tip çözülemedi",
-        Reason::UnassignedLocal(_) => "Değişkene değer atanmamış",
-        Reason::UnresolvedName(_) => "Ad çözülemedi",
-        Reason::This => "Kendi nesnesi",
-        Reason::Field(_) => "Sınıfın alanı",
-        Reason::FieldOf(_) => "Başka nesnenin alanı",
-        Reason::Parameter(_) => "Argüman",
-        Reason::Created(_) => "Metotta oluşturulan nesne",
-        Reason::StaticType(_) => "Statik çağrı",
-        Reason::Literal => "Sabit değer",
-        Reason::FunctionArgument => "Fonksiyonun argümanı",
+        Reason::ReturnOf(_) => "Returned object is not a friend of f",
+        Reason::ContainerMutation { .. } => "Returned collection is modified",
+        Reason::UnresolvedType { .. } => "Type not resolved",
+        Reason::UnassignedLocal(_) => "Variable has no value",
+        Reason::UnresolvedName(_) => "Name not resolved",
+        Reason::This => "Own object",
+        Reason::Field(_) => "Field of the class",
+        Reason::FieldOf(_) => "Field of another object",
+        Reason::Parameter(_) => "Argument",
+        Reason::Created(_) => "Object created in the method",
+        Reason::StaticType(_) => "Static call",
+        Reason::Literal => "Literal",
+        Reason::FunctionArgument => "Function argument",
         Reason::Classified { classification, .. } => match classification {
-            Classification::DataStructure => "Veri yapısı",
-            Classification::Value => "Değer",
-            Classification::Container => "Konteyner",
-            Classification::Object => "Nesne",
-            Classification::Hybrid => "Hibrit sınıf",
-            Classification::Unknown => "Tip çözülemedi",
+            Classification::DataStructure => "Data structure",
+            Classification::Value => "Value",
+            Classification::Container => "Container",
+            Classification::Object => "Object",
+            Classification::Hybrid => "Hybrid class",
+            Classification::Unknown => "Type not resolved",
         },
-        Reason::Library(_) => "Kütüphane tipi",
-        Reason::Fluent(_) => "Akıcı çağrı",
-        Reason::StaticResult(_) => "Statik çağrının sonucu",
-        Reason::StaticField(_) => "Statik sabit",
-        Reason::FactoryResult(_) => "Factory'nin sonucu",
-        Reason::QueryResult(_) => "Depo sorgusunun sonucu",
+        Reason::Library(_) => "Library type",
+        Reason::Fluent(_) => "Fluent call",
+        Reason::StaticResult(_) => "Result of a static call",
+        Reason::StaticField(_) => "Static constant",
+        Reason::FactoryResult(_) => "Result of a factory",
+        Reason::QueryResult(_) => "Result of a repository query",
     }
 }
 
 fn classification_text(classification: Classification) -> &'static str {
     match classification {
-        Classification::DataStructure => "bir veri yapısı",
-        Classification::Object => "bir nesne",
-        Classification::Hybrid => "bir hibrit sınıf",
-        Classification::Value => "bir değer",
-        Classification::Container => "bir konteyner",
-        Classification::Unknown => "çözülemeyen bir tip",
+        Classification::DataStructure => "a data structure",
+        Classification::Object => "an object",
+        Classification::Hybrid => "a hybrid class",
+        Classification::Value => "a value",
+        Classification::Container => "a container",
+        Classification::Unknown => "an unresolved type",
     }
 }
 

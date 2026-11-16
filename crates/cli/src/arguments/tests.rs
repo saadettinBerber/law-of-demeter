@@ -86,36 +86,33 @@ fn rejected(arguments: &[&str]) -> UsageError {
 fn at_least_one_source_root_is_required() {
     let error = rejected(&["--classpath", "lib"]);
 
-    assert_eq!(error, UsageError("en az bir --source gerekli".to_owned()));
+    assert_eq!(
+        error,
+        UsageError("at least one --source is required".to_owned())
+    );
 }
 
 #[test]
 fn an_unknown_option_is_rejected() {
     let error = rejected(&["-s", "src", "--verbose"]);
 
-    assert_eq!(
-        error,
-        UsageError("bilinmeyen seçenek: --verbose".to_owned())
-    );
+    assert_eq!(error, UsageError("unknown option: --verbose".to_owned()));
 }
 
 #[test]
 fn an_option_without_its_value_is_rejected() {
     let error = rejected(&["-s", "src", "--classpath"]);
 
-    assert_eq!(
-        error,
-        UsageError("--classpath için değer gerekli".to_owned())
-    );
+    assert_eq!(error, UsageError("--classpath needs a value".to_owned()));
 }
 
 #[test]
 fn a_release_that_is_not_a_number_is_rejected() {
-    let error = rejected(&["-s", "src", "--release", "yirmi"]);
+    let error = rejected(&["-s", "src", "--release", "twenty"]);
 
     assert_eq!(
         error,
-        UsageError("--release bir sürüm numarası olmalı: yirmi".to_owned())
+        UsageError("--release must be a version number: twenty".to_owned())
     );
 }
 
@@ -125,7 +122,7 @@ fn a_stray_positional_argument_is_rejected() {
 
     assert_eq!(
         error,
-        UsageError("beklenmeyen argüman: Order.java".to_owned())
+        UsageError("unexpected argument: Order.java".to_owned())
     );
 }
 

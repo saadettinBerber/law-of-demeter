@@ -49,8 +49,8 @@ fn a_java_project_is_judged_from_source_and_compiled_classes() {
     assert_eq!(
         (
             output.status.code(),
-            report_line(&report, "clear()").map(|line| line.contains("İhlal")),
-            report_line(&report, "getName()").map(|line| line.contains("Uygun")),
+            report_line(&report, "clear()").map(|line| line.contains("Violation")),
+            report_line(&report, "getName()").map(|line| line.contains("Allowed")),
         ),
         (Some(1), Some(true), Some(true)),
         "stdout:\n{report}\nstderr:\n{}",

@@ -1,58 +1,58 @@
-İhlaller (8):
-orders/src/main/java/warehouse/orders/PickingService.java:19  warehouse.orders.PickingService.onHand  getOnHand()  İhlal: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:24  warehouse.orders.PickingService.pick  reserve()  İhlal: stock yerel değişkeni: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:32  warehouse.orders.PickingService.fits  fits()  İhlal: getShelf() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:44  warehouse.orders.PickingService.onHandOf  getStock()  İhlal: product() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:44  warehouse.orders.PickingService.onHandOf  getOnHand()  İhlal: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:48  warehouse.orders.PickingService.append  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List<warehouse.orders.OrderLine>): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  getStock()  İhlal: Product::getStock metot referansı: product() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  getOnHand()  İhlal: Stock::getOnHand metot referansı: getStock() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+Violations (8):
+orders/src/main/java/warehouse/orders/PickingService.java:19  warehouse.orders.PickingService.onHand  getOnHand()  Violation: the object returned by getStock() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:24  warehouse.orders.PickingService.pick  reserve()  Violation: local variable stock: the object returned by getStock() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:32  warehouse.orders.PickingService.fits  fits()  Violation: the object returned by getShelf() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:44  warehouse.orders.PickingService.onHandOf  getStock()  Violation: the object returned by product() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:44  warehouse.orders.PickingService.onHandOf  getOnHand()  Violation: the object returned by getStock() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:48  warehouse.orders.PickingService.append  add()  Violation: collection modified from outside (java.util.List<warehouse.orders.OrderLine>): the object returned by getLines() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  getStock()  Violation: method reference Product::getStock: the object returned by product() is not a friend of f
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  getOnHand()  Violation: method reference Stock::getOnHand: the object returned by getStock() is not a friend of f
 
-Uygun çağrılar (25):
-catalog/src/main/java/warehouse/catalog/Product.java:20  warehouse.catalog.Product.isAvailable  getOnHand()  Uygun: stock sınıfın alanı
-catalog/src/main/java/warehouse/catalog/Product.java:24  warehouse.catalog.Product.onHand  getOnHand()  Uygun: stock sınıfın alanı
-orders/src/main/java/warehouse/orders/Order.java:17  warehouse.orders.Order.count  size()  Uygun: lines sınıfın alanı
-orders/src/main/java/warehouse/orders/OrderLine.java:7  warehouse.orders.OrderLine.onHand  onHand()  Uygun: product sınıfın alanı
-orders/src/main/java/warehouse/orders/PickingService.java:15  warehouse.orders.PickingService.canPick  isAvailable()  Uygun: product f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:19  warehouse.orders.PickingService.onHand  getStock()  Uygun: product f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:23  warehouse.orders.PickingService.pick  getStock()  Uygun: product f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:28  warehouse.orders.PickingService.spill  reserve()  Uygun: overflow sınıfın alanı
-orders/src/main/java/warehouse/orders/PickingService.java:32  warehouse.orders.PickingService.fits  getShelf()  Uygun: product f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:36  warehouse.orders.PickingService.codeOf  getSku()  Uygun: product f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:36  warehouse.orders.PickingService.codeOf  code()  Uygun: warehouse.catalog.Sku bir veri yapısı
-orders/src/main/java/warehouse/orders/PickingService.java:40  warehouse.orders.PickingService.kilograms  getWeight()  Uygun: product f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:40  warehouse.orders.PickingService.kilograms  toKilograms()  Uygun: warehouse.catalog.Weight bir değer
-orders/src/main/java/warehouse/orders/PickingService.java:44  warehouse.orders.PickingService.onHandOf  product()  Uygun: line f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:48  warehouse.orders.PickingService.append  getLines()  Uygun: order f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  stream()  Uygun: lines f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  product()  Uygun: OrderLine::product metot referansı: lines f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  map()  Uygun: lines f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  map()  Uygun: java.util.stream.Stream<warehouse.catalog.Product> bir konteyner
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  map()  Uygun: java.util.stream.Stream<warehouse.catalog.Stock> bir konteyner
-orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  toList()  Uygun: java.util.stream.Stream<java.lang.Integer> bir konteyner
-orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  stream()  Uygun: lines f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  onHand()  Uygun: OrderLine::onHand metot referansı: lines f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  map()  Uygun: lines f'ye argüman olarak verildi
-orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  toList()  Uygun: java.util.stream.Stream<java.lang.Integer> bir konteyner
+Allowed calls (25):
+catalog/src/main/java/warehouse/catalog/Product.java:20  warehouse.catalog.Product.isAvailable  getOnHand()  Allowed: stock is a field of the class
+catalog/src/main/java/warehouse/catalog/Product.java:24  warehouse.catalog.Product.onHand  getOnHand()  Allowed: stock is a field of the class
+orders/src/main/java/warehouse/orders/Order.java:17  warehouse.orders.Order.count  size()  Allowed: lines is a field of the class
+orders/src/main/java/warehouse/orders/OrderLine.java:7  warehouse.orders.OrderLine.onHand  onHand()  Allowed: product is a field of the class
+orders/src/main/java/warehouse/orders/PickingService.java:15  warehouse.orders.PickingService.canPick  isAvailable()  Allowed: product is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:19  warehouse.orders.PickingService.onHand  getStock()  Allowed: product is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:23  warehouse.orders.PickingService.pick  getStock()  Allowed: product is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:28  warehouse.orders.PickingService.spill  reserve()  Allowed: overflow is a field of the class
+orders/src/main/java/warehouse/orders/PickingService.java:32  warehouse.orders.PickingService.fits  getShelf()  Allowed: product is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:36  warehouse.orders.PickingService.codeOf  getSku()  Allowed: product is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:36  warehouse.orders.PickingService.codeOf  code()  Allowed: warehouse.catalog.Sku is a data structure
+orders/src/main/java/warehouse/orders/PickingService.java:40  warehouse.orders.PickingService.kilograms  getWeight()  Allowed: product is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:40  warehouse.orders.PickingService.kilograms  toKilograms()  Allowed: warehouse.catalog.Weight is a value
+orders/src/main/java/warehouse/orders/PickingService.java:44  warehouse.orders.PickingService.onHandOf  product()  Allowed: line is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:48  warehouse.orders.PickingService.append  getLines()  Allowed: order is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  stream()  Allowed: lines is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  product()  Allowed: method reference OrderLine::product: lines is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  map()  Allowed: lines is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  map()  Allowed: java.util.stream.Stream<warehouse.catalog.Product> is a container
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  map()  Allowed: java.util.stream.Stream<warehouse.catalog.Stock> is a container
+orders/src/main/java/warehouse/orders/PickingService.java:52  warehouse.orders.PickingService.onHandOfAll  toList()  Allowed: java.util.stream.Stream<java.lang.Integer> is a container
+orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  stream()  Allowed: lines is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  onHand()  Allowed: method reference OrderLine::onHand: lines is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  map()  Allowed: lines is an argument of f
+orders/src/main/java/warehouse/orders/PickingService.java:56  warehouse.orders.PickingService.onHandPerLine  toList()  Allowed: java.util.stream.Stream<java.lang.Integer> is a container
 
-Hibrit sınıflar (1):
-catalog/src/main/java/warehouse/catalog/Shelf.java  warehouse.catalog.Shelf  Hibrit sınıf: davranış: fits; setter: setCapacity, setUsed
+Hybrid classes (1):
+catalog/src/main/java/warehouse/catalog/Shelf.java  warehouse.catalog.Shelf  Hybrid class: behavior: fits; setters: setCapacity, setUsed
 
-Özet:
-  Dosya: 8
-  Metot: 24
-  Çağrı: 33 (uygun 25, ihlal 8, belirsiz 0)
-  Hibrit sınıf: 1
-  Kaynak hatası: 0
-  Tip okuma hatası: 0
+Summary:
+  Files: 8
+  Methods: 24
+  Calls: 33 (allowed 25, violations 8, unresolved 0)
+  Hybrid classes: 1
+  Source errors: 0
+  Type reading errors: 0
 
-İhlal nedenleri:
-  7  Döndürülen nesne f'nin arkadaşı değil
-  1  Döndürülen koleksiyon değiştiriliyor
+Reasons for violations:
+  7  Returned object is not a friend of f
+  1  Returned collection is modified
 
-Uygun nedenleri:
-  14  Argüman
-  5  Sınıfın alanı
-  4  Konteyner
-  1  Değer
-  1  Veri yapısı
+Reasons for allowed calls:
+  14  Argument
+  5  Field of the class
+  4  Container
+  1  Data structure
+  1  Value

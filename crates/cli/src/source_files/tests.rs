@@ -59,7 +59,7 @@ fn a_file_that_cannot_be_read_and_a_file_the_mapper_rejects_are_reported_in_plac
     let good = write(&root, "Good.java", "class Good {}");
     let mapper: &Mapper = &|path, text, _| {
         if text.starts_with("class {") {
-            Err(ReadError::at_line(path, 1, "sınıf adı bekleniyor"))
+            Err(ReadError::at_line(path, 1, "class name expected"))
         } else {
             Ok(Declarations {
                 classes: Vec::new(),
@@ -82,7 +82,7 @@ fn a_file_that_cannot_be_read_and_a_file_the_mapper_rejects_are_reported_in_plac
         ),
         (
             Some(missing),
-            Err(ReadError::at_line(&broken, 1, "sınıf adı bekleniyor")),
+            Err(ReadError::at_line(&broken, 1, "class name expected")),
             Ok(SourceFile::new(Path::new(&good), Vec::new(), Vec::new()))
         )
     );
@@ -98,7 +98,7 @@ fn errors_found_while_walking_are_yielded_before_the_files() {
             methods: Vec::new(),
         })
     };
-    let walk_error = ReadError::new(Path::new("src/locked"), "izin reddedildi");
+    let walk_error = ReadError::new(Path::new("src/locked"), "permission denied");
     let sources =
         SourceFiles::new(vec![good.clone()], mapper).with_errors(vec![walk_error.clone()]);
 

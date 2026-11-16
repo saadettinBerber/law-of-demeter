@@ -39,9 +39,9 @@ fn a_violation_is_listed_with_its_location_call_verdict_and_reason() {
     let text = render(&report, false);
 
     assert_eq!(
-        section(&text, "İhlaller"),
+        section(&text, "Violations"),
         [
-            "src/OrderService.java:11  OrderService.pay  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil"
+            "src/OrderService.java:11  OrderService.pay  getWallet()  Violation: the object returned by getCustomer() is not a friend of f"
         ]
     );
 }
@@ -70,11 +70,11 @@ fn a_violation_reached_through_a_variable_names_the_variable_and_the_origin() {
     let text = render(&report, false);
 
     assert_eq!(
-        section(&text, "İhlaller"),
+        section(&text, "Violations"),
         [
-            "src/OrderService.java:4  OrderService.pay  withdraw()  İhlal: customer yerel değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
-            "src/OrderService.java:5  OrderService.pay  applyDiscount()  İhlal: line lambda parametresi: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
-            "src/OrderService.java:6  OrderService.pay  applyDiscount()  İhlal: line döngü değişkeni: getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
+            "src/OrderService.java:4  OrderService.pay  withdraw()  Violation: local variable customer: the object returned by getCustomer() is not a friend of f",
+            "src/OrderService.java:5  OrderService.pay  applyDiscount()  Violation: lambda parameter line: the object returned by getLines() is not a friend of f",
+            "src/OrderService.java:6  OrderService.pay  applyDiscount()  Violation: loop variable line: the object returned by getLines() is not a friend of f",
         ]
     );
 }
@@ -94,9 +94,9 @@ fn a_violation_through_a_method_reference_names_its_type_method_and_origin() {
     let text = render(&report, false);
 
     assert_eq!(
-        section(&text, "İhlaller"),
+        section(&text, "Violations"),
         [
-            "src/OrderService.java:8  OrderService.pay  getWallet()  İhlal: Customer::getWallet metot referansı: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil"
+            "src/OrderService.java:8  OrderService.pay  getWallet()  Violation: method reference Customer::getWallet: the object returned by getCustomer() is not a friend of f"
         ]
     );
 }
@@ -111,7 +111,10 @@ fn a_method_reference_is_counted_under_the_reason_that_feeds_it() {
 
     let text = render(&report_of(vec![allowed(9, reference)]), true);
 
-    assert_eq!(section(&text, "Uygun nedenleri"), ["  1  Argüman"]);
+    assert_eq!(
+        section(&text, "Reasons for allowed calls"),
+        ["  1  Argument"]
+    );
 }
 
 #[test]
@@ -125,8 +128,8 @@ fn an_object_a_function_receives_is_counted_under_its_own_reason() {
     let text = render(&report_of(vec![allowed(9, reference)]), true);
 
     assert_eq!(
-        section(&text, "Uygun nedenleri"),
-        ["  1  Fonksiyonun argümanı"]
+        section(&text, "Reasons for allowed calls"),
+        ["  1  Function argument"]
     );
 }
 
@@ -142,9 +145,9 @@ fn changing_a_returned_collection_names_the_collection_type() {
     let text = render(&report, false);
 
     assert_eq!(
-        section(&text, "İhlaller"),
+        section(&text, "Violations"),
         [
-            "src/OrderService.java:7  OrderService.pay  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List<OrderLine>): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil"
+            "src/OrderService.java:7  OrderService.pay  add()  Violation: collection modified from outside (java.util.List<OrderLine>): the object returned by getLines() is not a friend of f"
         ]
     );
 }
@@ -176,14 +179,14 @@ fn unresolved_types_are_listed_apart_from_the_real_violations() {
 
     assert_eq!(
         (
-            section(&text, "İhlaller").len(),
-            section(&text, "Çözülemeyen tipler")
+            section(&text, "Violations").len(),
+            section(&text, "Unresolved types")
         ),
         (
             1,
             vec![
-                "src/OrderService.java:4  OrderService.pay  getCity()  Belirsiz: tip çözülemedi (Address): getAddress() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
-                "src/OrderService.java:5  OrderService.pay  trim()  Belirsiz: tip çözülemedi: getName() çağrısının döndürdüğü nesne f'nin arkadaşı değil",
+                "src/OrderService.java:4  OrderService.pay  getCity()  Unresolved: type not resolved (Address): the object returned by getAddress() is not a friend of f",
+                "src/OrderService.java:5  OrderService.pay  trim()  Unresolved: type not resolved: the object returned by getName() is not a friend of f",
             ]
         )
     );
@@ -195,10 +198,10 @@ fn allowed(line: usize, reason: Reason) -> Finding {
 
 fn allowed_lines(findings: Vec<Finding>) -> Vec<String> {
     let text = render(&report_of(findings), true);
-    section(&text, "Uygun çağrılar")
+    section(&text, "Allowed calls")
         .into_iter()
         .map(|line| {
-            line.split_once("  call()  Uygun: ")
+            line.split_once("  call()  Allowed: ")
                 .map_or(line, |(_, reason)| reason)
                 .to_owned()
         })
@@ -212,15 +215,13 @@ fn allowed_calls_are_listed_with_their_reason_when_asked() {
     let text = render(&report, true);
 
     assert_eq!(
-        section(&text, "Uygun çağrılar"),
-        [
-            "src/OrderService.java:9  OrderService.pay  call()  Uygun: order f'ye argüman olarak verildi"
-        ]
+        section(&text, "Allowed calls"),
+        ["src/OrderService.java:9  OrderService.pay  call()  Allowed: order is an argument of f"]
     );
 }
 
 #[test]
-fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
+fn the_reasons_that_make_a_receiver_a_friend_read_in_english() {
     let lines = allowed_lines(vec![
         allowed(1, Reason::This),
         allowed(2, Reason::field("wallet")),
@@ -249,18 +250,18 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
     assert_eq!(
         lines,
         [
-            "f'nin kendi nesnesi",
-            "wallet sınıfın alanı",
-            "f'nin içinde oluşturulan nesne (java.lang.StringBuilder)",
-            "Order tipi üzerinde statik çağrı",
-            "sabit değer",
-            "current yerel değişkeni: order f'ye argüman olarak verildi",
-            "o lambda parametresi: orders sınıfın alanı",
-            "o döngü değişkeni: orders sınıfın alanı",
-            "builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı",
-            "create() factory çağrısının döndürdüğü nesne f'nin arkadaşı",
-            "findById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı",
-            "Order::getCustomer metot referansı: fonksiyona argüman olarak verilen nesne",
+            "f's own object",
+            "wallet is a field of the class",
+            "object created in f (java.lang.StringBuilder)",
+            "static call on type Order",
+            "literal value",
+            "local variable current: order is an argument of f",
+            "lambda parameter o: orders is a field of the class",
+            "loop variable o: orders is a field of the class",
+            "the object returned by static call builder() is a friend of f",
+            "the object returned by factory call create() is a friend of f",
+            "the object returned by repository query findById() is a friend of f",
+            "method reference Order::getCustomer: object passed to a function as an argument",
         ]
     );
 }
@@ -269,11 +270,11 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
 fn a_static_constant_reads_as_a_constant_not_a_call() {
     let lines = allowed_lines(vec![allowed(1, Reason::static_field("PAID"))]);
 
-    assert_eq!(lines, ["PAID statik sabiti f'nin arkadaşı"]);
+    assert_eq!(lines, ["static constant PAID is a friend of f"]);
 }
 
 #[test]
-fn the_reasons_that_make_a_stranger_allowed_read_in_turkish() {
+fn the_reasons_that_make_a_stranger_allowed_read_in_english() {
     let server = TypeRef::class("Server");
     let lines = allowed_lines(vec![
         allowed(
@@ -291,10 +292,10 @@ fn the_reasons_that_make_a_stranger_allowed_read_in_turkish() {
     assert_eq!(
         lines,
         [
-            "Server bir veri yapısı",
-            "Server bir değer",
-            "Server bir konteyner",
-            "Server üzerinde akıcı (fluent) çağrı",
+            "Server is a data structure",
+            "Server is a value",
+            "Server is a container",
+            "fluent call on Server",
         ]
     );
 }
@@ -334,9 +335,9 @@ fn a_hybrid_class_is_listed_with_its_behavior_and_its_setters() {
     let text = render(&report, false);
 
     assert_eq!(
-        section(&text, "Hibrit sınıflar"),
+        section(&text, "Hybrid classes"),
         [
-            "src/Account.java  Account  Hibrit sınıf: davranış: withdraw, deposit; setter: setBalance"
+            "src/Account.java  Account  Hybrid class: behavior: withdraw, deposit; setters: setBalance"
         ]
     );
 }
@@ -349,25 +350,28 @@ fn read_errors_are_listed_with_their_line_when_they_have_one() {
         Vec::new(),
         Vec::new(),
         vec![
-            ReadError::at_line(Path::new("src/Broken.java"), 3, "beklenmeyen simge"),
-            ReadError::new(Path::new("src/Locked.java"), "izin reddedildi"),
+            ReadError::at_line(Path::new("src/Broken.java"), 3, "unexpected token"),
+            ReadError::new(Path::new("src/Locked.java"), "permission denied"),
         ],
-        vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+        vec![ReadError::new(
+            Path::new("lib/broken.jar"),
+            "broken archive",
+        )],
     );
 
     let text = render(&report, false);
 
     assert_eq!(
         (
-            section(&text, "Kaynak hataları"),
-            section(&text, "Tip okuma hataları")
+            section(&text, "Source errors"),
+            section(&text, "Type reading errors")
         ),
         (
             vec![
-                "src/Broken.java:3  Hata: beklenmeyen simge",
-                "src/Locked.java  Hata: izin reddedildi",
+                "src/Broken.java:3  Error: unexpected token",
+                "src/Locked.java  Error: permission denied",
             ],
-            vec!["lib/broken.jar  Hata: bozuk arşiv"]
+            vec!["lib/broken.jar  Error: broken archive"]
         )
     );
 }
@@ -405,7 +409,10 @@ fn mixed_report() -> Report {
         ],
         vec![account_hybrid()],
         vec![ReadError::new(Path::new("src/Broken.java"), "hata")],
-        vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+        vec![ReadError::new(
+            Path::new("lib/broken.jar"),
+            "broken archive",
+        )],
     )
 }
 
@@ -414,14 +421,14 @@ fn the_summary_counts_files_methods_calls_and_findings() {
     let text = render(&mixed_report(), false);
 
     assert_eq!(
-        section(&text, "Özet"),
+        section(&text, "Summary"),
         [
-            "  Dosya: 2",
-            "  Metot: 3",
-            "  Çağrı: 7 (uygun 3, ihlal 3, belirsiz 1)",
-            "  Hibrit sınıf: 1",
-            "  Kaynak hatası: 1",
-            "  Tip okuma hatası: 1",
+            "  Files: 2",
+            "  Methods: 3",
+            "  Calls: 7 (allowed 3, violations 3, unresolved 1)",
+            "  Hybrid classes: 1",
+            "  Source errors: 1",
+            "  Type reading errors: 1",
         ]
     );
 }
@@ -431,10 +438,10 @@ fn violations_are_counted_per_reason_and_unresolved_types_are_left_out() {
     let text = render(&mixed_report(), false);
 
     assert_eq!(
-        section(&text, "İhlal nedenleri"),
+        section(&text, "Reasons for violations"),
         [
-            "  2  Döndürülen nesne f'nin arkadaşı değil",
-            "  1  Döndürülen koleksiyon değiştiriliyor",
+            "  2  Returned object is not a friend of f",
+            "  1  Returned collection is modified",
         ]
     );
 }
@@ -444,8 +451,8 @@ fn allowed_calls_are_counted_per_reason_when_they_are_shown() {
     let text = render(&mixed_report(), true);
 
     assert_eq!(
-        section(&text, "Uygun nedenleri"),
-        ["  2  Argüman", "  1  Veri yapısı"]
+        section(&text, "Reasons for allowed calls"),
+        ["  2  Argument", "  1  Data structure"]
     );
 }
 
@@ -455,7 +462,7 @@ fn a_report_without_violations_says_so() {
 
     let text = render(&report, false);
 
-    assert_eq!(text.lines().next(), Some("İhlal bulunamadı."));
+    assert_eq!(text.lines().next(), Some("No violations found."));
 }
 
 #[test]
@@ -464,9 +471,9 @@ fn allowed_calls_stay_out_of_the_default_report() {
 
     assert_eq!(
         (
-            text.contains("Uygun çağrılar"),
-            text.contains("Uygun nedenleri"),
-            text.contains("  Uygun: ")
+            text.contains("Allowed calls"),
+            text.contains("Reasons for allowed calls"),
+            text.contains("  Allowed: ")
         ),
         (false, false, false)
     );
@@ -478,34 +485,34 @@ fn the_whole_default_report_reads_top_to_bottom() {
 
     assert_eq!(
         text,
-        "İhlaller (3):
-src/OrderService.java:4  OrderService.pay  a()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/OrderService.java:5  OrderService.pay  b()  İhlal: customer yerel değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/OrderService.java:6  OrderService.pay  add()  İhlal: koleksiyon dışarıdan değiştiriliyor (java.util.List): getLines() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+        "Violations (3):
+src/OrderService.java:4  OrderService.pay  a()  Violation: the object returned by getCustomer() is not a friend of f
+src/OrderService.java:5  OrderService.pay  b()  Violation: local variable customer: the object returned by getCustomer() is not a friend of f
+src/OrderService.java:6  OrderService.pay  add()  Violation: collection modified from outside (java.util.List): the object returned by getLines() is not a friend of f
 
-Çözülemeyen tipler (1):
-src/OrderService.java:7  OrderService.pay  c()  Belirsiz: tip çözülemedi: getName() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+Unresolved types (1):
+src/OrderService.java:7  OrderService.pay  c()  Unresolved: type not resolved: the object returned by getName() is not a friend of f
 
-Hibrit sınıflar (1):
-src/Account.java  Account  Hibrit sınıf: davranış: withdraw, deposit; setter: setBalance
+Hybrid classes (1):
+src/Account.java  Account  Hybrid class: behavior: withdraw, deposit; setters: setBalance
 
-Kaynak hataları (1):
-src/Broken.java  Hata: hata
+Source errors (1):
+src/Broken.java  Error: hata
 
-Tip okuma hataları (1):
-lib/broken.jar  Hata: bozuk arşiv
+Type reading errors (1):
+lib/broken.jar  Error: broken archive
 
-Özet:
-  Dosya: 2
-  Metot: 3
-  Çağrı: 7 (uygun 3, ihlal 3, belirsiz 1)
-  Hibrit sınıf: 1
-  Kaynak hatası: 1
-  Tip okuma hatası: 1
+Summary:
+  Files: 2
+  Methods: 3
+  Calls: 7 (allowed 3, violations 3, unresolved 1)
+  Hybrid classes: 1
+  Source errors: 1
+  Type reading errors: 1
 
-İhlal nedenleri:
-  2  Döndürülen nesne f'nin arkadaşı değil
-  1  Döndürülen koleksiyon değiştiriliyor
+Reasons for violations:
+  2  Returned object is not a friend of f
+  1  Returned collection is modified
 "
     );
 }
@@ -540,22 +547,22 @@ fn every_kind_of_allowed_call_has_a_reason_group_in_the_summary() {
     let text = render(&report, true);
 
     assert_eq!(
-        section(&text, "Uygun nedenleri"),
+        section(&text, "Reasons for allowed calls"),
         [
-            "  2  Sınıfın alanı",
-            "  1  Akıcı çağrı",
-            "  1  Argüman",
-            "  1  Depo sorgusunun sonucu",
-            "  1  Değer",
-            "  1  Factory'nin sonucu",
-            "  1  Kendi nesnesi",
-            "  1  Konteyner",
-            "  1  Metotta oluşturulan nesne",
-            "  1  Sabit değer",
-            "  1  Statik sabit",
-            "  1  Statik çağrı",
-            "  1  Statik çağrının sonucu",
-            "  1  Veri yapısı",
+            "  2  Field of the class",
+            "  1  Argument",
+            "  1  Container",
+            "  1  Data structure",
+            "  1  Fluent call",
+            "  1  Literal",
+            "  1  Object created in the method",
+            "  1  Own object",
+            "  1  Result of a factory",
+            "  1  Result of a repository query",
+            "  1  Result of a static call",
+            "  1  Static call",
+            "  1  Static constant",
+            "  1  Value",
         ]
     );
 }
@@ -569,14 +576,14 @@ fn a_library_type_reads_as_allowed_and_forms_its_own_reason_group() {
 
     assert_eq!(
         (
-            section(&text, "Uygun çağrılar"),
-            section(&text, "Uygun nedenleri")
+            section(&text, "Allowed calls"),
+            section(&text, "Reasons for allowed calls")
         ),
         (
             vec![
-                "src/OrderService.java:3  OrderService.pay  call()  Uygun: kütüphane tipi (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)"
+                "src/OrderService.java:3  OrderService.pay  call()  Allowed: library type (java.util.concurrent.locks.ReentrantReadWriteLock$WriteLock)"
             ],
-            vec!["  1  Kütüphane tipi"]
+            vec!["  1  Library type"]
         )
     );
 }

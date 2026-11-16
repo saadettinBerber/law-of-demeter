@@ -19,7 +19,7 @@ fn help_goes_to_standard_output_with_exit_code_zero() {
     assert_eq!(
         (
             output.status.code(),
-            text(&output.stdout).starts_with("Kullanım: law-of-demeter")
+            text(&output.stdout).starts_with("Usage: law-of-demeter")
         ),
         (Some(0), true)
     );
@@ -33,7 +33,7 @@ fn a_usage_error_goes_to_standard_error_with_exit_code_two() {
         (
             output.status.code(),
             text(&output.stdout),
-            text(&output.stderr).starts_with("Hata: en az bir --source gerekli\n")
+            text(&output.stderr).starts_with("Error: at least one --source is required\n")
         ),
         (Some(2), String::new(), true)
     );

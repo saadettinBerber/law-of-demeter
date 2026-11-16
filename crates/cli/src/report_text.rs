@@ -18,41 +18,41 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
         .iter()
         .any(|finding| finding.is_violation() && !finding.is_unresolved());
     if !has_violation && report.hybrid_classes().is_empty() {
-        text.push_str("İhlal bulunamadı.\n\n");
+        text.push_str("No violations found.\n\n");
     }
     section(
         &mut text,
-        "İhlaller",
+        "Violations",
         finding_lines(
             |finding| finding.is_violation() && !finding.is_unresolved(),
-            "İhlal",
+            "Violation",
         ),
     );
     section(
         &mut text,
-        "Çözülemeyen tipler",
-        finding_lines(Finding::is_unresolved, "Belirsiz"),
+        "Unresolved types",
+        finding_lines(Finding::is_unresolved, "Unresolved"),
     );
     if show_allowed {
         section(
             &mut text,
-            "Uygun çağrılar",
-            finding_lines(|finding| !finding.is_violation(), "Uygun"),
+            "Allowed calls",
+            finding_lines(|finding| !finding.is_violation(), "Allowed"),
         );
     }
     section(
         &mut text,
-        "Hibrit sınıflar",
+        "Hybrid classes",
         report.hybrid_classes().iter().map(hybrid_line).collect(),
     );
     section(
         &mut text,
-        "Kaynak hataları",
+        "Source errors",
         report.source_errors().iter().map(error_line).collect(),
     );
     section(
         &mut text,
-        "Tip okuma hataları",
+        "Type reading errors",
         report.type_errors().iter().map(error_line).collect(),
     );
     text.push_str(&summary(report, show_allowed));
@@ -61,17 +61,17 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
 
 fn summary(report: &Report, show_allowed: bool) -> String {
     let counts = report.counts();
-    let mut text = String::from("Özet:\n");
+    let mut text = String::from("Summary:\n");
     for line in [
-        format!("Dosya: {}", counts.files),
-        format!("Metot: {}", counts.methods),
+        format!("Files: {}", counts.files),
+        format!("Methods: {}", counts.methods),
         format!(
-            "Çağrı: {} (uygun {}, ihlal {}, belirsiz {})",
+            "Calls: {} (allowed {}, violations {}, unresolved {})",
             counts.calls, counts.allowed, counts.violations, counts.unresolved
         ),
-        format!("Hibrit sınıf: {}", counts.hybrid_classes),
-        format!("Kaynak hatası: {}", counts.source_errors),
-        format!("Tip okuma hatası: {}", counts.type_errors),
+        format!("Hybrid classes: {}", counts.hybrid_classes),
+        format!("Source errors: {}", counts.source_errors),
+        format!("Type reading errors: {}", counts.type_errors),
     ] {
         text.push_str(&format!("  {line}\n"));
     }
@@ -79,14 +79,14 @@ fn summary(report: &Report, show_allowed: bool) -> String {
         finding.is_violation() && !finding.is_unresolved()
     });
     if !reasons.is_empty() {
-        text.push_str("\nİhlal nedenleri:\n");
+        text.push_str("\nReasons for violations:\n");
         for (reason, count) in reasons {
             text.push_str(&format!("  {count}  {reason}\n"));
         }
     }
     let allowed = reason_counts(report.findings(), |finding| !finding.is_violation());
     if show_allowed && !allowed.is_empty() {
-        text.push_str("\nUygun nedenleri:\n");
+        text.push_str("\nReasons for allowed calls:\n");
         for (reason, count) in allowed {
             text.push_str(&format!("  {count}  {reason}\n"));
         }
@@ -135,7 +135,7 @@ fn finding_line(finding: &Finding, verdict: &str) -> String {
 fn hybrid_line(finding: &HybridFinding) -> String {
     let hybrid = finding.hybrid();
     format!(
-        "{}  {}  Hibrit sınıf: davranış: {}; setter: {}",
+        "{}  {}  Hybrid class: behavior: {}; setters: {}",
         finding.path().display(),
         hybrid.class(),
         hybrid.behavior_methods().join(", "),
@@ -148,7 +148,7 @@ fn error_line(error: &ReadError) -> String {
         Some(line) => format!("{}:{line}", error.path().display()),
         None => error.path().display().to_string(),
     };
-    format!("{location}  Hata: {}", error.message())
+    format!("{location}  Error: {}", error.message())
 }
 
 #[cfg(test)]
