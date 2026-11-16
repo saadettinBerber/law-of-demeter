@@ -271,3 +271,61 @@ fn without_a_resolved_return_the_domain_does_not_infer_a_type_variable_from_the_
         Verdict::violation("getCustomer", 2, unresolved_return_of("first"))
     );
 }
+
+#[test]
+fn a_lambda_parameter_without_a_resolved_or_declared_type_stays_untyped() {
+    let totals = Call::new(Expression::parameter("order", order()), "getTotals", 2)
+        .returning(generic(LIST, &[TypeRef::class(BIG_DECIMAL)]));
+    let register =
+        Method::new("Dispatcher", "register", 1).call(totals.then("forEach", 3).with(
+            Lambda::new(&["total"]).call(Call::new(Expression::local("total"), "signum", 4)),
+        ));
+
+    let verdicts = register.verdicts(&shop());
+
+    assert_eq!(
+        verdicts.get(1),
+        Some(&Verdict::violation(
+            "signum",
+            4,
+            Reason::unresolved_type(
+                None,
+                Reason::lambda_parameter("total", Reason::return_of("getTotals"))
+            )
+        ))
+    );
+}
+
+#[test]
+fn a_method_reference_without_a_resolved_input_or_a_link_stays_untyped() {
+    let totals = Call::new(Expression::parameter("order", order()), "getTotals", 2)
+        .returning(generic(LIST, &[TypeRef::class(BIG_DECIMAL)]));
+    let register = Method::new("Dispatcher", "register", 1).call(
+        totals.then("forEach", 3).with(
+            MethodReference::new(
+                Expression::static_type(TypeRef::class(BIG_DECIMAL)),
+                "signum",
+                4,
+            )
+            .taking(1),
+        ),
+    );
+
+    let verdicts = register.verdicts(&shop());
+
+    assert_eq!(
+        verdicts.get(1),
+        Some(&Verdict::violation(
+            "signum",
+            4,
+            Reason::unresolved_type(
+                None,
+                Reason::method_reference(
+                    TypeRef::class(BIG_DECIMAL),
+                    "signum",
+                    Reason::return_of("getTotals")
+                )
+            )
+        ))
+    );
+}

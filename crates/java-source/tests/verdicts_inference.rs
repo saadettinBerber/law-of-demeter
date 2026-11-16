@@ -751,7 +751,7 @@ fn a_method_reference_to_an_unknown_method_yields_strangers() {
             "print",
             3,
             Reason::unresolved_type(
-                Some(variable("R")),
+                None,
                 Reason::lambda_parameter("receipt", Reason::return_of("missing"))
             )
         )

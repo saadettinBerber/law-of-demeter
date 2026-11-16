@@ -180,16 +180,20 @@ enum Feed {
     Argument(usize),
 }
 
-fn element_feed<'a>(
-    (feed, outer): (&'a Subject, &'a Subject),
-    siblings: &'a [Option<Subject>],
+fn fed_element(
+    types: &Types,
+    (feed, outer): (&Subject, &Subject),
+    siblings: &[Option<Subject>],
     linked: Option<Feed>,
-) -> &'a Subject {
-    match linked {
+    wrap: impl FnOnce(Reason) -> Reason,
+) -> Subject {
+    let source = match linked {
+        None => return Subject::new(feed.standing.clone().through(wrap), None),
         Some(Feed::Elements) => outer,
         Some(Feed::Argument(index)) => siblings.get(index).and_then(Option::as_ref).unwrap_or(feed),
-        Some(Feed::Receiver) | None => feed,
-    }
+        Some(Feed::Receiver) => feed,
+    };
+    source.element(types, wrap)
 }
 
 fn class_name(type_ref: &TypeRef) -> Option<&str> {
@@ -471,9 +475,7 @@ impl MethodReference {
         siblings: &[Option<Subject>],
     ) -> Subject {
         let known = self.input.as_ref();
-        element_feed(feeds, siblings, self.feed)
-            .element(types, |reason| reason)
-            .declared_as(known)
+        fed_element(types, feeds, siblings, self.feed, |reason| reason).declared_as(known)
     }
 
     fn constructed(&self, types: &Types, target: &Subject) -> Standing {
@@ -594,8 +596,7 @@ impl Lambda {
                 .iter()
                 .find(|(name, _)| name == parameter)
                 .map(|(_, linked)| *linked);
-            let source = element_feed(feeds, siblings, linked);
-            let subject = source.element(context.types, |feed| {
+            let subject = fed_element(context.types, feeds, siblings, linked, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });
             inner.bind(parameter, subject.declared_as(known));
