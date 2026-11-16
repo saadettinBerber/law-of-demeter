@@ -106,13 +106,17 @@ fn order_lines() -> TypeRef {
 fn repository_catalog() -> Types {
     Types::new()
         .with_shape(
-            class("OrderRepository").with_method(
-                MethodShape::new("findById")
-                    .with_parameters(vec![TypeRef::class("OrderId")])
-                    .returning(TypeRef::class("Order")),
-            ),
+            class("OrderRepository")
+                .with_method(order_lookup("findById"))
+                .with_method(order_lookup("getById")),
         )
         .with_shape(class("Order").with_method(MethodShape::new("ship")))
+}
+
+fn order_lookup(name: &str) -> MethodShape {
+    MethodShape::new(name)
+        .with_parameters(vec![TypeRef::class("OrderId")])
+        .returning(TypeRef::class("Order"))
 }
 
 fn data_structure_catalog() -> Types {
@@ -678,6 +682,27 @@ fn allowed_9_talking_to_the_object_a_repository_query_returned() {
         [
             Verdict::allowed("findById", 3, Reason::field("orders")),
             Verdict::allowed("ship", 3, Reason::query_result("findById")),
+        ]
+    );
+}
+
+#[test]
+fn allowed_9_talking_to_the_object_a_get_call_on_a_repository_returned() {
+    let snippet = "void dispatch(OrderId id) {\n    orders.getById(id).ship();\n}";
+
+    let verdicts = verdicts_in_c(
+        "",
+        "OrderRepository orders;",
+        snippet,
+        "dispatch",
+        &repository_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getById", 3, Reason::field("orders")),
+            Verdict::allowed("ship", 3, Reason::query_result("getById")),
         ]
     );
 }
