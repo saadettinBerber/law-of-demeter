@@ -86,6 +86,8 @@ mod nested;
 #[cfg(test)]
 mod references;
 #[cfg(test)]
+mod resolved;
+#[cfg(test)]
 mod scenarios;
 #[cfg(test)]
 mod targets;

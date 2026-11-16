@@ -14,6 +14,7 @@ pub struct Call {
     line: usize,
     arguments: Vec<Argument>,
     expected: Option<TypeRef>,
+    resolved: Option<TypeRef>,
 }
 
 impl Call {
@@ -24,11 +25,17 @@ impl Call {
             line,
             arguments: Vec::new(),
             expected: None,
+            resolved: None,
         }
     }
 
     pub fn expecting(mut self, type_ref: TypeRef) -> Self {
         self.expected = Some(type_ref);
+        self
+    }
+
+    pub fn returning(mut self, type_ref: TypeRef) -> Self {
+        self.resolved = Some(type_ref);
         self
     }
 
@@ -80,7 +87,7 @@ impl Call {
                 argument_count: self.arguments.len(),
             },
         ));
-        let type_ref = invocation.returns();
+        let type_ref = self.resolved.clone().or_else(|| invocation.returns());
         let mapped = judged.mapped.filter(|_| {
             Self::is_container(context.types, receiver.subject.type_ref.as_ref())
                 && Self::is_container(context.types, type_ref.as_ref())
