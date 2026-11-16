@@ -25,13 +25,13 @@ fn judges_within_budget(statement: String) -> bool {
 }
 
 #[test]
-fn collectors_nested_twelve_levels_deep_with_references_are_judged_within_budget() {
-    assert!(judges_within_budget(nested_collectors(12)));
+fn collectors_nested_twenty_four_levels_deep_with_references_are_judged_within_budget() {
+    assert!(judges_within_budget(nested_collectors(24)));
 }
 
 #[test]
-fn collectors_nested_twelve_levels_deep_with_lambdas_are_judged_within_budget() {
-    assert!(judges_within_budget(nested_lambda_collectors(12)));
+fn collectors_nested_twenty_four_levels_deep_with_lambdas_are_judged_within_budget() {
+    assert!(judges_within_budget(nested_lambda_collectors(24)));
 }
 
 #[test]
