@@ -1522,6 +1522,21 @@ fn nested_generic_catalog() -> Types {
                         ],
                     ),
                 )),
+        )
+        .with_method(
+            MethodShape::new("toMap")
+                .as_static()
+                .with_type_parameter("T")
+                .with_type_parameter("K")
+                .with_type_parameter("U")
+                .with_parameters(vec![
+                    function(variable("T"), variable("K")),
+                    function(variable("T"), variable("U")),
+                ])
+                .returning(collector(
+                    variable("T"),
+                    generic_of("java.util.Map", &[variable("K"), variable("U")]),
+                )),
         );
     let streams = stream().with_method(
         MethodShape::new("collect")
@@ -1541,9 +1556,28 @@ fn nested_generic_catalog() -> Types {
         )
         .with_method(
             MethodShape::new("keySet").returning(generic_of("java.util.Set", &[variable("K")])),
-        );
+        )
+        .with_method(
+            MethodShape::new("values")
+                .returning(generic_of("java.util.Collection", &[variable("V")])),
+        )
+        .with_method(MethodShape::new("entrySet").returning(generic_of(
+            "java.util.Set",
+            &[generic_of(
+                "java.util.Map$Entry",
+                &[variable("K"), variable("V")],
+            )],
+        )));
+    let entries = interface("java.util.Map$Entry", &["K", "V"])
+        .with_method(MethodShape::new("getKey").returning(variable("K")))
+        .with_method(MethodShape::new("getValue").returning(variable("V")));
     customer_catalog()
-        .with_shape(interface("java.util.Set", &["E"]))
+        .with_shape(
+            interface("java.util.Set", &["E"])
+                .with_method(MethodShape::new("stream").returning(stream_of(variable("E")))),
+        )
+        .with_shape(interface("java.util.Collection", &["E"]))
+        .with_shape(entries)
         .with_shape(collectors)
         .with_shape(interface("java.util.stream.Collector", &["T", "A", "R"]))
         .with_shape(streams)
@@ -1773,6 +1807,135 @@ fn violation_12_counter_case_the_values_grouped_by_a_stranger_stay_friends() {
             Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
         ]
     );
+}
+
+const MAP_IMPORTS: &str =
+    "import java.util.List; import java.util.Map; import java.util.stream.Collectors;";
+
+#[test]
+fn violation_12_talking_to_a_value_a_stream_mapped_by_a_stranger_produced() {
+    let snippet = "void charge(List<Order> orders) {\n    for (Customer customer : orders.stream().collect(Collectors.toMap(Order::getStatus, Order::getCustomer)).values()) {\n        customer.getWallet();\n    }\n}";
+
+    let verdicts = verdicts_in_c(
+        MAP_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation(
+            "getWallet",
+            4,
+            Reason::loop_variable("customer", Reason::return_of("getCustomer"))
+        ))
+    );
+}
+
+#[test]
+fn violation_12_counter_case_the_values_mapped_from_the_elements_stay_friends() {
+    let snippet = "void charge(List<Order> orders) {\n    for (Order each : orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order)).values()) {\n        each.getCustomer();\n    }\n}";
+
+    let verdicts = verdicts_in_c(
+        MAP_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::allowed(
+            "getCustomer",
+            4,
+            Reason::loop_variable(
+                "each",
+                Reason::lambda_parameter("order", Reason::parameter("orders"))
+            )
+        ))
+    );
+}
+
+#[test]
+fn violation_12_talking_to_a_key_of_an_entry_a_stream_mapped_by_a_stranger_produced() {
+    let snippet = "void charge(List<Order> orders) {\n    for (Map.Entry<Customer, Order> entry : orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order)).entrySet()) {\n        entry.getKey().getWallet();\n    }\n}";
+
+    let verdicts = verdicts_in_c(
+        MAP_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation(
+            "getWallet",
+            4,
+            Reason::return_of("getCustomer")
+        ))
+    );
+}
+
+#[test]
+fn violation_12_talking_to_a_value_of_an_entry_a_stream_mapped_by_a_stranger_produced() {
+    let snippet = "void charge(List<Order> orders) {\n    for (Map.Entry<Status, Customer> entry : orders.stream().collect(Collectors.toMap(Order::getStatus, Order::getCustomer)).entrySet()) {\n        entry.getValue().getWallet();\n    }\n}";
+
+    let verdicts = verdicts_in_c(
+        MAP_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation(
+            "getWallet",
+            4,
+            Reason::return_of("getCustomer")
+        ))
+    );
+}
+
+#[test]
+fn violation_12_counter_case_the_value_of_an_entry_mapped_from_the_elements_stays_a_friend() {
+    let snippet = "void ship(List<Order> orders) {\n    for (Map.Entry<Customer, Order> entry : orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order)).entrySet()) {\n        entry.getValue().ship();\n    }\n}";
+
+    let verdicts = verdicts_in_c(MAP_IMPORTS, "", snippet, "ship", &nested_generic_catalog());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::allowed(
+            "ship",
+            4,
+            Reason::lambda_parameter("order", Reason::parameter("orders"))
+        ))
+    );
+}
+
+#[test]
+fn violation_12_a_lambda_over_the_entries_of_a_stream_reads_the_value_of_each_entry() {
+    let snippet = "void charge(List<Order> orders) {\n    orders.stream().collect(Collectors.toMap(Order::getStatus, Order::getCustomer)).entrySet().stream().map(entry -> entry.getValue().getWallet());\n}";
+
+    let verdicts = verdicts_in_c(
+        MAP_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert!(verdicts.contains(&Verdict::violation(
+        "getWallet",
+        3,
+        Reason::return_of("getCustomer")
+    )));
 }
 
 fn lambda_target_catalog() -> Types {
