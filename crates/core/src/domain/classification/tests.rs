@@ -172,7 +172,7 @@ fn classify(shape: TypeShape) -> Classification {
 }
 
 #[test]
-fn a_class_with_only_getters_and_setters_is_a_data_structure() {
+fn a_class_exposing_its_data_without_behavior_is_a_data_structure() {
     let address = TypeShape::new("Address", TypeKind::Class)
         .with_method(
             MethodShape::new("getCity")
@@ -195,7 +195,7 @@ fn int() -> TypeRef {
 }
 
 #[test]
-fn a_class_with_behavior_and_no_setters_is_an_object() {
+fn a_class_hiding_its_data_behind_behavior_is_an_object() {
     let order = TypeShape::new("Order", TypeKind::Class)
         .with_method(MethodShape::new("getId").returning(string()).reading("id"))
         .with_method(MethodShape::new("charge").with_parameters(vec![int()]));
@@ -217,7 +217,7 @@ fn a_getter_that_computes_instead_of_reading_a_field_is_behavior() {
 }
 
 #[test]
-fn a_class_with_behavior_and_a_setter_is_a_hybrid() {
+fn a_class_exposing_its_data_and_carrying_behavior_is_a_hybrid() {
     let account = TypeShape::new("Account", TypeKind::Class)
         .with_method(
             MethodShape::new("getBalance")
