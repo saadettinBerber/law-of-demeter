@@ -151,6 +151,12 @@ Kaynak: Robert C. Martin, *Clean Code*, 6. bölüm.
 
 ## Kullanım
 
+Araç repo kökünden kurulur:
+
+```bash
+cargo install --path crates/cli
+```
+
 Araç, Java kaynağını ve derlenmiş sınıfları birlikte okur. Lombok'un ürettiği metotlar yalnızca derlenmiş sınıflarda göründüğü için proje önce derlenir.
 
 ```bash
@@ -161,12 +167,13 @@ mvn -q compile dependency:build-classpath -Dmdep.outputFile=classpath.txt
 law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/classes"
 ```
 
-- **`--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
-- **`--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; `:` ile ayrılmış liste de olur.
+- **`-s`, `--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
+- **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, `:` ile ayrılmış liste de olur.
 - **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
 - **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
+- **`-h`, `--help`:** Kullanımı gösterir.
 
-Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım ya da okuma hatası vardır.
+Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir ama çıkış kodunu değiştirmez.
 
 Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
 
@@ -178,7 +185,7 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 
 | Katman | Sorumluluk |
 |---|---|
-| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit ya da değer olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz, Java ayrıştırmaz. |
+| **Domain** | Kuralın kendisi: arkadaş listesi, bir tipin veri yapısı, nesne, hibrit, değer ya da konteyner olarak sınıflandırılması, yabancıya uzanma ve hibrit sınıf. Her çağrı için kararı ve nedenini verir. Dosya okumaz, Java ayrıştırmaz. |
 | **Application** | "Projeyi denetle" kullanım senaryosu. Domain kurallarını yürütür; dışarıdan istediklerini port'larla ister. |
 | **Adapter** | Port'ları gerçek teknolojiye bağlar: komut satırı, Java ayrıştırıcı, `.class` okuyucu ve rapor. |
 
