@@ -150,8 +150,11 @@ fn applicable(
 fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: Phase) -> bool {
     match argument {
         ArgumentType::Null => !matches!(parameter, TypeRef::Primitive(_)),
-        ArgumentType::Lambda(arity) => functional_method(types, parameter)
-            .is_some_and(|functional| functional.parameters.len() == *arity),
+        ArgumentType::Lambda(arity) => {
+            matches!(parameter, TypeRef::Variable(_))
+                || functional_method(types, parameter)
+                    .is_some_and(|functional| functional.parameters.len() == *arity)
+        }
         ArgumentType::Typed(argument) => {
             substitutable(types, argument, parameter)
                 || (phase != Phase::Strict && converts_by_boxing(types, argument, parameter))

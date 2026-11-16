@@ -158,6 +158,16 @@ fn a_non_functional_parameter_does_not_fit_a_lambda() {
 }
 
 #[test]
+fn a_type_variable_parameter_also_fits_the_lambda_and_keeps_the_overload_ambiguous() {
+    let generic_run = method("run", vec![variable("T")]).with_type_parameter("T");
+    let types = worker_with(vec![generic_run, method("run", vec![consumer_of(event())])]);
+
+    let mapped = mapped_in(&types, "Worker worker", "worker.run(e -> e.getEntry());");
+
+    assert_eq!(mapped, running(listener("e")));
+}
+
+#[test]
 fn the_other_arguments_choose_the_overload_that_types_the_lambda() {
     let types = worker_with(vec![
         method("run", vec![class("java.lang.String"), consumer_of(event())]),
