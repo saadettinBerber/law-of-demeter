@@ -235,7 +235,14 @@ fn violation_6_changing_the_elements_of_an_inner_collection() {
     let lines = order_lines();
     let types = Types::new()
         .with_shape(order_with_lines(&lines))
-        .with_shape(class("OrderLine").with_method(MethodShape::new("applyDiscount")));
+        .with_shape(class("OrderLine").with_method(MethodShape::new("applyDiscount")))
+        .with_shape(interface("java.util.List", &["E"]).with_method(
+            MethodShape::new("forEach").with_parameters(vec![generic_of(
+                "java.util.function.Consumer",
+                &[variable("E")],
+            )]),
+        ))
+        .with_shape(consumer());
     let snippet = "void discount(Order order, int rate) {\n    order.getLines().forEach(line -> line.applyDiscount(rate));\n}";
 
     let verdicts = verdicts_in_c("", "", snippet, "discount", &types);

@@ -91,13 +91,15 @@ fn customer_of(variable: &str, line: usize) -> Call {
 }
 
 fn withdrawing_from_the_wallet_of(variable: &str) -> Lambda {
-    Lambda::new(&[variable]).call(Call::new(
-        Expression::return_of(
-            Call::new(Expression::local(variable), "getWallet", 3).returning(wallet()),
-        ),
-        "withdraw",
-        3,
-    ))
+    Lambda::new(&[variable])
+        .fed_by_receiver(variable)
+        .call(Call::new(
+            Expression::return_of(
+                Call::new(Expression::local(variable), "getWallet", 3).returning(wallet()),
+            ),
+            "withdraw",
+            3,
+        ))
 }
 
 #[test]
@@ -131,6 +133,7 @@ fn a_stream_mapped_by_a_lambda_hands_the_returned_objects_to_the_next_lambda() {
             .then("map", 2)
             .with(
                 Lambda::new(&["order"])
+                    .fed_by_elements("order")
                     .yielding(Expression::return_of(getting_the_customer_of("order", 2))),
             )
             .returning(stream_of(customer()))
@@ -170,7 +173,7 @@ fn mapping_orders_with(reference: MethodReference) -> Method {
     Method::new("Billing", "charge", 1).call(
         orders_stream()
             .then("map", 2)
-            .with(reference)
+            .with(reference.fed_by_elements())
             .returning(stream_of(customer()))
             .returning_from(&[0])
             .then("forEach", 3)
@@ -360,11 +363,19 @@ fn a_value_mapped_from_a_stream_is_allowed_by_its_classification() {
     let check = Method::new("Billing", "check", 1).call(
         orders_stream()
             .then("map", 2)
-            .with(Lambda::new(&["order"]).yielding(total))
+            .with(
+                Lambda::new(&["order"])
+                    .fed_by_elements("order")
+                    .yielding(total),
+            )
             .returning(stream_of(TypeRef::class(BIG_DECIMAL)))
             .returning_from(&[0])
             .then("forEach", 3)
-            .with(Lambda::new(&["total"]).call(Call::new(Expression::local("total"), "signum", 3))),
+            .with(
+                Lambda::new(&["total"])
+                    .fed_by_receiver("total")
+                    .call(Call::new(Expression::local("total"), "signum", 3)),
+            ),
     );
 
     let verdicts = check.verdicts(&shop());
@@ -413,15 +424,19 @@ fn a_container_a_call_on_a_non_container_returns_follows_the_usual_standing_rule
             "mapAll",
             2,
         )
-        .with(Lambda::new(&["order"]).yielding(created))
+        .with(
+            Lambda::new(&["order"])
+                .fed_by_receiver("order")
+                .yielding(created),
+        )
         .returning(stream_of(receipt()))
         .returning_from(&[0])
         .then("forEach", 3)
-        .with(Lambda::new(&["receipt"]).call(Call::new(
-            Expression::local("receipt"),
-            "print",
-            3,
-        ))),
+        .with(
+            Lambda::new(&["receipt"])
+                .fed_by_receiver("receipt")
+                .call(Call::new(Expression::local("receipt"), "print", 3)),
+        ),
     );
 
     let verdicts = print.verdicts(&shop());
@@ -440,15 +455,15 @@ fn orders_then_print(reference: MethodReference) -> Method {
     Method::new("Billing", "print", 1).call(
         orders_stream()
             .then("map", 2)
-            .with(reference)
+            .with(reference.fed_by_elements())
             .returning(stream_of(variable("R")))
             .returning_from(&[0])
             .then("forEach", 3)
-            .with(Lambda::new(&["receipt"]).call(Call::new(
-                Expression::local("receipt"),
-                "print",
-                3,
-            ))),
+            .with(
+                Lambda::new(&["receipt"])
+                    .fed_by_receiver("receipt")
+                    .call(Call::new(Expression::local("receipt"), "print", 3)),
+            ),
     )
 }
 

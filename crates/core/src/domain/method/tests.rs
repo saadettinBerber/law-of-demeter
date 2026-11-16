@@ -363,11 +363,11 @@ fn a_lambda_parameter_takes_the_element_type_of_the_container_feeding_it() {
         )
         .returning(order_lines())
         .then("forEach", 2)
-        .with(Lambda::new(&["line"]).call(Call::new(
-            Expression::local("line"),
-            "getSku",
-            2,
-        ))),
+        .with(
+            Lambda::new(&["line"])
+                .fed_by_receiver("line")
+                .call(Call::new(Expression::local("line"), "getSku", 2)),
+        ),
     );
 
     let verdicts = list_skus.verdicts(&order_with_lines());

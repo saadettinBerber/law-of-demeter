@@ -229,10 +229,13 @@ fn an_unbound_reference_is_judged_as_the_call_on_the_element_that_feeds_it() {
 
 #[test]
 fn an_unbound_reference_on_elements_a_stranger_returned_is_a_violation() {
-    let charge =
-        Method::new("Billing", "charge", 1).call(mapped_customers().then("map", 3).with(
-            MethodReference::new(Expression::static_type(customer()), "getWallet", 3).taking(1),
-        ));
+    let charge = Method::new("Billing", "charge", 1).call(
+        mapped_customers().then("map", 3).with(
+            MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
+                .taking(1)
+                .fed_by_elements(),
+        ),
+    );
 
     let verdicts = charge.verdicts(&streams());
 
