@@ -1,5 +1,7 @@
 use law_of_demeter_core::domain::classification::{Classification, Types};
-use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use law_of_demeter_core::domain::type_shape::{
+    FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
+};
 use law_of_demeter_java_source::java_platform;
 
 fn platform_types() -> Types {
@@ -286,4 +288,27 @@ fn equals_hash_code_to_string_and_can_equal_are_not_behavior() {
     let classification = types.classify(&TypeRef::class("shop.Address"));
 
     assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn an_immutable_java_class_with_equals_and_hash_code_is_a_value() {
+    let version = class(
+        "shop.Version",
+        "java.lang.Object",
+        vec![
+            MethodShape::new("getMajor")
+                .returning(TypeRef::primitive("int"))
+                .reading("major"),
+            MethodShape::new("equals")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .returning(TypeRef::primitive("boolean")),
+            MethodShape::new("hashCode").returning(TypeRef::primitive("int")),
+        ],
+    )
+    .with_field(FieldShape::new("major", TypeRef::primitive("int")).as_final());
+    let types = platform_types().with_shape(version);
+
+    let classification = types.classify(&TypeRef::class("shop.Version"));
+
+    assert_eq!(classification, Classification::Value);
 }

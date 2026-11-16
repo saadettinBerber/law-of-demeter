@@ -84,6 +84,39 @@ fn a_method_the_platform_says_every_object_has_is_not_behavior() {
     assert_eq!(classification, Classification::DataStructure);
 }
 
+fn money(methods: Vec<MethodShape>) -> TypeShape {
+    let amount = MethodShape::new("getAmount")
+        .returning(int())
+        .reading("amount");
+    methods.into_iter().fold(
+        TypeShape::new("Money", TypeKind::Class)
+            .with_field(FieldShape::new("amount", int()).as_final())
+            .with_method(amount),
+        TypeShape::with_method,
+    )
+}
+
+#[test]
+fn an_immutable_class_declaring_the_equality_methods_the_platform_names_is_a_value() {
+    let same_as = MethodShape::new("sameAs").with_parameters(vec![TypeRef::class("Money")]);
+    let types = Types::new()
+        .with_platform(Platform::new().with_equality_method("sameAs", 1))
+        .with_shape(money(vec![same_as]));
+
+    let classification = types.classify(&TypeRef::class("Money"));
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn an_immutable_class_is_not_a_value_when_the_platform_names_no_equality_methods() {
+    let types = Types::new().with_shape(money(Vec::new()));
+
+    let classification = types.classify(&TypeRef::class("Money"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
 #[test]
 fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argument() {
     let order = TypeRef::class("Order");

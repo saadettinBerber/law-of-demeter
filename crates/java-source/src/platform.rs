@@ -115,4 +115,6 @@ pub fn java_platform() -> Platform {
         .with_object_method("hashCode", 0)
         .with_object_method("toString", 0)
         .with_object_method("canEqual", 1)
+        .with_equality_method("equals", 1)
+        .with_equality_method("hashCode", 0)
 }

@@ -364,7 +364,7 @@ impl Types {
 
     fn classify_class(&self, shape: &TypeShape) -> Classification {
         let members = self.class_members(shape);
-        if members.is_value_object() {
+        if members.is_value_object(&self.platform) {
             return Classification::Value;
         }
         let has_behavior = members.methods.iter().any(|method| is_behavior(method));
@@ -435,7 +435,7 @@ impl Members<'_> {
             && self.project_methods.iter().any(|method| is_setter(method))
     }
 
-    fn is_value_object(&self) -> bool {
+    fn is_value_object(&self, platform: &Platform) -> bool {
         let mut fields = self
             .chain
             .iter()
@@ -447,8 +447,11 @@ impl Members<'_> {
             && has_fields
             && fields.all(FieldShape::is_final)
             && !self.methods.iter().any(|method| is_setter(method))
-            && self.declares("equals", 1)
-            && self.declares("hashCode", 0)
+            && !platform.equality_methods().is_empty()
+            && platform
+                .equality_methods()
+                .iter()
+                .all(|(name, parameter_count)| self.declares(name, *parameter_count))
     }
 
     fn declares(&self, name: &str, parameter_count: usize) -> bool {
