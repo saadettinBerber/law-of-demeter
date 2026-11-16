@@ -370,6 +370,56 @@ fn an_argument_of_unknown_type_resolves_only_when_the_overloads_agree() {
 }
 
 #[test]
+fn an_argument_of_unknown_type_fits_a_class_parameter_but_not_a_primitive_one() {
+    let overloads = vec![
+        pick("Wallet", vec![int()]),
+        pick("Customer", vec![class("Wallet")]),
+    ];
+
+    let mapped = mapped_pick("ghost", overloads);
+
+    assert_eq!(mapped, expected_pick(vec![ghost()], Some("Customer")));
+}
+
+#[test]
+fn overloads_none_of_which_fits_still_resolve_when_they_agree_on_the_return() {
+    let overloads = vec![
+        pick("Customer", vec![class("java.lang.String")]),
+        pick("Customer", vec![class("Wallet")]),
+    ];
+
+    let mapped = mapped_pick("1", overloads);
+
+    assert_eq!(mapped, expected_pick(vec![literal()], Some("Customer")));
+}
+
+#[test]
+fn overloads_that_both_fit_resolve_when_they_agree_on_the_return() {
+    let overloads = vec![
+        pick("Customer", vec![class("java.lang.String")]),
+        pick("Customer", vec![class("Wallet")]),
+    ];
+
+    let mapped = mapped_pick("null", overloads);
+
+    assert_eq!(mapped, expected_pick(vec![literal()], Some("Customer")));
+}
+
+#[test]
+fn a_fixed_arity_overload_is_chosen_though_the_variable_arity_one_cannot_take_the_argument() {
+    let overloads = vec![
+        pick("Customer", vec![TypeRef::variable("T")]).with_type_parameter("T"),
+        pick("Wallet", vec![TypeRef::array(TypeRef::variable("T"))])
+            .with_type_parameter("T")
+            .as_varargs(),
+    ];
+
+    let mapped = mapped_pick("premium", overloads);
+
+    assert_eq!(mapped, expected_pick(vec![premium()], Some("Customer")));
+}
+
+#[test]
 fn an_argument_whose_ancestors_are_unknown_leaves_disagreeing_overloads_unresolved() {
     let types = world().with_shape(shape("Gold").with_superclass(class("Ghost")));
     let overloads = vec![

@@ -318,7 +318,7 @@ fn a_local_declared_with_var_leaves_the_call_unresolved() {
 }
 
 #[test]
-fn overloads_of_the_same_arity_that_return_different_types_leave_the_call_unresolved() {
+fn an_argument_of_unknown_type_leaves_only_the_overloads_that_take_a_class() {
     let source = "class OrderService {\n void f(Order order, Ghost ghost) {\n  order.find(ghost).go();\n }\n}";
     let types = shop().with_shape(
         shape("Order")
@@ -337,6 +337,7 @@ fn overloads_of_the_same_arity_that_return_different_types_leave_the_call_unreso
         f(2).call(
             call(parameter("order", class("Order")), "find", 3)
                 .with(parameter("ghost", class("Ghost")))
+                .returning(class("Wallet"))
                 .then("go", 3)
         )
     );

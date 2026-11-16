@@ -204,7 +204,7 @@ fn the_other_arguments_choose_the_overload_that_types_the_lambda() {
 }
 
 #[test]
-fn an_undecided_overload_leaves_the_lambda_unresolved() {
+fn an_argument_of_unknown_type_still_lets_the_only_overload_type_its_lambda() {
     let types = worker_with(vec![method("run", vec![event(), consumer_of(event())])]);
 
     let mapped = mapped_in(
@@ -213,9 +213,11 @@ fn an_undecided_overload_leaves_the_lambda_unresolved() {
         "worker.run(mystery, e -> e.getEntry());",
     );
 
+    let typed = fed(listener("e").resolving("e", event()), "e");
     let run = call(worker(), "run", 3)
         .with(parameter("mystery", class("Mystery")))
-        .with(listener("e"));
+        .with(typed)
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(run));
 }
 

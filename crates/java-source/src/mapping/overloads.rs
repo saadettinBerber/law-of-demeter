@@ -11,14 +11,24 @@ use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure};
 pub(super) enum ArgumentType {
     Null,
     Typed(TypeRef),
+    Foreign(TypeRef),
     Lambda(usize),
     Reference,
     Open(TypeRef),
+    Unknown,
 }
 
 impl ArgumentType {
-    pub(super) fn is_deferred(&self) -> bool {
-        matches!(self, Self::Lambda(_) | Self::Reference | Self::Open(_))
+    pub(super) fn of_type(types: &Types, type_ref: TypeRef) -> Self {
+        if is_known(types, &type_ref) {
+            Self::Typed(type_ref)
+        } else {
+            Self::Foreign(type_ref)
+        }
+    }
+
+    fn is_unsure(&self) -> bool {
+        matches!(self, Self::Foreign(_) | Self::Unknown)
     }
 
     pub(super) fn of_literal(literal: LiteralType) -> Self {
@@ -41,8 +51,7 @@ pub(super) enum Selection {
         bindings: Bindings,
         parameters: Vec<TypeRef>,
     },
-    Unresolvable,
-    Undecided,
+    Ambiguous(Vec<usize>),
 }
 
 pub(super) struct Signature {
@@ -96,23 +105,20 @@ pub(super) fn select(
     signatures: &[Signature],
     arguments: &[Option<ArgumentType>],
 ) -> Selection {
-    let Some(arguments) = arguments
+    let arguments: Vec<_> = arguments
         .iter()
-        .map(Option::as_ref)
-        .collect::<Option<Vec<_>>>()
-    else {
-        return Selection::Undecided;
-    };
+        .map(|argument| argument.as_ref().unwrap_or(&ArgumentType::Unknown))
+        .collect();
     for phase in [Phase::Strict, Phase::Loose, Phase::VariableArity] {
-        match applicable(types, signatures, &arguments, phase) {
-            None => return Selection::Undecided,
-            Some(applicants) if !applicants.is_empty() => {
-                return most_specific(types, signatures, &applicants, phase, arguments.len());
-            }
-            Some(_) => {}
+        let applicants = applicable(types, signatures, &arguments, phase);
+        if applicants.len() > 1 && arguments.iter().any(|argument| argument.is_unsure()) {
+            return Selection::Ambiguous(indices_of(&applicants));
+        }
+        if !applicants.is_empty() {
+            return most_specific(types, signatures, &applicants, phase, arguments.len());
         }
     }
-    Selection::Unresolvable
+    Selection::Ambiguous((0..signatures.len()).collect())
 }
 
 pub(super) fn is_known(types: &Types, type_ref: &TypeRef) -> bool {
@@ -131,13 +137,13 @@ fn applicable(
     signatures: &[Signature],
     arguments: &[&ArgumentType],
     phase: Phase,
-) -> Option<Vec<Applicant>> {
+) -> Vec<Applicant> {
     let mut applicants = Vec::new();
     for (index, signature) in signatures.iter().enumerate() {
         let Some(parameters) = signature.parameters_for(phase, arguments.len()) else {
             continue;
         };
-        let (parameters, bindings) = instantiate(types, &signature.free, &parameters, arguments)?;
+        let (parameters, bindings) = instantiate(types, &signature.free, &parameters, arguments);
         let fits = parameters
             .iter()
             .zip(arguments)
@@ -150,11 +156,18 @@ fn applicable(
             });
         }
     }
-    Some(applicants)
+    applicants
 }
 
 fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: Phase) -> bool {
+    if matches!(parameter, TypeRef::Variable(_)) {
+        return true;
+    }
     match argument {
+        ArgumentType::Unknown => true,
+        ArgumentType::Foreign(_) => {
+            matches!(parameter, TypeRef::Class { .. } | TypeRef::Variable(_))
+        }
         ArgumentType::Null => !matches!(parameter, TypeRef::Primitive(_)),
         ArgumentType::Lambda(arity) => {
             matches!(parameter, TypeRef::Variable(_))
@@ -198,8 +211,12 @@ fn most_specific(
             bindings: only.bindings.clone(),
             parameters: only.parameters.clone(),
         },
-        _ => Selection::Unresolvable,
+        _ => Selection::Ambiguous(indices_of(applicants)),
     }
+}
+
+fn indices_of(applicants: &[Applicant]) -> Vec<usize> {
+    applicants.iter().map(|applicant| applicant.index).collect()
 }
 
 fn more_specific(

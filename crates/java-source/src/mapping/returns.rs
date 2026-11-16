@@ -10,7 +10,7 @@ use super::lambdas::functional_method;
 use super::lineage::{Ancestor, class_name, has_variable, lineage, substitute};
 use super::links::Declared;
 use super::memo::address;
-use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
+use super::overloads::{ArgumentType, Selection, Signature, select};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
@@ -92,14 +92,13 @@ impl MethodMapper<'_> {
             model::Expression::Call(call) => self.call_argument(call),
             other => self
                 .type_of(other)
-                .filter(|type_ref| is_known(self.types, type_ref))
-                .map(ArgumentType::Typed),
+                .map(|type_ref| ArgumentType::of_type(self.types, type_ref)),
         }
     }
 
     fn call_argument(&mut self, call: &model::Call) -> Option<ArgumentType> {
         match self.call_type(call) {
-            Some(known) => is_known(self.types, &known).then_some(ArgumentType::Typed(known)),
+            Some(known) => Some(ArgumentType::of_type(self.types, known)),
             None => self.open_return_of(call).map(ArgumentType::Open),
         }
     }
@@ -276,16 +275,18 @@ pub(super) fn invoked(
             bindings,
             parameters,
         } => Some(candidates[index].invocation(types, (bindings, parameters), arguments.len())),
-        Selection::Undecided => Some(Invocation {
-            parameters: Vec::new(),
-            bindings: Bindings::new(),
-            returned: agreed_return(&candidates),
-            free: Vec::new(),
-            bounds: Bindings::new(),
-            results: Vec::new(),
-            declared: None,
-        }),
-        Selection::Unresolvable => None,
+        Selection::Ambiguous(indices) => {
+            let contenders: Vec<_> = indices.iter().map(|index| &candidates[*index]).collect();
+            Some(Invocation {
+                parameters: Vec::new(),
+                bindings: Bindings::new(),
+                returned: agreed_return(&contenders),
+                free: Vec::new(),
+                bounds: Bindings::new(),
+                results: Vec::new(),
+                declared: None,
+            })
+        }
     }
 }
 
@@ -397,7 +398,7 @@ fn named<'t>(shape: &'t TypeShape, method: &str) -> Vec<&'t MethodShape> {
         .collect()
 }
 
-fn agreed_return(candidates: &[Candidate]) -> Option<TypeRef> {
+fn agreed_return(candidates: &[&Candidate]) -> Option<TypeRef> {
     let (first, rest) = candidates.split_first()?;
     let returned = first.returned()?;
     let agreed = rest

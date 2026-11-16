@@ -24,10 +24,10 @@ pub(super) fn instantiate(
     free: &[String],
     parameters: &[TypeRef],
     arguments: &[&ArgumentType],
-) -> Option<(Vec<TypeRef>, Bindings)> {
+) -> (Vec<TypeRef>, Bindings) {
     let mut constraints = Constraints::default();
     for (parameter, argument) in parameters.iter().zip(arguments) {
-        if let ArgumentType::Typed(argument) = argument {
+        if let ArgumentType::Typed(argument) | ArgumentType::Foreign(argument) = argument {
             from_argument(
                 types,
                 free,
@@ -42,11 +42,7 @@ pub(super) fn instantiate(
         .iter()
         .map(|parameter| apply_bindings(parameter, &bindings))
         .collect();
-    let settled = instantiated
-        .iter()
-        .zip(arguments)
-        .all(|(parameter, argument)| argument.is_deferred() || !has_variable(parameter));
-    settled.then_some((instantiated, bindings))
+    (instantiated, bindings)
 }
 
 pub(super) fn complete(

@@ -238,12 +238,15 @@ fn variable_arity_overloads_neither_of_which_is_more_specific_leave_the_call_unr
 }
 
 #[test]
-fn a_variable_arity_overload_none_of_whose_elements_fit_leaves_the_call_unresolved() {
+fn a_variable_arity_overload_none_of_whose_elements_fit_still_gives_its_return() {
     let overloads = vec![pick("Customer", vec![array_of("Order")])];
 
     let mapped = mapped_pick("customer, 1", overloads);
 
-    assert_eq!(mapped, expected_pick(vec![customer(), literal()], None));
+    assert_eq!(
+        mapped,
+        expected_pick(vec![customer(), literal()], Some("Customer"))
+    );
 }
 
 #[test]
