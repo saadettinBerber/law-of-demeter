@@ -382,6 +382,7 @@ pub struct MethodReference {
     resolved: Option<TypeRef>,
     input: Option<TypeRef>,
     feed: Option<Feed>,
+    arity: Option<usize>,
 }
 
 impl MethodReference {
@@ -394,6 +395,7 @@ impl MethodReference {
             resolved: None,
             input: None,
             feed: None,
+            arity: None,
         }
     }
 
@@ -409,6 +411,11 @@ impl MethodReference {
 
     pub fn resolving(mut self, type_ref: TypeRef) -> Self {
         self.input = Some(type_ref);
+        self
+    }
+
+    pub fn taking(mut self, arity: usize) -> Self {
+        self.arity = Some(arity);
         self
     }
 
@@ -446,12 +453,15 @@ impl MethodReference {
         let types = context.types;
         let target = self.target.judge(context);
         let mut verdicts = target.verdicts;
-        let arity = functional.map_or(0, |functional| functional.parameters.len());
+        let taken = self
+            .arity
+            .or_else(|| functional.map(|functional| functional.parameters.len()));
+        let arity = taken.unwrap_or(0);
         let result = match &self.target {
-            _ if self.name == "new" => functional.map(|_| self.constructed(types, &target.subject)),
+            _ if self.name == "new" => taken.map(|_| self.constructed(types, &target.subject)),
             Expression::StaticType(owner) if types.declares_static(owner, &self.name) => {
                 verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
-                functional.map(|_| self.static_result(types, owner, arity))
+                taken.map(|_| self.static_result(types, owner, arity))
             }
             Expression::StaticType(owner) => {
                 let element = self.element(types, feed, outer, functional);
@@ -460,11 +470,11 @@ impl MethodReference {
                     .through(|feed| Reason::method_reference(owner.clone(), &self.name, feed));
                 let arguments = arity.saturating_sub(1);
                 verdicts.push(verdict_on(context, &receiver, &self.called(arguments)));
-                functional.map(|_| self.on(types, &element, arguments))
+                taken.map(|_| self.on(types, &element, arguments))
             }
             _ => {
                 verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
-                functional.map(|_| self.on(types, &target.subject, arity))
+                taken.map(|_| self.on(types, &target.subject, arity))
             }
         };
         let result = result.map(|subject| Subject {

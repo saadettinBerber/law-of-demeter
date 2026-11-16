@@ -259,3 +259,37 @@ fn a_method_reference_takes_its_resolved_result_type_over_the_one_its_shape_decl
         )
     );
 }
+
+#[test]
+fn a_method_reference_with_a_resolved_arity_yields_its_result_without_the_functional_interface() {
+    let customers = MethodReference::new(Expression::static_type(order()), "getCustomer", 2)
+        .taking(1)
+        .returning(TypeRef::class("Customer"))
+        .fed_by_elements();
+    let rename = Lambda::new(&["customer"])
+        .resolving("customer", TypeRef::class("Customer"))
+        .fed_by_receiver("customer")
+        .call(Call::new(Expression::local("customer"), "rename", 3));
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    let charge = Method::new("Billing", "charge", 1).call(
+        Call::new(orders, "stream", 2)
+            .returning(generic(STREAM, &[order()]))
+            .then("map", 2)
+            .returning(generic(STREAM, &[TypeRef::class("Customer")]))
+            .returning_from(&[0])
+            .with(customers)
+            .then("forEach", 3)
+            .with(rename),
+    );
+
+    let verdicts = charge.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[3],
+        Verdict::violation(
+            "rename",
+            3,
+            Reason::lambda_parameter("customer", Reason::return_of("getCustomer"))
+        )
+    );
+}
