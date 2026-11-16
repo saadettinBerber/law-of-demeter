@@ -113,11 +113,15 @@ fn clean_method() -> Method {
     Method::new("app.Shipping", "total", 3).call(Call::new(order(), "total", 4))
 }
 
+fn lines() -> TypeRef {
+    TypeRef::generic("java.util.List", vec![TypeRef::class("shop.OrderLine")])
+}
+
 fn violating_method() -> Method {
     Method::new("app.Shipping", "discount", 3)
         .for_each(
             "line",
-            Expression::return_of(Call::new(order(), "getLines", 4)),
+            Expression::return_of(Call::new(order(), "getLines", 4).returning(lines())),
         )
         .call(Call::new(Expression::local("line"), "applyDiscount", 5))
 }
