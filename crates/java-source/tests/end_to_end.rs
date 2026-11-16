@@ -2064,6 +2064,69 @@ fn lambda_target_4_a_constructor_argument_takes_the_parameter_type_of_the_constr
     );
 }
 
+fn related_events_catalog() -> Types {
+    let consumer = generic_of("java.util.function.Consumer", &[variable("T")]);
+    let related = generic_of("java.util.List", &[TypeRef::class("Event")]);
+    let batch = class("Batch").with_type_parameter("T").with_method(
+        MethodShape::new("<init>").with_parameters(vec![
+            generic_of("java.util.List", &[variable("T")]),
+            consumer.clone(),
+        ]),
+    );
+    let each = MethodShape::new("each")
+        .as_static()
+        .with_type_parameter("T")
+        .with_parameters(vec![
+            generic_of("java.util.List", &[variable("T")]),
+            consumer,
+        ]);
+    lambda_target_catalog()
+        .with_shape(
+            class("Event")
+                .with_method(MethodShape::new("getRecord").returning(TypeRef::class("EventRecord")))
+                .with_method(MethodShape::new("getRelated").returning(related)),
+        )
+        .with_shape(batch)
+        .with_shape(class("Batches").with_method(each))
+}
+
+fn related_events_verdicts(snippet: &str) -> Vec<Verdict> {
+    verdicts_in_c(
+        LAMBDA_TARGET_IMPORTS,
+        "",
+        snippet,
+        "start",
+        &related_events_catalog(),
+    )
+}
+
+fn the_record_of_a_related_event() -> Verdict {
+    let related = Reason::return_of("getRelated");
+    Verdict::violation("getRecord", 3, Reason::lambda_parameter("e", related))
+}
+
+#[test]
+fn lambda_target_4b_a_constructor_lambda_is_fed_by_the_elements_of_the_argument_binding_its_input()
+{
+    let snippet =
+        "void start(Event event) {\n    new Batch<>(event.getRelated(), e -> e.getRecord());\n}";
+
+    let verdicts = related_events_verdicts(snippet);
+
+    assert!(verdicts.contains(&the_record_of_a_related_event()));
+}
+
+#[test]
+fn lambda_target_4c_a_static_call_lambda_is_fed_by_the_elements_of_the_argument_binding_its_input()
+{
+    let snippet =
+        "void start(Event event) {\n    Batches.each(event.getRelated(), e -> e.getRecord());\n}";
+
+    let verdicts = related_events_verdicts(snippet);
+
+    assert!(verdicts.contains(&the_record_of_a_related_event()));
+}
+
 #[test]
 fn lambda_target_5_a_cast_types_the_parameter() {
     let snippet = "void register() {\n    Object handler = (Consumer<Event>) e -> e.getRecord().getLock().release();\n}";
