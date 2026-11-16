@@ -34,7 +34,7 @@ pub(super) fn instantiate(
     let bindings = resolve(types, constraints);
     let instantiated: Vec<_> = parameters
         .iter()
-        .map(|parameter| bound(parameter, &bindings))
+        .map(|parameter| apply_bindings(parameter, &bindings))
         .collect();
     (!instantiated.iter().any(has_variable)).then_some((instantiated, bindings))
 }
@@ -53,10 +53,10 @@ pub(super) fn expecting(
         &reference(expected),
         &mut constraints,
     );
-    bound(returned, &resolve(types, constraints))
+    apply_bindings(returned, &resolve(types, constraints))
 }
 
-pub(super) fn bound(type_ref: &TypeRef, bindings: &Bindings) -> TypeRef {
+pub(super) fn apply_bindings(type_ref: &TypeRef, bindings: &Bindings) -> TypeRef {
     substitute(type_ref, &|name| bindings.get(name).cloned())
 }
 

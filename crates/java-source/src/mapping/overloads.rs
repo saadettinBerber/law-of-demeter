@@ -4,7 +4,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::LiteralType;
 
 use super::conversions::{boxed, unboxed, widens};
-use super::inference::{Bindings, bound, instantiate};
+use super::inference::{Bindings, apply_bindings, instantiate};
 use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure};
 
 pub(super) enum ArgumentType {
@@ -205,7 +205,7 @@ fn instance(
     Some(
         parameters
             .iter()
-            .map(|parameter| bound(parameter, bindings))
+            .map(|parameter| apply_bindings(parameter, bindings))
             .collect(),
     )
 }

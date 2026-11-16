@@ -4,7 +4,7 @@ use law_of_demeter_core::domain::type_shape::{MethodShape, TypeRef, TypeShape};
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
-use super::inference::{Bindings, bound, expecting};
+use super::inference::{Bindings, apply_bindings, expecting};
 use super::lineage::{Ancestor, has_variable, lineage, substitute};
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
@@ -113,7 +113,7 @@ impl Candidate<'_> {
         bindings: &Bindings,
         expected: Option<&TypeRef>,
     ) -> Option<TypeRef> {
-        let returned = bound(&self.returned()?, bindings);
+        let returned = apply_bindings(&self.returned()?, bindings);
         Some(match expected {
             Some(expected) => expecting(types, self.method.type_parameters(), &returned, expected),
             None => returned,
