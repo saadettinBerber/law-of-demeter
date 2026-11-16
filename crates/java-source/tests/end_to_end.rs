@@ -1533,12 +1533,17 @@ fn nested_generic_catalog() -> Types {
             )])
             .returning(variable("R")),
     );
-    let maps = interface("java.util.Map", &["K", "V"]).with_method(
-        MethodShape::new("get")
-            .with_parameters(vec![TypeRef::class("java.lang.Object")])
-            .returning(variable("V")),
-    );
+    let maps = interface("java.util.Map", &["K", "V"])
+        .with_method(
+            MethodShape::new("get")
+                .with_parameters(vec![TypeRef::class("java.lang.Object")])
+                .returning(variable("V")),
+        )
+        .with_method(
+            MethodShape::new("keySet").returning(generic_of("java.util.Set", &[variable("K")])),
+        );
     customer_catalog()
+        .with_shape(interface("java.util.Set", &["E"]))
         .with_shape(collectors)
         .with_shape(interface("java.util.stream.Collector", &["T", "A", "R"]))
         .with_shape(streams)
@@ -1704,6 +1709,62 @@ fn nested_generic_5_a_method_reference_grouping_types_the_groups() {
         [
             Verdict::allowed("stream", 3, Reason::parameter("orders")),
             referencing("Order", "getStatus", 3, Reason::parameter("orders")),
+            Verdict::allowed("groupingBy", 3, collectors_type()),
+            Verdict::allowed("collect", 3, Reason::parameter("orders")),
+            Verdict::allowed("get", 3, Reason::parameter("orders")),
+            Verdict::allowed("get", 3, Reason::parameter("orders")),
+            Verdict::allowed("getCustomer", 3, Reason::parameter("orders")),
+            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
+        ]
+    );
+}
+
+#[test]
+fn nested_generic_6_the_keys_grouped_by_a_stranger_are_strangers() {
+    let snippet = "void charge(List<Order> orders) {\n    for (Customer customer : orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()) {\n        customer.getWallet();\n    }\n}";
+
+    let verdicts = verdicts_in_c(
+        NESTED_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            referencing("Order", "getCustomer", 3, Reason::parameter("orders")),
+            Verdict::allowed("groupingBy", 3, collectors_type()),
+            Verdict::allowed("collect", 3, Reason::parameter("orders")),
+            Verdict::allowed("keySet", 3, Reason::parameter("orders")),
+            Verdict::violation(
+                "getWallet",
+                4,
+                Reason::loop_variable("customer", Reason::return_of("getCustomer"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn nested_generic_7_the_values_grouped_by_a_stranger_keep_the_elements_standing() {
+    let snippet = "void ship(List<Order> orders, Customer customer) {\n    orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).get(customer).get(0).getCustomer().rename();\n}";
+
+    let verdicts = verdicts_in_c(
+        NESTED_IMPORTS,
+        "",
+        snippet,
+        "ship",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("stream", 3, Reason::parameter("orders")),
+            referencing("Order", "getCustomer", 3, Reason::parameter("orders")),
             Verdict::allowed("groupingBy", 3, collectors_type()),
             Verdict::allowed("collect", 3, Reason::parameter("orders")),
             Verdict::allowed("get", 3, Reason::parameter("orders")),
