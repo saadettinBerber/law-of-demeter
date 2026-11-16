@@ -31,7 +31,7 @@
 | [Paket içi görünür ile `protected` metotları da davranış say; yalnızca `private` metotlar sayılmasın.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | [Metot referansını, eşdeğer lambdanın yaptığı çağrı gibi yargıla: `Customer::getWallet`, `customer -> customer.getWallet()` ile aynı kararı alsın; iç içe çağrıda da: `collect(Collectors.groupingBy(Customer::getWallet))`.](SCENARIOS.md#uygun-değil) | Yapıldı |
 | Depo sorgusunu tip adından da tanı: adı `Repository` ile biten tipteki alanın `get` çağrısı da depo sorgusu sayılsın. | Yapıldı |
-| Aşırı yükleme seçiminde kutulama ile genişletmeyi destekle: `int` argüman `long` ya da `Integer` parametresine uysun. | Yapılmadı |
+| Aşırı yükleme seçiminde kutulama ile genişletmeyi destekle: `int` argüman `long` ya da `Integer` parametresine uysun. | Yapıldı |
 | Değişmez argümanın tipini kullan: `Map.of("created", handler)` içinde `K`, `String` olsun. | Yapılmadı |
 | Blok gövdeli lambdada son `return` dışındaki `return` ifadelerinin tipini de kullan. | Yapılmadı |
 | İç içe generic çağrının maliyetini sınırla: her iç içe seviye yargılamayı ikiye katlıyor. | Yapılmadı |
@@ -46,7 +46,7 @@
 | [Domain modeline çözülmüş tip alanları ekle: çağrının dönüş tipi, lambda parametresinin tipi; alan doluysa domain onu kullansın, boşsa kendi çıkarımını sürdürsün.](README.md#mimari) | Yapıldı |
 | [Generic olmayan çağrının dönüş tipini adapter bulsun: üst tiplerde ve kök tipte arama, argüman sayısına göre metot.](README.md#mimari) | Yapıldı |
 | [Generic sınıfın tip argümanlarını adapter yerine koysun: `List<Order>.get()` → `Order`.](README.md#mimari) | Yapıldı |
-| [Aşırı yükleme seçimini adapter yapsın: argüman tiplerine göre doğru metot.](README.md#mimari) | Yapılmadı |
+| [Aşırı yükleme seçimini adapter yapsın: argüman tiplerine göre doğru metot.](README.md#mimari) | Yapıldı |
 | [Değişken sayıda argümanı adapter çözsün: `Stream.of(a, b)`, `String.format("%s %s", a, b)`.](README.md#mimari) | Yapılmadı |
 | [Generic metodun tip değişkenini adapter çıkarsın: argümandan, beklenen tipten ve sınırından (`<T extends Shape>`).](README.md#mimari) | Yapılmadı |
 | [Lambda parametresinin tipini adapter bulsun: fonksiyonel arayüzün tek soyut metodundan; hedef tip atamadan, dönüşten ya da kurucu parametresinden.](README.md#mimari) | Yapılmadı |
