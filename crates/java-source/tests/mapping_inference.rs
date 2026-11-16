@@ -434,3 +434,37 @@ fn the_expected_type_binds_through_a_supertype_of_the_return_type() {
     let value = Expression::return_of(util_pick(vec![]).returning(bound));
     assert_eq!(mapped, f(3).assign("orders", list_of(order()), value));
 }
+
+#[test]
+fn the_expected_type_wins_inside_a_type_argument_of_the_return_type() {
+    let types = util(vec![listing(vec![variable("T")])]);
+
+    let mapped = mapped_in(&types, "List<Customer> customers = Util.pick(premium);");
+
+    let bound = list_of(class("Customer"));
+    let value = Expression::return_of(util_pick(vec![a_premium()]).returning(bound.clone()));
+    assert_eq!(mapped, f(3).assign("customers", bound, value));
+}
+
+#[test]
+fn an_expected_type_the_argument_does_not_fit_leaves_the_call_unresolved() {
+    let types = util(vec![listing(vec![variable("T")])]);
+
+    let mapped = mapped_in(&types, "List<Premium> premiums = Util.pick(customer);");
+
+    let value = Expression::return_of(util_pick(vec![a_customer()]));
+    assert_eq!(
+        mapped,
+        f(3).assign("premiums", list_of(class("Premium")), value)
+    );
+}
+
+#[test]
+fn the_argument_type_is_kept_when_the_type_variable_is_the_whole_return_type() {
+    let types = util(vec![pick(&["T"], vec![variable("T")], variable("T"))]);
+
+    let mapped = mapped_in(&types, "Customer chosen = Util.pick(premium);");
+
+    let value = Expression::return_of(util_pick(vec![a_premium()]).returning(class("Premium")));
+    assert_eq!(mapped, f(3).assign("chosen", class("Customer"), value));
+}

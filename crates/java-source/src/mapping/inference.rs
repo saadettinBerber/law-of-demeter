@@ -11,7 +11,13 @@ use super::overloads::ArgumentType;
 
 pub(super) type Bindings = HashMap<String, TypeRef>;
 
-type Constraints = Vec<(String, TypeRef)>;
+type Pairs = Vec<(String, TypeRef)>;
+
+#[derive(Default)]
+struct Constraints {
+    lower: Pairs,
+    equal: Pairs,
+}
 
 pub(super) fn instantiate(
     types: &Types,
@@ -19,7 +25,7 @@ pub(super) fn instantiate(
     parameters: &[TypeRef],
     arguments: &[&ArgumentType],
 ) -> Option<(Vec<TypeRef>, Bindings)> {
-    let mut constraints = Constraints::new();
+    let mut constraints = Constraints::default();
     for (parameter, argument) in parameters.iter().zip(arguments) {
         if let ArgumentType::Typed(argument) = argument {
             from_argument(
@@ -31,7 +37,7 @@ pub(super) fn instantiate(
             );
         }
     }
-    let bindings = resolve(types, constraints);
+    let bindings = resolve(types, [constraints.lower, constraints.equal].concat());
     let instantiated: Vec<_> = parameters
         .iter()
         .map(|parameter| apply_bindings(parameter, &bindings))
@@ -39,13 +45,14 @@ pub(super) fn instantiate(
     (!instantiated.iter().any(has_variable)).then_some((instantiated, bindings))
 }
 
-pub(super) fn expecting(
+pub(super) fn complete(
     types: &Types,
     free: &[String],
     returned: &TypeRef,
+    from_arguments: &Bindings,
     expected: &TypeRef,
-) -> TypeRef {
-    let mut constraints = Constraints::new();
+) -> Option<Bindings> {
+    let mut constraints = Constraints::default();
     from_target(
         types,
         free,
@@ -53,7 +60,20 @@ pub(super) fn expecting(
         &reference(expected),
         &mut constraints,
     );
-    apply_bindings(returned, &resolve(types, constraints))
+    let mut completed = from_arguments.clone();
+    for (name, wanted) in resolve(types, constraints.equal) {
+        let fits = completed
+            .get(&name)
+            .is_none_or(|argument| covers(types, &wanted, argument));
+        if !fits {
+            return None;
+        }
+        completed.insert(name, wanted);
+    }
+    for (name, wanted) in resolve(types, constraints.lower) {
+        completed.entry(name).or_insert(wanted);
+    }
+    Some(completed)
 }
 
 pub(super) fn apply_bindings(type_ref: &TypeRef, bindings: &Bindings) -> TypeRef {
@@ -69,7 +89,7 @@ fn from_argument(
 ) {
     match (parameter, argument) {
         (TypeRef::Variable(name), _) if free.contains(name) => {
-            constraints.push((name.clone(), argument.clone()));
+            constraints.lower.push((name.clone(), argument.clone()));
         }
         (TypeRef::Array(element), TypeRef::Array(actual)) if !is_primitive(actual) => {
             from_argument(types, free, element, actual, constraints);
@@ -93,7 +113,7 @@ fn from_target(
 ) {
     match (returned, expected) {
         (TypeRef::Variable(name), _) if free.contains(name) => {
-            constraints.push((name.clone(), expected.clone()));
+            constraints.lower.push((name.clone(), expected.clone()));
         }
         (TypeRef::Array(element), TypeRef::Array(target)) if !is_primitive(target) => {
             from_target(types, free, element, target, constraints);
@@ -116,7 +136,7 @@ fn from_equal(
 ) {
     match (declared, actual) {
         (TypeRef::Variable(name), _) if free.contains(name) => {
-            constraints.push((name.clone(), actual.clone()));
+            constraints.equal.push((name.clone(), actual.clone()));
         }
         (TypeRef::Array(declared), TypeRef::Array(actual)) => {
             from_equal(free, declared, actual, constraints);
@@ -147,7 +167,7 @@ fn supertype_arguments(types: &Types, from: &TypeRef, name: &str) -> Vec<TypeRef
         .unwrap_or_default()
 }
 
-fn resolve(types: &Types, constraints: Constraints) -> Bindings {
+fn resolve(types: &Types, constraints: Pairs) -> Bindings {
     let mut grouped: HashMap<String, Vec<TypeRef>> = HashMap::new();
     for (name, type_ref) in constraints {
         grouped.entry(name).or_default().push(type_ref);
