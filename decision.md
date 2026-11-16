@@ -2,7 +2,6 @@ Yapılan bir satır, işin karşılığı başka bir belgeye bakmadan testlerden
 
 | Ne yapılacak? | Yapıldı mı? |
 |---|---|
-| [Kuralı C ve f üzerinden tanımla; nesneyi, veri yapısını ve hibriti ayır.](README.md) | Yapıldı |
 | [Raporlanması ve raporlanmaması gereken senaryoları yaz.](SCENARIOS.md) | Yapıldı |
 | [Altıgen mimariyi, katmanları ve port'ları belirle.](README.md#mimari) | Yapıldı |
 | [Gerçek bir Java projesinde dene; her yanlış alarmı yeni bir senaryoya dönüştür.](SCENARIOS.md#uygun) | Yapıldı |
