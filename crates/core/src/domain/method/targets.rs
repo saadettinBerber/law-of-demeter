@@ -1,4 +1,4 @@
-use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
+use super::{Call, Creation, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::{Platform, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -374,4 +374,200 @@ fn a_diamond_without_a_target_leaves_the_lambda_untyped() {
     let verdicts = run.verdicts(&handlers_of_any_event());
 
     assert_eq!(verdicts[1], untyped_getlock());
+}
+
+fn handler_types() -> Types {
+    events()
+        .with_shape(
+            class("Entries").with_method(
+                MethodShape::new("of")
+                    .as_static()
+                    .with_parameters(vec![event()])
+                    .returning(TypeRef::class("Entry")),
+            ),
+        )
+        .with_shape(
+            class("Naming").with_method(
+                MethodShape::new("withName")
+                    .with_parameters(vec![event()])
+                    .returning(TypeRef::class("Naming")),
+            ),
+        )
+        .with_shape(
+            class("Registry")
+                .with_method(MethodShape::new("naming").returning(TypeRef::class("Naming"))),
+        )
+}
+
+fn registering(reference: MethodReference) -> Method {
+    Method::new("Dispatcher", "register", 1).assign(
+        "handler",
+        consumer_of(event()),
+        Expression::method_reference(reference),
+    )
+}
+
+#[test]
+fn an_unbound_reference_value_is_allowed_like_the_call_on_the_parameter_of_a_lambda() {
+    let register = registering(MethodReference::new(
+        Expression::static_type(event()),
+        "getEntry",
+        2,
+    ));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "getEntry",
+            2,
+            Reason::method_reference(event(), "getEntry", Reason::Literal)
+        )]
+    );
+}
+
+#[test]
+fn a_static_reference_value_is_allowed_as_the_static_call_it_stands_for() {
+    let register = registering(MethodReference::new(
+        Expression::static_type(TypeRef::class("Entries")),
+        "of",
+        2,
+    ));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "of",
+            2,
+            Reason::static_type(TypeRef::class("Entries"))
+        )]
+    );
+}
+
+#[test]
+fn a_reference_value_on_what_a_stranger_returned_is_a_violation_like_the_lambda_call() {
+    let stranger = Expression::return_of(Call::new(
+        Expression::parameter("event", event()),
+        "getEntry",
+        2,
+    ));
+    let register = registering(MethodReference::new(stranger, "getLock", 2));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("getEntry", 2, Reason::parameter("event")),
+            Verdict::violation("getLock", 2, Reason::return_of("getEntry")),
+        ]
+    );
+}
+
+#[test]
+fn a_reference_value_on_a_field_is_allowed() {
+    let register = registering(MethodReference::new(
+        Expression::field("entry", TypeRef::class("Entry")),
+        "getLock",
+        2,
+    ));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed("getLock", 2, Reason::field("entry"))]
+    );
+}
+
+#[test]
+fn a_constructor_reference_value_judges_nothing() {
+    let register = registering(MethodReference::new(
+        Expression::static_type(TypeRef::class("Entry")),
+        "new",
+        2,
+    ));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(verdicts, []);
+}
+
+fn naming_reference() -> MethodReference {
+    let naming = Expression::return_of(Call::new(
+        Expression::field("registry", TypeRef::class("Registry")),
+        "naming",
+        2,
+    ));
+    MethodReference::new(naming, "withName", 2)
+}
+
+fn the_naming_of_the_registry() -> Verdict {
+    Verdict::allowed("naming", 2, Reason::field("registry"))
+}
+
+#[test]
+fn the_arity_of_the_declared_target_decides_whether_a_reference_value_is_fluent() {
+    let register = registering(naming_reference());
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts,
+        [
+            the_naming_of_the_registry(),
+            Verdict::allowed("withName", 2, Reason::fluent(TypeRef::class("Naming"))),
+        ]
+    );
+}
+
+#[test]
+fn a_reference_value_without_a_target_is_judged_with_no_arguments() {
+    let register = Method::new("Dispatcher", "register", 1)
+        .assign_var("handler", Expression::method_reference(naming_reference()));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::violation("withName", 2, Reason::return_of("naming"))
+    );
+}
+
+#[test]
+fn a_reference_value_takes_the_expected_type_it_was_given() {
+    let register = Method::new("Dispatcher", "register", 1).evaluate(Expression::method_reference(
+        naming_reference().expecting(consumer_of(event())),
+    ));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::allowed("withName", 2, Reason::fluent(TypeRef::class("Naming")))
+    );
+}
+
+#[test]
+fn a_local_holding_a_reference_is_an_object_created_in_the_method_with_the_declared_type() {
+    let register = registering(MethodReference::new(
+        Expression::static_type(TypeRef::class("Entry")),
+        "new",
+        2,
+    ))
+    .call(Call::new(Expression::local("handler"), "accept", 3));
+
+    let verdicts = register.verdicts(&handler_types());
+
+    assert_eq!(
+        verdicts,
+        [Verdict::allowed(
+            "accept",
+            3,
+            Reason::local("handler", Reason::created(consumer_of(event())))
+        )]
+    );
 }

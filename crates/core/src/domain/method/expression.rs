@@ -38,6 +38,7 @@ pub enum Expression {
         candidates: Vec<TypeRef>,
     },
     Lambda(Box<Lambda>),
+    MethodReference(Box<MethodReference>),
 }
 
 impl Expression {
@@ -101,6 +102,10 @@ impl Expression {
         Self::Lambda(Box::new(lambda))
     }
 
+    pub fn method_reference(reference: MethodReference) -> Self {
+        Self::MethodReference(Box::new(reference))
+    }
+
     pub fn cast(type_ref: TypeRef, operand: Expression) -> Self {
         Self::Cast {
             type_ref,
@@ -162,6 +167,7 @@ impl Expression {
                 }
             }
             Self::Lambda(lambda) => lambda.judge_value(context, target),
+            Self::MethodReference(reference) => reference.judge_value(context, target),
             Self::Cast { type_ref, operand } => {
                 let judged = operand.judge_expecting(context, Some(Target::of(type_ref)));
                 Judged {
@@ -362,6 +368,7 @@ pub struct MethodReference {
     target: Expression,
     name: String,
     line: usize,
+    expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
 }
 
@@ -371,6 +378,7 @@ impl MethodReference {
             target,
             name: name.to_owned(),
             line,
+            expected: None,
             resolved: None,
         }
     }
@@ -378,6 +386,28 @@ impl MethodReference {
     pub fn returning(mut self, type_ref: TypeRef) -> Self {
         self.resolved = Some(type_ref);
         self
+    }
+
+    pub fn expecting(mut self, type_ref: TypeRef) -> Self {
+        self.expected = Some(type_ref);
+        self
+    }
+
+    fn judge_value(&self, context: &Context, target: Option<Target>) -> Judged {
+        let expected = self
+            .expected
+            .as_ref()
+            .or(target.map(|target| target.type_ref));
+        let functional = expected.and_then(|expected| context.types.functional_method(expected));
+        let given = Subject {
+            standing: Standing::Friend(Reason::Literal),
+            type_ref: None,
+        };
+        let produced = self.judge(context, &given, functional.as_ref(), &given);
+        Judged {
+            verdicts: produced.verdicts,
+            subject: functional_value(expected),
+        }
     }
 
     fn judge(
@@ -613,14 +643,20 @@ impl Lambda {
             );
         }
         let (verdicts, _) = self.judge_body(inner);
-        let subject = match expected {
-            Some(expected) => Subject::friend(Reason::created(expected.clone()), expected.clone()),
-            None => Subject {
-                standing: Standing::Friend(Reason::Literal),
-                type_ref: None,
-            },
-        };
-        Judged { verdicts, subject }
+        Judged {
+            verdicts,
+            subject: functional_value(expected),
+        }
+    }
+}
+
+fn functional_value(expected: Option<&TypeRef>) -> Subject {
+    match expected {
+        Some(expected) => Subject::friend(Reason::created(expected.clone()), expected.clone()),
+        None => Subject {
+            standing: Standing::Friend(Reason::Literal),
+            type_ref: None,
+        },
     }
 }
 
