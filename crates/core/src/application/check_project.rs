@@ -13,8 +13,14 @@ impl<'a> CheckProject<'a> {
     }
 
     pub fn execute(&self) -> Report {
-        let TypeReading { shapes, errors } = self.types.read();
-        let shapes = shapes.into_iter().fold(Types::new(), Types::with_shape);
+        let TypeReading {
+            shapes,
+            errors,
+            known,
+        } = self.types.read();
+        let shapes = shapes
+            .into_iter()
+            .fold(Types::new().with_known(known), Types::with_shape);
         let files = self.sources.read(&|name| shapes.shape(name).is_some());
         let declared = files
             .iter()

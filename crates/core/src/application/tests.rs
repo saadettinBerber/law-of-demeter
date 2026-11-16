@@ -5,7 +5,7 @@ use super::{
     CheckProject, Counts, Finding, HybridFinding, ReadError, Report, SourceFile, SourceReader,
     TypeReading, TypeSource,
 };
-use crate::domain::classification::Types;
+use crate::domain::classification::{Classification, KnownTypes, Types};
 use crate::domain::method::{Call, Expression, Method, Reason, Verdict};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -20,6 +20,7 @@ impl SourceReader for FakeSources {
 struct FakeTypes {
     shapes: Vec<TypeShape>,
     errors: Vec<ReadError>,
+    known: KnownTypes,
 }
 
 impl FakeTypes {
@@ -27,6 +28,7 @@ impl FakeTypes {
         Self {
             shapes,
             errors: Vec::new(),
+            known: KnownTypes::new(),
         }
     }
 }
@@ -36,6 +38,7 @@ impl TypeSource for FakeTypes {
         TypeReading {
             shapes: self.shapes.clone(),
             errors: self.errors.clone(),
+            known: self.known.clone(),
         }
     }
 }
@@ -218,6 +221,7 @@ fn the_counts_separate_real_violations_from_unresolved_types() {
     let types = FakeTypes {
         shapes,
         errors: vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
+        known: KnownTypes::new(),
     };
 
     let counts = CheckProject::new(&sources, &types).execute().counts();
@@ -321,4 +325,38 @@ fn a_violation_whose_standing_traces_back_to_an_unresolved_name_counts_as_unreso
         .counts();
 
     assert_eq!((counts.violations, counts.unresolved), (0, 1));
+}
+
+#[test]
+fn what_the_type_source_knows_about_a_type_decides_its_classification() {
+    let path = Path::new("src/OrderService.java");
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        path,
+        vec![
+            "OrderService".to_owned(),
+            "Order".to_owned(),
+            "Customer".to_owned(),
+        ],
+        vec![pay_method()],
+    ))]);
+    let types = FakeTypes {
+        known: KnownTypes::new().with_type("Customer", Classification::DataStructure),
+        ..shop_types()
+    };
+
+    let report = CheckProject::new(&sources, &types).execute();
+
+    assert_eq!(
+        report.findings()[1],
+        Finding::new(
+            path,
+            "OrderService",
+            "pay",
+            Verdict::allowed(
+                "getWallet",
+                11,
+                Reason::classified(Classification::DataStructure, TypeRef::class("Customer"))
+            )
+        )
+    );
 }

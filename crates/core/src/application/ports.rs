@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::domain::classification::KnownTypes;
 use crate::domain::method::Method;
 use crate::domain::type_shape::TypeShape;
 
@@ -76,6 +77,7 @@ pub trait SourceReader {
 pub struct TypeReading {
     pub shapes: Vec<TypeShape>,
     pub errors: Vec<ReadError>,
+    pub known: KnownTypes,
 }
 
 pub trait TypeSource {
