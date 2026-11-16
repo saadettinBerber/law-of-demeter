@@ -13,6 +13,8 @@ const FUNCTION: &str = "java.util.function.Function";
 const LIST: &str = "java.util.List";
 const MAP: &str = "java.util.Map";
 const SET: &str = "java.util.Set";
+const COLLECTION: &str = "java.util.Collection";
+const ENTRY: &str = "java.util.Map$Entry";
 
 fn shape(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -61,6 +63,10 @@ fn collector_of(element: TypeRef, result: TypeRef) -> TypeRef {
     generic(COLLECTOR, &[element, class("java.lang.Object"), result])
 }
 
+fn entry_of(key: TypeRef, value: TypeRef) -> TypeRef {
+    generic(ENTRY, &[key, value])
+}
+
 fn collectors() -> TypeShape {
     let grouping = MethodShape::new("groupingBy")
         .as_static()
@@ -70,6 +76,19 @@ fn collectors() -> TypeShape {
         .returning(collector_of(
             variable("T"),
             map_of(variable("K"), list_of(variable("T"))),
+        ));
+    let to_map = MethodShape::new("toMap")
+        .as_static()
+        .with_type_parameter("T")
+        .with_type_parameter("K")
+        .with_type_parameter("U")
+        .with_parameters(vec![
+            function_of(variable("T"), variable("K")),
+            function_of(variable("T"), variable("U")),
+        ])
+        .returning(collector_of(
+            variable("T"),
+            map_of(variable("K"), variable("U")),
         ));
     let collecting_and_then = MethodShape::new("collectingAndThen")
         .as_static()
@@ -87,6 +106,7 @@ fn collectors() -> TypeShape {
         .returning(collector_of(variable("T"), list_of(variable("T"))));
     shape(COLLECTORS)
         .with_method(grouping)
+        .with_method(to_map)
         .with_method(collecting_and_then)
         .with_method(to_list)
 }
@@ -105,7 +125,16 @@ fn world() -> Types {
         .returning(variable("R"))
         .as_abstract();
     let streaming = MethodShape::new("stream").returning(stream_of(variable("E")));
+    let getting = MethodShape::new("get")
+        .with_parameters(vec![TypeRef::primitive("int")])
+        .returning(variable("E"));
+    let streaming_set = MethodShape::new("stream").returning(stream_of(variable("E")));
     let keys = MethodShape::new("keySet").returning(generic(SET, &[variable("K")]));
+    let values = MethodShape::new("values").returning(generic(COLLECTION, &[variable("V")]));
+    let entries = MethodShape::new("entrySet")
+        .returning(generic(SET, &[entry_of(variable("K"), variable("V"))]));
+    let key = MethodShape::new("getKey").returning(variable("K"));
+    let value = MethodShape::new("getValue").returning(variable("V"));
     Types::new()
         .with_platform(java_platform())
         .with_shape(shape("java.lang.Object"))
@@ -117,9 +146,24 @@ fn world() -> Types {
                 .with_method(collecting),
         )
         .with_shape(interface(FUNCTION, &["T", "R"]).with_method(applying))
-        .with_shape(interface(LIST, &["E"]).with_method(streaming))
-        .with_shape(interface(MAP, &["K", "V"]).with_method(keys))
-        .with_shape(interface(SET, &["E"]))
+        .with_shape(
+            interface(LIST, &["E"])
+                .with_method(streaming)
+                .with_method(getting),
+        )
+        .with_shape(
+            interface(MAP, &["K", "V"])
+                .with_method(keys)
+                .with_method(values)
+                .with_method(entries),
+        )
+        .with_shape(
+            interface(ENTRY, &["K", "V"])
+                .with_method(key)
+                .with_method(value),
+        )
+        .with_shape(interface(COLLECTION, &["E"]))
+        .with_shape(interface(SET, &["E"]).with_method(streaming_set))
         .with_shape(
             shape("Order").with_method(MethodShape::new("getCustomer").returning(customer())),
         )
@@ -128,7 +172,7 @@ fn world() -> Types {
 
 fn mapped(statement: &str) -> Method {
     let source = format!(
-        "import java.util.List; import java.util.Map; import java.util.stream.Collectors;\nclass OrderService {{\n void f(List<Order> orders, Map<Customer, List<Order>> grouped) {{\n  {statement};\n }}\n}}"
+        "import java.util.List; import java.util.Map; import java.util.stream.Collectors;\nclass OrderService {{\n void f(List<Order> orders, Map<Customer, List<Order>> grouped, Map<Customer, Order> byCustomer, Map.Entry<Customer, Order> entry) {{\n  {statement};\n }}\n}}"
     );
 
     method_f_in(&source, &world())
@@ -140,7 +184,7 @@ fn f() -> Method {
 
 fn streamed_orders() -> Expression {
     let stream = call(parameter("orders", list_of(order())), "stream", 4);
-    Expression::return_of(stream.returning(stream_of(order())))
+    Expression::return_of(stream.returning(stream_of(order())).keeping_entries())
 }
 
 fn customer_of_order() -> Expression {
@@ -223,7 +267,8 @@ fn a_lambda_in_a_nested_call_is_fed_by_the_elements_of_the_outer_stream() {
     let collect = call(streamed_orders(), "collect", 4)
         .with(Expression::return_of(grouping))
         .returning(map_of(customer(), list_of(order())))
-        .keyed_by(0);
+        .keyed_by(0)
+        .valued_by(0);
     assert_eq!(mapped, f().call(collect));
 }
 
@@ -234,7 +279,8 @@ fn a_classifier_in_a_nested_call_is_fed_by_the_outer_elements_and_keys_the_resul
     let collect = call(streamed_orders(), "collect", 4)
         .with(Expression::return_of(grouping_by_customer()))
         .returning(map_of(customer(), list_of(order())))
-        .keyed_by(0);
+        .keyed_by(0)
+        .valued_by(0);
     assert_eq!(mapped, f().call(collect));
 }
 
@@ -250,4 +296,107 @@ fn a_call_returning_the_first_type_argument_of_a_map_yields_its_keys() {
     .returning(generic(SET, &[customer()]))
     .yielding_keys();
     assert_eq!(mapped, f().call(keys));
+}
+
+fn customer_to_order() -> Call {
+    let order_itself = Lambda::new(&["order"])
+        .resolving("order", order())
+        .fed_by_elements("order")
+        .yielding(Expression::local("order"));
+    call(Expression::static_type(class(COLLECTORS)), "toMap", 4)
+        .with(customer_reference())
+        .with(order_itself)
+        .returning(collector_of(order(), map_of(customer(), order())))
+        .returning_from(&[1])
+        .keyed_by(0)
+        .valued_by(1)
+}
+
+#[test]
+fn a_value_mapper_in_a_nested_call_values_the_result_beside_the_key_mapper_keying_it() {
+    let mapped =
+        mapped("orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order))");
+
+    let collect = call(streamed_orders(), "collect", 4)
+        .with(Expression::return_of(customer_to_order()))
+        .returning(map_of(customer(), order()))
+        .keyed_by(0)
+        .valued_by(0);
+    assert_eq!(mapped, f().call(collect));
+}
+
+fn by_customer() -> Expression {
+    parameter("byCustomer", map_of(customer(), order()))
+}
+
+#[test]
+fn a_call_returning_the_second_type_argument_of_a_map_yields_its_values() {
+    let mapped = mapped("byCustomer.values()");
+
+    let values = call(by_customer(), "values", 4)
+        .returning(generic(COLLECTION, &[order()]))
+        .yielding_values();
+    assert_eq!(mapped, f().call(values));
+}
+
+#[test]
+fn a_call_returning_a_container_of_the_entries_of_a_map_keeps_the_entries() {
+    let mapped = mapped("byCustomer.entrySet()");
+
+    let entries = call(by_customer(), "entrySet", 4)
+        .returning(generic(SET, &[entry_of(customer(), order())]))
+        .keeping_entries();
+    assert_eq!(mapped, f().call(entries));
+}
+
+#[test]
+fn a_call_returning_a_container_of_the_same_elements_keeps_the_entries() {
+    let mapped = mapped("byCustomer.entrySet().stream()");
+
+    let entries = call(by_customer(), "entrySet", 4)
+        .returning(generic(SET, &[entry_of(customer(), order())]))
+        .keeping_entries();
+    let stream = call(Expression::return_of(entries), "stream", 4)
+        .returning(stream_of(entry_of(customer(), order())))
+        .keeping_entries();
+    assert_eq!(mapped, f().call(stream));
+}
+
+#[test]
+fn a_call_returning_the_first_type_argument_of_an_entry_yields_its_key() {
+    let mapped = mapped("entry.getKey()");
+
+    let key = call(
+        parameter("entry", entry_of(customer(), order())),
+        "getKey",
+        4,
+    )
+    .returning(customer())
+    .yielding_keys();
+    assert_eq!(mapped, f().call(key));
+}
+
+#[test]
+fn a_call_returning_the_second_type_argument_of_an_entry_yields_its_value() {
+    let mapped = mapped("entry.getValue()");
+
+    let value = call(
+        parameter("entry", entry_of(customer(), order())),
+        "getValue",
+        4,
+    )
+    .returning(order())
+    .yielding_values();
+    assert_eq!(mapped, f().call(value));
+}
+
+#[test]
+fn a_call_returning_an_element_of_the_receiver_keeps_the_entries() {
+    let mapped = mapped("orders.get(0)");
+
+    let first = call(parameter("orders", list_of(order())), "get", 4)
+        .with(Expression::literal())
+        .returning(order())
+        .keeping_entries();
+    assert_eq!(mapped, f().call(first));
 }

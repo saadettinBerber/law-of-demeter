@@ -5,7 +5,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
-use super::links::{ArgumentLinks, Declared, Flow};
+use super::links::{ArgumentLinks, Declared, Flow, Yield};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
@@ -176,14 +176,19 @@ impl MethodMapper<'_> {
     fn linked(&mut self, mapped: Call, call: &model::Call, declared: &Declared) -> Call {
         let flows = self.flows_of(call, declared);
         let mapped = with_feeding(mapped, call, &flows);
-        let mapped = match flows.iter().position(|flow| *flow == Flow::Keys) {
+        let mapped = match position_of(&flows, &[Flow::Keys, Flow::Whole]) {
             Some(index) => mapped.keyed_by(index),
             None => mapped,
         };
-        if declared.yields_keys() {
-            mapped.yielding_keys()
-        } else {
-            mapped
+        let mapped = match position_of(&flows, &[Flow::Values, Flow::Whole]) {
+            Some(index) => mapped.valued_by(index),
+            None => mapped,
+        };
+        match declared.yields() {
+            Yield::Keys => mapped.yielding_keys(),
+            Yield::Values => mapped.yielding_values(),
+            Yield::Entries => mapped.keeping_entries(),
+            Yield::Nothing => mapped,
         }
     }
 
@@ -292,6 +297,10 @@ impl MethodMapper<'_> {
     }
 }
 
+fn position_of(flows: &[Flow], accepted: &[Flow]) -> Option<usize> {
+    flows.iter().position(|flow| accepted.contains(flow))
+}
+
 fn with_feeding(mapped: Call, call: &model::Call, flows: &[Flow]) -> Call {
     if !call.arguments.iter().any(is_functional) {
         return mapped;
@@ -300,7 +309,9 @@ fn with_feeding(mapped: Call, call: &model::Call, flows: &[Flow]) -> Call {
         .arguments
         .iter()
         .enumerate()
-        .filter(|(index, argument)| is_functional(argument) && flows[*index] == Flow::Return)
+        .filter(|(index, argument)| {
+            is_functional(argument) && matches!(flows[*index], Flow::Return | Flow::Values)
+        })
         .map(|(index, _)| index)
         .collect();
     mapped.returning_from(&feeding)

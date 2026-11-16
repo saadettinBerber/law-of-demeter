@@ -41,6 +41,16 @@ pub(super) enum Flow {
     None,
     Return,
     Keys,
+    Values,
+    Whole,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub(super) enum Yield {
+    Nothing,
+    Keys,
+    Values,
+    Entries,
 }
 
 #[derive(Clone)]
@@ -49,7 +59,7 @@ pub(super) struct Declared {
     returned: Option<TypeRef>,
     free: Vec<String>,
     elements: Option<String>,
-    yields_keys: bool,
+    yields: Yield,
 }
 
 impl Declared {
@@ -71,32 +81,24 @@ impl Declared {
             Some(TypeRef::Variable(name)) => Some(name.clone()),
             _ => None,
         };
-        let yields_keys = match (
-            method
-                .returns()
-                .and_then(|returned| types.element_type(returned)),
-            owner_parameters,
-        ) {
-            (Some(TypeRef::Variable(name)), [key, _]) => name == key,
-            _ => false,
-        };
+        let yields = yield_of(types, method, owner, elements.as_deref());
         Self {
             parameters: expanded(method, argument_count),
             returned: method.returns().cloned(),
             free: method.type_parameters().to_vec(),
             elements,
-            yields_keys,
+            yields,
         }
     }
 
-    pub(super) fn yields_keys(&self) -> bool {
-        self.yields_keys
+    pub(super) fn yields(&self) -> Yield {
+        self.yields
     }
 
     pub(super) fn produces_keys(&self, types: &Types) -> bool {
         self.returned
             .as_ref()
-            .is_some_and(|returned| !key_variables(types, returned).is_empty())
+            .is_some_and(|returned| !map_variables(types, returned, 0).is_empty())
     }
 
     pub(super) fn links(&self, types: &Types, index: usize, inherited: &[String]) -> ArgumentLinks {
@@ -150,7 +152,10 @@ impl Declared {
     pub(super) fn value_flow(&self, types: &Types, index: usize) -> Flow {
         let returned = self.returned.as_ref();
         let whole = |name: &String| returned == Some(&TypeRef::variable(name));
-        self.flow(types, self.parameters.get(index).cloned(), whole)
+        match self.flow(types, self.parameters.get(index).cloned(), whole) {
+            Flow::Values => Flow::Return,
+            flow => flow,
+        }
     }
 
     fn flow(
@@ -167,12 +172,17 @@ impl Declared {
             .into_iter()
             .filter(|name| self.free.contains(name) && returned_variables.contains(name))
             .collect();
-        let keys = key_variables(types, returned);
-        if shared
-            .iter()
-            .any(|name| keys.contains(name) || is_whole_return(name))
-        {
+        let positioned = |index| {
+            let positions = map_variables(types, returned, index);
+            move |name: &String| positions.contains(name)
+        };
+        let (keys, values) = (positioned(0), positioned(1));
+        if shared.iter().any(is_whole_return) {
+            Flow::Whole
+        } else if shared.iter().any(keys) {
             Flow::Keys
+        } else if shared.iter().any(values) {
+            Flow::Values
         } else if shared.is_empty() {
             Flow::None
         } else {
@@ -216,23 +226,50 @@ fn align(
     }
 }
 
-fn key_variables(types: &Types, type_ref: &TypeRef) -> Vec<String> {
+fn map_variables(types: &Types, type_ref: &TypeRef, position: usize) -> Vec<String> {
     match type_ref {
         TypeRef::Class { arguments, .. } => {
             let own = match arguments.as_slice() {
-                [key, _] if types.classify(type_ref) == Classification::Container => variables(key),
+                [key, value] if types.classify(type_ref) == Classification::Container => {
+                    variables(if position == 0 { key } else { value })
+                }
                 _ => Vec::new(),
             };
             own.into_iter()
                 .chain(
                     arguments
                         .iter()
-                        .flat_map(|argument| key_variables(types, argument)),
+                        .flat_map(|argument| map_variables(types, argument, position)),
                 )
                 .collect()
         }
-        TypeRef::Array(element) => key_variables(types, element),
+        TypeRef::Array(element) => map_variables(types, element, position),
         TypeRef::Variable(_) | TypeRef::Primitive(_) => Vec::new(),
+    }
+}
+
+fn yield_of(
+    types: &Types,
+    method: &MethodShape,
+    owner: &TypeShape,
+    elements: Option<&str>,
+) -> Yield {
+    let returned = method.returns();
+    let element = returned.and_then(|returned| types.element_type(returned));
+    let read = match (returned, element) {
+        (Some(TypeRef::Variable(name)), _) | (_, Some(TypeRef::Variable(name))) => Some(name),
+        _ => None,
+    };
+    match (owner.type_parameters(), read, element) {
+        ([key, _], Some(name), _) if name == key => Yield::Keys,
+        ([_, value], Some(name), _) if name == value => Yield::Values,
+        ([key, value], _, Some(TypeRef::Class { arguments, .. }))
+            if arguments == &[TypeRef::variable(key), TypeRef::variable(value)] =>
+        {
+            Yield::Entries
+        }
+        (_, Some(name), _) if elements == Some(name.as_str()) => Yield::Entries,
+        _ => Yield::Nothing,
     }
 }
 

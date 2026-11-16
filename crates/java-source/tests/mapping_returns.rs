@@ -714,7 +714,8 @@ fn the_value_type_of_a_map_and_the_element_of_an_optional_are_substituted() {
     );
     let get = call(orders, "get", 5)
         .with(Expression::literal())
-        .returning(class("Order"));
+        .returning(class("Order"))
+        .yielding_values();
     let else_throw = call(maybe, "orElseThrow", 6).returning(class("Order"));
     assert_eq!(
         mapped,
