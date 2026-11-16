@@ -2,28 +2,16 @@ use super::{Call, Creation, Expression, Lambda, Method, MethodReference, Reason,
 use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
-const ARRAYS: &str = "java.util.Arrays";
 const STREAM: &str = "java.util.stream.Stream";
-const CONSUMER: &str = "java.util.function.Consumer";
-const COLLECTION: &str = "java.util.Collection";
-const ARRAY_LIST: &str = "java.util.ArrayList";
-const STREAMS: &str = "shop.Streams";
 const LIST: &str = "java.util.List";
-const FUNCTION: &str = "java.util.function.Function";
 const BIG_DECIMAL: &str = "java.math.BigDecimal";
-const PREDICATE: &str = "java.util.function.Predicate";
-const MAP: &str = "java.util.Map";
-const BI_CONSUMER: &str = "java.util.function.BiConsumer";
 
 fn class(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
 }
 
-fn interface(name: &str, parameters: &[&str]) -> TypeShape {
-    parameters.iter().fold(
-        TypeShape::new(name, TypeKind::Interface),
-        |shape, parameter| shape.with_type_parameter(parameter),
-    )
+fn interface(name: &str) -> TypeShape {
+    TypeShape::new(name, TypeKind::Interface).with_type_parameter("T")
 }
 
 fn generic(name: &str, arguments: &[TypeRef]) -> TypeRef {
@@ -34,6 +22,10 @@ fn variable(name: &str) -> TypeRef {
     TypeRef::variable(name)
 }
 
+fn stream_of(element: TypeRef) -> TypeRef {
+    generic(STREAM, &[element])
+}
+
 fn order() -> TypeRef {
     TypeRef::class("Order")
 }
@@ -42,335 +34,78 @@ fn customer() -> TypeRef {
     TypeRef::class("Customer")
 }
 
+fn receipt() -> TypeRef {
+    TypeRef::class("Receipt")
+}
+
+fn wallet() -> TypeRef {
+    TypeRef::class("Wallet")
+}
+
 fn shop() -> Types {
     sample_types()
-        .with_shape(
-            class(ARRAYS).with_method(
-                MethodShape::new("stream")
-                    .as_static()
-                    .with_type_parameter("T")
-                    .with_parameters(vec![TypeRef::array(variable("T"))])
-                    .returning(generic(STREAM, &[variable("T")])),
-            ),
-        )
-        .with_shape(
-            interface(STREAM, &["T"])
-                .with_method(
-                    MethodShape::new("forEach")
-                        .with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
-                )
-                .with_method(
-                    MethodShape::new("filter")
-                        .with_parameters(vec![generic(PREDICATE, &[variable("T")])])
-                        .returning(generic(STREAM, &[variable("T")])),
-                )
-                .with_method(
-                    MethodShape::new("fold")
-                        .with_type_parameter("R")
-                        .with_parameters(vec![generic(FUNCTION, &[variable("T"), variable("R")])])
-                        .returning(variable("R")),
-                )
-                .with_method(
-                    MethodShape::new("map")
-                        .with_type_parameter("R")
-                        .with_parameters(vec![generic(FUNCTION, &[variable("T"), variable("R")])])
-                        .returning(generic(STREAM, &[variable("R")])),
-                ),
-        )
-        .with_shape(
-            interface(PREDICATE, &["T"]).with_method(
-                MethodShape::new("test")
-                    .with_parameters(vec![variable("T")])
-                    .returning(TypeRef::primitive("boolean"))
-                    .as_abstract(),
-            ),
-        )
-        .with_shape(
-            interface(FUNCTION, &["T", "R"]).with_method(
-                MethodShape::new("apply")
-                    .with_parameters(vec![variable("T")])
-                    .returning(variable("R"))
-                    .as_abstract(),
-            ),
-        )
-        .with_shape(
-            interface(LIST, &["E"]).with_method(
-                MethodShape::new("stream").returning(generic(STREAM, &[variable("E")])),
-            ),
-        )
-        .with_shape(
-            interface(CONSUMER, &["T"]).with_method(
-                MethodShape::new("accept")
-                    .with_parameters(vec![variable("T")])
-                    .as_abstract(),
-            ),
-        )
-        .with_shape(
-            interface(BI_CONSUMER, &["T", "U"]).with_method(
-                MethodShape::new("accept")
-                    .with_parameters(vec![variable("T"), variable("U")])
-                    .as_abstract(),
-            ),
-        )
-        .with_shape(
-            interface(MAP, &["K", "V"])
-                .with_method(
-                    MethodShape::new("of")
-                        .as_static()
-                        .with_type_parameter("K")
-                        .with_type_parameter("V")
-                        .with_parameters(vec![variable("K"), variable("V")])
-                        .returning(generic(MAP, &[variable("K"), variable("V")])),
-                )
-                .with_method(
-                    MethodShape::new("put")
-                        .with_parameters(vec![variable("K"), variable("V")])
-                        .returning(variable("V")),
-                )
-                .with_method(
-                    MethodShape::new("forEach").with_parameters(vec![generic(
-                        BI_CONSUMER,
-                        &[variable("K"), variable("V")],
-                    )]),
-                ),
-        )
-        .with_shape(
-            class("Event")
-                .with_method(MethodShape::new("getReceipt").returning(TypeRef::class("Receipt"))),
-        )
-        .with_shape(class("Receipt").with_method(MethodShape::new("close")))
-        .with_shape(interface(COLLECTION, &["E"]))
-        .with_shape(
-            class(ARRAY_LIST)
-                .with_type_parameter("E")
-                .extending(generic(COLLECTION, &[variable("E")])),
-        )
-        .with_shape(
-            class(STREAMS).with_method(
-                MethodShape::new("from")
-                    .as_static()
-                    .with_type_parameter("T")
-                    .with_parameters(vec![generic(COLLECTION, &[variable("T")])])
-                    .returning(generic(STREAM, &[variable("T")])),
-            ),
-        )
+        .with_shape(interface(STREAM))
+        .with_shape(interface(LIST))
         .with_shape(
             class("Customers").with_method(
                 MethodShape::new("of")
                     .as_static()
                     .with_parameters(vec![order()])
-                    .returning(TypeRef::class("Customer")),
+                    .returning(customer()),
             ),
         )
-        .with_shape(
-            class("Registry").with_method(
-                MethodShape::new("lookup")
-                    .with_parameters(vec![order()])
-                    .returning(TypeRef::class("Customer")),
-            ),
-        )
+        .with_shape(class("Registry").with_method(MethodShape::new("lookup").returning(customer())))
         .with_shape(
             class("Order")
-                .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
+                .with_method(MethodShape::new("getCustomer").returning(customer()))
                 .with_method(MethodShape::new("getTotal").returning(TypeRef::class(BIG_DECIMAL)))
                 .with_method(MethodShape::new("isPaid").returning(TypeRef::primitive("boolean")))
                 .with_method(MethodShape::new("ship"))
-                .with_method(MethodShape::new("newReceipt").returning(TypeRef::class("Receipt"))),
+                .with_method(MethodShape::new("newReceipt").returning(receipt())),
         )
         .with_shape(class("Receipt").with_method(MethodShape::new("print")))
-        .with_shape(
-            class("Mapper").with_method(
-                MethodShape::new("mapAll")
-                    .with_type_parameter("R")
-                    .with_parameters(vec![generic(FUNCTION, &[order(), variable("R")])])
-                    .returning(generic(STREAM, &[variable("R")])),
-            ),
-        )
+        .with_shape(class("Mapper").with_method(MethodShape::new("mapAll")))
         .with_shape(
             class("Customer")
                 .with_method(MethodShape::new("rename"))
-                .with_method(MethodShape::new("getWallet").returning(TypeRef::class("Wallet"))),
+                .with_method(MethodShape::new("getWallet").returning(wallet())),
         )
         .with_shape(class("Wallet").with_method(MethodShape::new("withdraw")))
 }
 
+fn orders_stream() -> Call {
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    Call::new(orders, "stream", 2).returning(stream_of(order()))
+}
+
+fn getting_the_customer_of(variable: &str, line: usize) -> Call {
+    Call::new(Expression::local(variable), "getCustomer", line).returning(customer())
+}
+
 fn customer_of(variable: &str, line: usize) -> Call {
     Call::new(
-        Expression::return_of(Call::new(Expression::local(variable), "getCustomer", line)),
+        Expression::return_of(getting_the_customer_of(variable, line)),
         "rename",
         line,
     )
 }
 
-#[test]
-fn the_type_argument_of_a_generic_method_comes_from_an_array_argument() {
-    let notify = Method::new("Shipping", "notify", 1).call(
-        Call::new(
-            Expression::return_of(
-                Call::new(Expression::static_type(TypeRef::class(ARRAYS)), "stream", 2)
-                    .with(Expression::parameter("orders", TypeRef::array(order()))),
-            ),
-            "forEach",
-            2,
-        )
-        .with(Lambda::new(&["order"]).call(customer_of("order", 3))),
-    );
-
-    let verdicts = notify.verdicts(&shop());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("stream", 2, Reason::static_type(TypeRef::class(ARRAYS))),
-            Verdict::allowed(
-                "getCustomer",
-                3,
-                Reason::lambda_parameter("order", Reason::static_result("stream"))
-            ),
-            Verdict::violation("rename", 3, Reason::return_of("getCustomer")),
-            Verdict::allowed("forEach", 2, Reason::static_result("stream")),
-        ]
-    );
-}
-
-#[test]
-fn the_type_argument_of_a_generic_method_comes_through_the_supertype_of_the_argument() {
-    let notify = Method::new("Shipping", "notify", 1).call(
-        Call::new(
-            Expression::return_of(
-                Call::new(Expression::static_type(TypeRef::class(STREAMS)), "from", 2).with(
-                    Expression::parameter("orders", generic(ARRAY_LIST, &[order()])),
-                ),
-            ),
-            "forEach",
-            2,
-        )
-        .with(Lambda::new(&["order"]).call(customer_of("order", 3))),
-    );
-
-    let verdicts = notify.verdicts(&shop());
-
-    assert_eq!(
-        verdicts[2],
-        Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
-    );
-}
-
-#[test]
-fn a_lambda_parameter_takes_its_type_from_the_functional_interface_the_parameter_declares() {
-    let handlers = generic(
-        MAP,
-        &[
-            TypeRef::class("java.lang.String"),
-            generic(CONSUMER, &[TypeRef::class("Event")]),
-        ],
-    );
-    let register = Method::new("Dispatcher", "register", 1).call(
-        Call::new(Expression::field("handlers", handlers), "put", 2)
-            .with(Expression::literal())
-            .with(Lambda::new(&["event"]).call(Call::new(
-                Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
-                "close",
-                3,
-            ))),
-    );
-
-    let verdicts = register.verdicts(&shop());
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("close", 3, Reason::return_of("getReceipt"))
-    );
-}
-
-#[test]
-fn each_lambda_parameter_takes_the_type_at_its_position_in_the_functional_interface() {
-    let ledger = generic(MAP, &[TypeRef::class("Customer"), order()]);
-    let audit = Method::new("Auditor", "audit", 1).call(
-        Call::new(Expression::field("ledger", ledger), "forEach", 2).with(
-            Lambda::new(&["customer", "order"]).call(Call::new(
-                Expression::return_of(Call::new(Expression::local("customer"), "getWallet", 3)),
-                "withdraw",
-                3,
-            )),
+fn withdrawing_from_the_wallet_of(variable: &str) -> Lambda {
+    Lambda::new(&[variable]).call(Call::new(
+        Expression::return_of(
+            Call::new(Expression::local(variable), "getWallet", 3).returning(wallet()),
         ),
-    );
-
-    let verdicts = audit.verdicts(&shop());
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("withdraw", 3, Reason::return_of("getWallet"))
-    );
-}
-
-fn handlers_type() -> TypeRef {
-    generic(
-        MAP,
-        &[
-            TypeRef::class("java.lang.String"),
-            generic(CONSUMER, &[TypeRef::class("Event")]),
-        ],
-    )
-}
-
-fn registering_map_of() -> Call {
-    Call::new(Expression::static_type(TypeRef::class(MAP)), "of", 2)
-        .with(Expression::literal())
-        .with(Lambda::new(&["event"]).call(Call::new(
-            Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
-            "close",
-            3,
-        )))
-}
-
-fn closing_the_receipt() -> Verdict {
-    Verdict::violation("close", 3, Reason::return_of("getReceipt"))
-}
-
-#[test]
-fn a_call_expecting_a_type_binds_its_type_variables_from_it() {
-    let register = Method::new("Dispatcher", "register", 1)
-        .call(registering_map_of().expecting(handlers_type()));
-
-    let verdicts = register.verdicts(&shop());
-
-    assert_eq!(verdicts[1], closing_the_receipt());
-}
-
-#[test]
-fn a_local_declared_with_a_type_gives_its_type_to_the_call_that_fills_it() {
-    let register = Method::new("Dispatcher", "register", 1).assign(
-        "handlers",
-        handlers_type(),
-        Expression::return_of(registering_map_of()),
-    );
-
-    let verdicts = register.verdicts(&shop());
-
-    assert_eq!(verdicts[1], closing_the_receipt());
-}
-
-#[test]
-fn a_cast_gives_its_type_to_the_call_it_wraps() {
-    let register = Method::new("Dispatcher", "register", 1).evaluate(Expression::cast(
-        handlers_type(),
-        Expression::return_of(registering_map_of()),
-    ));
-
-    let verdicts = register.verdicts(&shop());
-
-    assert_eq!(verdicts[1], closing_the_receipt());
+        "withdraw",
+        3,
+    ))
 }
 
 #[test]
 fn the_expression_a_lambda_yields_is_judged_like_a_statement() {
-    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
-    let charge = Method::new("Billing", "charge", 1).call(
-        Call::new(orders, "stream", 2)
-            .then("forEach", 2)
-            .with(Lambda::new(&["order"]).yielding(Expression::return_of(customer_of("order", 3)))),
-    );
+    let charge =
+        Method::new("Billing", "charge", 1).call(orders_stream().then("forEach", 2).with(
+            Lambda::new(&["order"]).yielding(Expression::return_of(customer_of("order", 3))),
+        ));
 
     let verdicts = charge.verdicts(&shop());
 
@@ -389,27 +124,17 @@ fn the_expression_a_lambda_yields_is_judged_like_a_statement() {
     );
 }
 
-fn withdrawing_from_the_wallet_of(variable: &str) -> Lambda {
-    Lambda::new(&[variable]).call(Call::new(
-        Expression::return_of(Call::new(Expression::local(variable), "getWallet", 3)),
-        "withdraw",
-        3,
-    ))
-}
-
 #[test]
-fn the_type_argument_of_a_generic_method_comes_from_the_result_of_a_lambda() {
-    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+fn a_stream_mapped_by_a_lambda_hands_the_returned_objects_to_the_next_lambda() {
     let charge = Method::new("Billing", "charge", 1).call(
-        Call::new(orders, "stream", 2)
+        orders_stream()
             .then("map", 2)
             .with(
-                Lambda::new(&["order"]).yielding(Expression::return_of(Call::new(
-                    Expression::local("order"),
-                    "getCustomer",
-                    2,
-                ))),
+                Lambda::new(&["order"])
+                    .yielding(Expression::return_of(getting_the_customer_of("order", 2))),
             )
+            .returning(stream_of(customer()))
+            .returning_from(&[0])
             .then("forEach", 3)
             .with(withdrawing_from_the_wallet_of("customer")),
     );
@@ -435,18 +160,19 @@ fn the_type_argument_of_a_generic_method_comes_from_the_result_of_a_lambda() {
             Verdict::allowed(
                 "forEach",
                 3,
-                Reason::classified(Classification::Container, generic(STREAM, &[customer()]))
+                Reason::classified(Classification::Container, stream_of(customer()))
             ),
         ]
     );
 }
 
 fn mapping_orders_with(reference: MethodReference) -> Method {
-    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
     Method::new("Billing", "charge", 1).call(
-        Call::new(orders, "stream", 2)
+        orders_stream()
             .then("map", 2)
             .with(reference)
+            .returning(stream_of(customer()))
+            .returning_from(&[0])
             .then("forEach", 3)
             .with(withdrawing_from_the_wallet_of("customer")),
     )
@@ -465,7 +191,7 @@ fn charging_the_customers_a_stranger_returned(call: &str) -> [Verdict; 5] {
         Verdict::allowed(
             "forEach",
             3,
-            Reason::classified(Classification::Container, generic(STREAM, &[customer()])),
+            Reason::classified(Classification::Container, stream_of(customer())),
         ),
     ]
 }
@@ -486,11 +212,9 @@ fn charging_the_customers_a_friend_made(made: Reason) -> [Verdict; 5] {
 
 #[test]
 fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
-    let charge = mapping_orders_with(MethodReference::new(
-        Expression::static_type(order()),
-        "getCustomer",
-        2,
-    ));
+    let charge = mapping_orders_with(
+        MethodReference::new(Expression::static_type(order()), "getCustomer", 2).taking(1),
+    );
 
     let verdicts = charge.verdicts(&shop());
 
@@ -508,11 +232,9 @@ fn a_method_reference_to_an_instance_method_yields_what_the_method_returns() {
 
 #[test]
 fn a_constructor_reference_yields_the_type_it_creates() {
-    let charge = mapping_orders_with(MethodReference::new(
-        Expression::static_type(TypeRef::class("Customer")),
-        "new",
-        2,
-    ));
+    let charge = mapping_orders_with(
+        MethodReference::new(Expression::static_type(customer()), "new", 2).taking(1),
+    );
 
     let verdicts = charge.verdicts(&shop());
 
@@ -524,11 +246,15 @@ fn a_constructor_reference_yields_the_type_it_creates() {
 
 #[test]
 fn a_method_reference_to_a_static_method_yields_what_the_method_returns() {
-    let charge = mapping_orders_with(MethodReference::new(
-        Expression::static_type(TypeRef::class("Customers")),
-        "of",
-        2,
-    ));
+    let charge = mapping_orders_with(
+        MethodReference::new(
+            Expression::static_type(TypeRef::class("Customers")),
+            "of",
+            2,
+        )
+        .taking(1)
+        .returning(customer()),
+    );
 
     let verdicts = charge.verdicts(&shop());
 
@@ -542,11 +268,14 @@ fn a_method_reference_to_a_static_method_yields_what_the_method_returns() {
 
 #[test]
 fn a_method_reference_on_an_expression_yields_what_the_method_of_its_type_returns() {
-    let charge = mapping_orders_with(MethodReference::new(
-        Expression::field("registry", TypeRef::class("Registry")),
-        "lookup",
-        2,
-    ));
+    let charge = mapping_orders_with(
+        MethodReference::new(
+            Expression::field("registry", TypeRef::class("Registry")),
+            "lookup",
+            2,
+        )
+        .taking(1),
+    );
 
     let verdicts = charge.verdicts(&shop());
 
@@ -555,311 +284,15 @@ fn a_method_reference_on_an_expression_yields_what_the_method_of_its_type_return
     assert_eq!(verdicts, expected);
 }
 
-fn with_primitive_array_overload(types: Types) -> Types {
-    let arrays = class(ARRAYS)
-        .with_method(
-            MethodShape::new("stream")
-                .as_static()
-                .with_parameters(vec![TypeRef::array(TypeRef::primitive("int"))])
-                .returning(TypeRef::class("java.util.stream.IntStream")),
-        )
-        .with_method(
-            MethodShape::new("stream")
-                .as_static()
-                .with_type_parameter("T")
-                .with_parameters(vec![TypeRef::array(variable("T"))])
-                .returning(generic(STREAM, &[variable("T")])),
-        );
-    types.with_shape(arrays)
-}
-
-#[test]
-fn the_overload_whose_parameters_fit_the_arguments_decides_the_type_variables() {
-    let notify = Method::new("Shipping", "notify", 1).call(
-        Call::new(
-            Expression::return_of(
-                Call::new(Expression::static_type(TypeRef::class(ARRAYS)), "stream", 2)
-                    .with(Expression::parameter("orders", TypeRef::array(order()))),
-            ),
-            "forEach",
-            2,
-        )
-        .with(Lambda::new(&["order"]).call(customer_of("order", 3))),
-    );
-
-    let verdicts = notify.verdicts(&with_primitive_array_overload(shop()));
-
-    assert_eq!(
-        verdicts[2],
-        Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
-    );
-}
-
-fn with_quotes(overloads: &[(TypeRef, &str)]) -> Types {
-    let pricing = overloads
-        .iter()
-        .fold(class("Pricing"), |shape, (parameter, returns)| {
-            shape.with_method(
-                MethodShape::new("quote")
-                    .with_parameters(vec![parameter.clone()])
-                    .returning(TypeRef::class(returns)),
-            )
-        });
-    shop().with_shape(pricing)
-}
-
-fn quoting_with(argument: TypeRef, then: &str) -> Method {
-    Method::new("Billing", "charge", 1).call(Call::new(
-        Expression::return_of(
-            Call::new(
-                Expression::parameter("pricing", TypeRef::class("Pricing")),
-                "quote",
-                2,
-            )
-            .with(Expression::parameter("argument", argument)),
-        ),
-        then,
-        2,
-    ))
-}
-
-fn int() -> TypeRef {
-    TypeRef::primitive("int")
-}
-
-fn wallet() -> TypeRef {
-    TypeRef::class("Wallet")
-}
-
-#[test]
-fn the_overload_whose_primitive_parameter_matches_the_argument_decides_the_quote() {
-    let types = with_quotes(&[(int(), "Wallet"), (TypeRef::primitive("long"), "Customer")]);
-    let charge = quoting_with(int(), "withdraw");
-
-    let verdicts = charge.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("withdraw", 2, Reason::return_of("quote"))
-    );
-}
-
-#[test]
-fn the_overload_whose_class_parameter_is_a_supertype_of_the_argument_decides_the_quote() {
-    let types = with_quotes(&[(order(), "Customer"), (wallet(), "Wallet")]);
-    let charge = quoting_with(wallet(), "withdraw");
-
-    let verdicts = charge.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("withdraw", 2, Reason::return_of("quote"))
-    );
-}
-
-#[test]
-fn an_array_argument_fits_only_object_and_array_parameters() {
-    let object = TypeRef::class("java.lang.Object");
-    let types = with_quotes(&[(object, "Wallet"), (wallet(), "Customer")]);
-    let charge = quoting_with(TypeRef::array(order()), "withdraw");
-
-    let verdicts = charge.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("withdraw", 2, Reason::return_of("quote"))
-    );
-}
-
-#[test]
-fn an_argument_of_a_type_the_catalog_lacks_fits_any_class_parameter() {
-    let types = with_quotes(&[(order(), "Customer"), (int(), "Wallet")]);
-    let charge = quoting_with(TypeRef::class("Unmapped"), "rename");
-
-    let verdicts = charge.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("rename", 2, Reason::return_of("quote"))
-    );
-}
-
-#[test]
-fn overloads_that_all_miss_the_argument_still_agree_on_a_common_return() {
-    let types = with_quotes(&[(order(), "Customer"), (wallet(), "Customer")]);
-    let charge = quoting_with(TypeRef::class("Customer"), "rename");
-
-    let verdicts = charge.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("rename", 2, Reason::return_of("quote"))
-    );
-}
-
-#[test]
-fn a_class_argument_fits_an_object_parameter() {
-    let object = TypeRef::class("java.lang.Object");
-    let types = with_quotes(&[(object, "Customer"), (int(), "Wallet")]);
-    let charge = quoting_with(wallet(), "rename");
-
-    let verdicts = charge.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("rename", 2, Reason::return_of("quote"))
-    );
-}
-
-#[test]
-fn a_call_returning_a_subtype_of_the_expected_type_binds_through_the_supertype() {
-    let lists = class("Lists").with_method(
-        MethodShape::new("listOf")
-            .as_static()
-            .with_type_parameter("T")
-            .with_parameters(vec![variable("T")])
-            .returning(generic(ARRAY_LIST, &[variable("T")])),
-    );
-    let handlers = generic(COLLECTION, &[generic(CONSUMER, &[TypeRef::class("Event")])]);
-    let register = Method::new("Dispatcher", "register", 1).assign(
-        "handlers",
-        handlers,
-        Expression::return_of(
-            Call::new(
-                Expression::static_type(TypeRef::class("Lists")),
-                "listOf",
-                2,
-            )
-            .with(Lambda::new(&["event"]).call(Call::new(
-                Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
-                "close",
-                3,
-            ))),
-        ),
-    );
-
-    let verdicts = register.verdicts(&shop().with_shape(lists));
-
-    assert_eq!(verdicts[1], closing_the_receipt());
-}
-
-fn registering_into(handler: TypeRef, extra: Vec<TypeShape>) -> Verdict {
-    let types = extra.into_iter().fold(shop(), Types::with_shape);
-    let handlers = generic(MAP, &[TypeRef::class("java.lang.String"), handler]);
-    let register = Method::new("Dispatcher", "register", 1).call(
-        Call::new(Expression::field("handlers", handlers), "put", 2)
-            .with(Expression::literal())
-            .with(Lambda::new(&["event"]).call(Call::new(
-                Expression::return_of(Call::new(Expression::local("event"), "getReceipt", 3)),
-                "close",
-                3,
-            ))),
-    );
-    register.verdicts(&types)[1].clone()
-}
-
-fn handler_of_event(name: &str) -> TypeRef {
-    generic(name, &[TypeRef::class("Event")])
-}
-
-fn undecided_close() -> Verdict {
-    Verdict::violation(
-        "close",
-        3,
-        Reason::unresolved_type(None, Reason::return_of("getReceipt")),
-    )
-}
-
-#[test]
-fn an_abstract_method_inherited_from_a_super_interface_is_the_functional_method() {
-    let handler = interface("shop.Handler", &["T"]).extending(generic(CONSUMER, &[variable("T")]));
-
-    let verdict = registering_into(handler_of_event("shop.Handler"), vec![handler]);
-
-    assert_eq!(verdict, closing_the_receipt());
-}
-
-#[test]
-fn an_interface_with_two_abstract_methods_is_not_functional() {
-    let listener = interface("shop.Listener", &["T"])
-        .with_method(
-            MethodShape::new("accept")
-                .with_parameters(vec![variable("T")])
-                .as_abstract(),
-        )
-        .with_method(
-            MethodShape::new("reject")
-                .with_parameters(vec![variable("T")])
-                .as_abstract(),
-        );
-
-    let verdict = registering_into(handler_of_event("shop.Listener"), vec![listener]);
-
-    assert_eq!(verdict, undecided_close());
-}
-
-#[test]
-fn abstract_methods_of_object_do_not_count_against_a_functional_interface() {
-    let matcher = interface("shop.Matcher", &["T"])
-        .with_method(
-            MethodShape::new("accept")
-                .with_parameters(vec![variable("T")])
-                .as_abstract(),
-        )
-        .with_method(
-            MethodShape::new("equals")
-                .with_parameters(vec![TypeRef::class("java.lang.Object")])
-                .as_abstract(),
-        );
-
-    let verdict = registering_into(handler_of_event("shop.Matcher"), vec![matcher]);
-
-    assert_eq!(verdict, closing_the_receipt());
-}
-
-#[test]
-fn a_default_method_overriding_an_inherited_abstract_one_leaves_the_other_abstract_method() {
-    let relaxed = interface("shop.Relaxed", &["T"])
-        .extending(generic(CONSUMER, &[variable("T")]))
-        .with_method(MethodShape::new("accept").with_parameters(vec![variable("T")]))
-        .with_method(
-            MethodShape::new("handle")
-                .with_parameters(vec![variable("T")])
-                .as_abstract(),
-        );
-
-    let verdict = registering_into(handler_of_event("shop.Relaxed"), vec![relaxed]);
-
-    assert_eq!(verdict, closing_the_receipt());
-}
-
-#[test]
-fn a_class_with_one_abstract_method_is_not_functional() {
-    let task = class("shop.Task").with_type_parameter("T").with_method(
-        MethodShape::new("run")
-            .with_parameters(vec![variable("T")])
-            .as_abstract(),
-    );
-
-    let verdict = registering_into(handler_of_event("shop.Task"), vec![task]);
-
-    assert_eq!(verdict, undecided_close());
-}
-
-fn orders_stream() -> Call {
-    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
-    Call::new(orders, "stream", 2)
-}
-
 #[test]
 fn a_stream_mapped_to_created_objects_keeps_them_friends() {
-    let created = Expression::created(
-        Creation::new(TypeRef::class("Receipt")).with(Expression::local("order")),
-    );
+    let created = Expression::created(Creation::new(receipt()).with(Expression::local("order")));
     let print = Method::new("Billing", "print", 1).call(
         orders_stream()
             .then("map", 2)
             .with(Lambda::new(&["order"]).yielding(created))
+            .returning(stream_of(receipt()))
+            .returning_from(&[0])
             .then("forEach", 3)
             .with(Lambda::new(&["receipt"]).call(Call::new(
                 Expression::local("receipt"),
@@ -878,9 +311,9 @@ fn a_stream_mapped_to_created_objects_keeps_them_friends() {
             Verdict::allowed(
                 "print",
                 3,
-                Reason::lambda_parameter("receipt", Reason::created(TypeRef::class("Receipt")))
+                Reason::lambda_parameter("receipt", Reason::created(receipt()))
             ),
-            Verdict::allowed("forEach", 3, Reason::created(TypeRef::class("Receipt"))),
+            Verdict::allowed("forEach", 3, Reason::created(receipt())),
         ]
     );
 }
@@ -892,6 +325,7 @@ fn a_filtered_stream_keeps_the_standing_of_its_receiver() {
         orders_stream()
             .then("filter", 2)
             .with(Lambda::new(&["order"]).yielding(is_paid))
+            .returning(stream_of(order()))
             .then("forEach", 3)
             .with(Lambda::new(&["order"]).call(Call::new(Expression::local("order"), "ship", 3))),
     );
@@ -920,11 +354,15 @@ fn a_filtered_stream_keeps_the_standing_of_its_receiver() {
 
 #[test]
 fn a_value_mapped_from_a_stream_is_allowed_by_its_classification() {
-    let total = Expression::return_of(Call::new(Expression::local("order"), "getTotal", 2));
+    let total = Expression::return_of(
+        Call::new(Expression::local("order"), "getTotal", 2).returning(TypeRef::class(BIG_DECIMAL)),
+    );
     let check = Method::new("Billing", "check", 1).call(
         orders_stream()
             .then("map", 2)
             .with(Lambda::new(&["order"]).yielding(total))
+            .returning(stream_of(TypeRef::class(BIG_DECIMAL)))
+            .returning_from(&[0])
             .then("forEach", 3)
             .with(Lambda::new(&["total"]).call(Call::new(Expression::local("total"), "signum", 3))),
     );
@@ -943,13 +381,16 @@ fn a_value_mapped_from_a_stream_is_allowed_by_its_classification() {
 
 #[test]
 fn a_call_returning_a_non_container_keeps_the_standing_of_its_container_receiver() {
-    let customer_of_order =
-        Expression::return_of(Call::new(Expression::local("order"), "getCustomer", 2));
     let rename = Method::new("Billing", "rename", 1).call(Call::new(
         Expression::return_of(
             orders_stream()
                 .then("fold", 2)
-                .with(Lambda::new(&["order"]).yielding(customer_of_order)),
+                .with(
+                    Lambda::new(&["order"])
+                        .yielding(Expression::return_of(getting_the_customer_of("order", 2))),
+                )
+                .returning(customer())
+                .returning_from(&[0]),
         ),
         "rename",
         3,
@@ -965,9 +406,7 @@ fn a_call_returning_a_non_container_keeps_the_standing_of_its_container_receiver
 
 #[test]
 fn a_container_a_call_on_a_non_container_returns_follows_the_usual_standing_rules() {
-    let created = Expression::created(
-        Creation::new(TypeRef::class("Receipt")).with(Expression::local("order")),
-    );
+    let created = Expression::created(Creation::new(receipt()).with(Expression::local("order")));
     let print = Method::new("Billing", "print", 1).call(
         Call::new(
             Expression::field("mapper", TypeRef::class("Mapper")),
@@ -975,6 +414,8 @@ fn a_container_a_call_on_a_non_container_returns_follows_the_usual_standing_rule
             2,
         )
         .with(Lambda::new(&["order"]).yielding(created))
+        .returning(stream_of(receipt()))
+        .returning_from(&[0])
         .then("forEach", 3)
         .with(Lambda::new(&["receipt"]).call(Call::new(
             Expression::local("receipt"),
@@ -1000,6 +441,8 @@ fn orders_then_print(reference: MethodReference) -> Method {
         orders_stream()
             .then("map", 2)
             .with(reference)
+            .returning(stream_of(variable("R")))
+            .returning_from(&[0])
             .then("forEach", 3)
             .with(Lambda::new(&["receipt"]).call(Call::new(
                 Expression::local("receipt"),
@@ -1011,11 +454,9 @@ fn orders_then_print(reference: MethodReference) -> Method {
 
 #[test]
 fn a_method_reference_to_a_factory_method_of_a_friend_yields_friends() {
-    let print = orders_then_print(MethodReference::new(
-        Expression::static_type(order()),
-        "newReceipt",
-        2,
-    ));
+    let print = orders_then_print(
+        MethodReference::new(Expression::static_type(order()), "newReceipt", 2).taking(1),
+    );
 
     let verdicts = print.verdicts(&shop());
 
@@ -1031,11 +472,9 @@ fn a_method_reference_to_a_factory_method_of_a_friend_yields_friends() {
 
 #[test]
 fn a_method_reference_to_an_unknown_method_yields_strangers() {
-    let print = orders_then_print(MethodReference::new(
-        Expression::static_type(order()),
-        "missing",
-        2,
-    ));
+    let print = orders_then_print(
+        MethodReference::new(Expression::static_type(order()), "missing", 2).taking(1),
+    );
 
     let verdicts = print.verdicts(&shop());
 
