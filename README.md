@@ -568,42 +568,44 @@ law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/c
 
 ### Örnek
 
-Repodaki `examples/shop` projesini denetlemek için repo kökünden:
+Küçük bir proje düşün: Kural bölümündeki `OrderService` ile Veri yapıları bölümündeki hibrit `Account` ve `PaymentService`, bir de `Order`, `Customer`, `Wallet` ve `Money` sınıfları `src/shop` altında dursun. Proje `javac` ile derlenir ve araçtan geçirilir:
 
 ```bash
-cd examples/shop
+javac -d out $(find src -name '*.java')
 ```
 
 ```bash
-mvn -q compile dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
-```
-
-```bash
-law-of-demeter --source src/main/java --classpath "$(cat target/classpath.txt):target/classes"
+law-of-demeter --source src --classpath out
 ```
 
 <details>
 <summary><strong>Örnek çıktı</strong></summary>
 
 ```text
-İhlaller:
-...
-src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/main/java/shop/service/PaymentService.java:13  shop.service.PaymentService.pay  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-...
+İhlaller (2):
+src/shop/OrderService.java:5  shop.OrderService.pay  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/shop/OrderService.java:5  shop.OrderService.pay  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Hibrit sınıflar:
-src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
+Hibrit sınıflar (1):
+src/shop/Account.java  shop.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
 
 Özet:
-...
+  Dosya: 7
+  Metot: 13
+  Çağrı: 7 (uygun 5, ihlal 2, belirsiz 0)
+  Hibrit sınıf: 1
+  Kaynak hatası: 0
+  Tip okuma hatası: 0
+
+İhlal nedenleri:
+  2  Döndürülen nesne f'nin arkadaşı değil
 ```
 
-Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve nedeni gösterir. Raporun tamamı [beklenen raporda](examples/shop/expected-report.txt) durur; bu rapor `--show-allowed` ile uygun çağrıları da listeler.
+Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve nedeni gösterir. İhlal ya da hibrit sınıf olduğu için araç 1 ile çıkar. `--show-allowed` ile uygun çağrılar da uydukları kuralla listelenir.
 
 </details>
 
-Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
+Daha büyük bir örnek repodaki `examples/shop` projesidir. Raporu [beklenen raporda](examples/shop/expected-report.txt) durur ve `--show-allowed` ile üretilmiştir. Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
 
 ## Mimari
 
