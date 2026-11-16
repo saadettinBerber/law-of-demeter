@@ -94,6 +94,8 @@ Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README
 
 - **Dış kütüphane:** Davranışını kullanmadan önce learning test ile sına.
 
+- **Yanlış alarm:** Gerçek bir Java projesinde bulunan her yanlış alarm yeni bir senaryoya ve teste dönüşür; senaryo genel adlarla yazılır, projenin adı geçmez.
+
 ## Kod
 
 ---
