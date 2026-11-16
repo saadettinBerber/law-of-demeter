@@ -76,9 +76,9 @@ impl Method {
 }
 
 #[cfg(test)]
-mod calibration;
-#[cfg(test)]
 mod compound;
+#[cfg(test)]
+mod false_alarms;
 #[cfg(test)]
 mod fluent_varargs;
 #[cfg(test)]
