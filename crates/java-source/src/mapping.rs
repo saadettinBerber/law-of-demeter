@@ -1,5 +1,6 @@
 mod expressions;
 mod patterns;
+mod returns;
 mod statements;
 mod steps;
 mod types;
@@ -26,10 +27,10 @@ pub fn map_source(path: &Path, source: &str, types: &Types) -> Result<MappedFile
     let file = parse_with(&path.to_string_lossy(), source, &|name| {
         types.shape(name).is_some()
     })?;
-    Ok(map_file(&file))
+    Ok(map_file(&file, types))
 }
 
-fn map_file(file: &SourceFile) -> MappedFile {
+fn map_file(file: &SourceFile, types: &Types) -> MappedFile {
     MappedFile {
         classes: file
             .classes
@@ -43,7 +44,7 @@ fn map_file(file: &SourceFile) -> MappedFile {
                 class
                     .methods
                     .iter()
-                    .map(|method| MethodMapper::new(file, class, method).map())
+                    .map(|method| MethodMapper::new(file, types, class, method).map())
             })
             .collect(),
     }
@@ -51,6 +52,7 @@ fn map_file(file: &SourceFile) -> MappedFile {
 
 struct MethodMapper<'a> {
     file: &'a SourceFile,
+    types: &'a Types,
     class: &'a Class,
     method: &'a ParsedMethod,
     bounds: Bounds,
@@ -61,10 +63,16 @@ struct MethodMapper<'a> {
 }
 
 impl<'a> MethodMapper<'a> {
-    fn new(file: &'a SourceFile, class: &'a Class, method: &'a ParsedMethod) -> Self {
+    fn new(
+        file: &'a SourceFile,
+        types: &'a Types,
+        class: &'a Class,
+        method: &'a ParsedMethod,
+    ) -> Self {
         let bounds = bounds_of(file, class, method);
         Self {
             file,
+            types,
             class,
             method,
             parameters: method

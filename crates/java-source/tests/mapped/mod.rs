@@ -49,6 +49,13 @@ pub fn method_f(source: &str) -> Method {
         .unwrap()
 }
 
+pub fn method_f_in(source: &str, types: &Types) -> Method {
+    mapped_methods_in(source, types)
+        .into_iter()
+        .find(|method| method.name() == "f")
+        .unwrap()
+}
+
 pub fn method_in(source: &str, class_name: &str, name: &str) -> Method {
     mapped_methods(source)
         .into_iter()

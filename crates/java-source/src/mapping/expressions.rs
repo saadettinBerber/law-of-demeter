@@ -83,7 +83,10 @@ impl MethodMapper<'_> {
         for argument in &call.arguments {
             mapped = mapped.with(self.argument(argument));
         }
-        Expression::return_of(mapped)
+        match self.returned_by(call) {
+            Some(returned) => Expression::return_of(mapped.returning(returned)),
+            None => Expression::return_of(mapped),
+        }
     }
 
     fn creation(&mut self, created: &model::New) -> Expression {
