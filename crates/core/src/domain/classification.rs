@@ -1,6 +1,5 @@
 mod functional;
 mod invocation;
-mod jdk;
 mod known;
 mod naming;
 
@@ -231,7 +230,7 @@ impl Types {
     pub fn element_type_of(&self, type_ref: &TypeRef) -> Option<TypeRef> {
         let container = self.ancestors(type_ref).into_iter().find(|ancestor| {
             matches!(ancestor, TypeRef::Array(_))
-                || class_name(ancestor).and_then(|name| self.known_classification(name))
+                || class_name(ancestor).and_then(|name| self.known.classify(name))
                     == Some(Classification::Container)
         })?;
         self.element_type(&container).cloned()
@@ -241,16 +240,12 @@ impl Types {
         match type_ref {
             TypeRef::Array(element) => Some(element),
             TypeRef::Class { name, arguments }
-                if self.known_classification(name) == Some(Classification::Container) =>
+                if self.known.classify(name) == Some(Classification::Container) =>
             {
                 arguments.last()
             }
             TypeRef::Class { .. } | TypeRef::Primitive(_) | TypeRef::Variable(_) => None,
         }
-    }
-
-    fn known_classification(&self, name: &str) -> Option<Classification> {
-        self.known.classify(name).or_else(|| jdk::classify(name))
     }
 
     pub(crate) fn declares_static(&self, owner: &TypeRef, method: &str) -> bool {
@@ -291,7 +286,7 @@ impl Types {
     }
 
     fn classify_named(&self, name: &str) -> Classification {
-        self.known_classification(name).unwrap_or_else(|| {
+        self.known.classify(name).unwrap_or_else(|| {
             self.shapes
                 .get(name)
                 .map_or(Classification::Unknown, |shape| self.classify_shape(shape))
@@ -317,7 +312,7 @@ impl Types {
             let Some(name) = current.superclass().and_then(class_name) else {
                 continue;
             };
-            if self.known.is_behaviorless(name) || jdk::is_behaviorless(name) {
+            if self.known.is_behaviorless(name) {
                 continue;
             }
             match self.shape(name) {
@@ -326,7 +321,7 @@ impl Types {
                         chain.push(superclass);
                     }
                 }
-                None => complete &= self.known_classification(name).is_some(),
+                None => complete &= self.known.classify(name).is_some(),
             }
         }
         let mut methods: Vec<&MethodShape> = Vec::new();
@@ -376,7 +371,7 @@ impl Types {
             .iter()
             .skip(1)
             .filter_map(class_name)
-            .filter_map(|name| self.known_classification(name))
+            .filter_map(|name| self.known.classify(name))
             .find(|classification| {
                 matches!(
                     classification,
@@ -549,5 +544,9 @@ fn is_setter(method: &MethodShape) -> bool {
     method.writes_field().is_some() && method.parameters().len() == 1
 }
 
+#[cfg(test)]
+mod sample_platform;
+#[cfg(test)]
+pub(crate) use sample_platform::sample_types;
 #[cfg(test)]
 mod tests;

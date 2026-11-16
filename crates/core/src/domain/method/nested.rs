@@ -1,5 +1,5 @@
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
-use crate::domain::classification::{Classification, Types};
+use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const STREAM: &str = "java.util.stream.Stream";
@@ -111,7 +111,7 @@ fn collecting() -> Types {
                     generic(MAP, &[variable("K"), list_of(variable("T"))]),
                 )),
         );
-    Types::new()
+    sample_types()
         .with_shape(collectors)
         .with_shape(interface(COLLECTOR, &["T", "A", "R"]))
         .with_shape(

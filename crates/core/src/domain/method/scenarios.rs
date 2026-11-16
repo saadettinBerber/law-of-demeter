@@ -1,5 +1,5 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::{Classification, Types};
+use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 fn record(name: &str) -> TypeShape {
@@ -18,7 +18,7 @@ fn getter(name: &str, field: &str, returns: &str) -> MethodShape {
 
 #[test]
 fn reading_a_chain_through_data_structures_is_allowed() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(record("Config").with_method(getter("server", "server", "Server")))
         .with_shape(
             record("Server").with_method(
@@ -104,7 +104,7 @@ fn reading_a_chain_through_data_structures_is_allowed() {
 #[test]
 fn operating_on_a_value_is_allowed() {
     let instant = TypeRef::class("java.time.Instant");
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         class("java.time.Instant").with_method(
             MethodShape::new("plus")
                 .with_parameters(vec![TypeRef::class("java.time.Duration")])
@@ -141,7 +141,7 @@ fn transforming_a_collection_with_a_stream_is_allowed() {
     let order = TypeRef::class("Order");
     let orders = TypeRef::generic("java.util.List", vec![order.clone()]);
     let stream = TypeRef::generic("java.util.stream.Stream", vec![order]);
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("java.util.List", TypeKind::Interface)
                 .with_method(MethodShape::new("stream").returning(stream.clone())),
@@ -177,7 +177,7 @@ fn transforming_a_collection_with_a_stream_is_allowed() {
 #[test]
 fn changing_a_collection_returned_by_a_getter_is_a_violation() {
     let lines = TypeRef::generic("java.util.List", vec![TypeRef::class("OrderLine")]);
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         class("Order").with_method(
             MethodShape::new("getLines")
                 .reading("lines")
@@ -213,7 +213,7 @@ fn changing_a_collection_returned_by_a_getter_is_a_violation() {
 fn objects_from_factories_and_new_are_friends() {
     let builder = TypeRef::class("java.lang.StringBuilder");
     let types =
-        Types::new()
+        sample_types()
             .with_shape(
                 class("ReportFactory")
                     .with_method(MethodShape::new("create").returning(TypeRef::class("Report"))),
@@ -275,7 +275,7 @@ fn objects_from_factories_and_new_are_friends() {
 
 #[test]
 fn talking_to_the_object_a_repository_query_returned_is_allowed() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             class("OrderRepository").with_method(
                 MethodShape::new("findById")
@@ -309,7 +309,7 @@ fn talking_to_the_object_a_repository_query_returned_is_allowed() {
 fn builder_chains_stay_with_the_builder() {
     let order = TypeRef::class("Order");
     let builder = TypeRef::class("Order$Builder");
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             class("Order").with_method(
                 MethodShape::new("builder")
@@ -361,7 +361,7 @@ fn builder_chains_stay_with_the_builder() {
 }
 
 fn shop_with_objects() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             class("Order")
                 .with_method(getter("getCustomer", "customer", "Customer"))
@@ -465,7 +465,7 @@ fn changing_the_object_a_getter_returned_with_a_setter_is_a_violation() {
 #[test]
 fn changing_the_elements_of_an_inner_collection_from_outside_is_a_violation() {
     let lines = TypeRef::generic("java.util.List", vec![TypeRef::class("OrderLine")]);
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             class("Order").with_method(
                 MethodShape::new("getLines")
@@ -511,7 +511,7 @@ fn changing_the_elements_of_an_inner_collection_from_outside_is_a_violation() {
 
 #[test]
 fn reaching_through_the_object_a_data_structure_carries_is_a_violation() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(class("OrderShippedEvent").with_method(getter("getOrder", "order", "Order")))
         .with_shape(
             class("Order")
@@ -543,7 +543,7 @@ fn reaching_through_the_object_a_data_structure_carries_is_a_violation() {
 
 #[test]
 fn talking_to_the_object_a_holder_getter_returned_is_a_violation() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(class("Session").with_method(getter("getCart", "cart", "Cart")))
         .with_shape(class("Cart").with_method(MethodShape::new("clear")));
     let checkout = Method::new("Checkout", "checkout", 1).call(
@@ -574,7 +574,7 @@ fn reading_a_value_from_a_parameter_is_allowed() {
         2,
     ));
 
-    let verdicts = can_ship.verdicts(&Types::new());
+    let verdicts = can_ship.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -584,7 +584,7 @@ fn reading_a_value_from_a_parameter_is_allowed() {
 
 #[test]
 fn passing_a_stranger_on_to_another_method_is_allowed() {
-    let types = Types::new().with_shape(class("Order").with_method(getter(
+    let types = sample_types().with_shape(class("Order").with_method(getter(
         "getCustomer",
         "customer",
         "Customer",
@@ -626,7 +626,7 @@ fn calling_own_fields_and_own_methods_is_allowed() {
         )
         .call(Call::new(Expression::This, "audit", 3));
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -651,7 +651,7 @@ fn computing_outside_an_object_on_friend_values_is_not_a_violation() {
             2,
         ));
 
-    let verdicts = total_of.verdicts(&Types::new());
+    let verdicts = total_of.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -676,7 +676,7 @@ fn deciding_outside_an_object_on_a_friends_state_is_not_a_violation() {
             3,
         ));
 
-    let verdicts = ship.verdicts(&Types::new());
+    let verdicts = ship.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,

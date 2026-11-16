@@ -1,5 +1,5 @@
 use super::{Call, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::{Classification, Types};
+use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 fn class(name: &str) -> TypeShape {
@@ -29,7 +29,7 @@ fn variable(name: &str) -> TypeRef {
 
 fn containers() -> Types {
     let stream = |element: TypeRef| generic("java.util.stream.Stream", &[element]);
-    Types::new()
+    sample_types()
         .with_shape(
             interface("java.util.Map", &["K", "V"])
                 .with_method(returning("get", 1, variable("V")))
@@ -237,7 +237,7 @@ fn with_project(types: Types, classes: &[&str]) -> Types {
 
 fn libraries() -> Types {
     with_project(
-        Types::new()
+        sample_types()
             .with_shape(class(LOCK).with_method(returning(
                 "writeLock",
                 0,
@@ -352,7 +352,7 @@ fn a_call_on_a_type_missing_from_the_catalog_stays_unresolved() {
 
 #[test]
 fn library_knowledge_stays_off_when_the_catalog_knows_no_project_types() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(class(LOCK).with_method(returning("writeLock", 0, TypeRef::class(WRITE_LOCK))))
         .with_shape(class(WRITE_LOCK).with_method(MethodShape::new("lock")))
         .with_shape(class("Shop"));
@@ -374,7 +374,7 @@ fn library_knowledge_stays_off_when_the_catalog_knows_no_project_types() {
 }
 
 fn inheritance() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(class("Base").with_field(FieldShape::new("wallet", TypeRef::class("Wallet"))))
         .with_shape(class("Child").with_superclass(TypeRef::class("Base")))
         .with_shape(class("Wallet").with_method(returning(
@@ -422,7 +422,7 @@ fn a_bare_name_that_no_superclass_declares_stays_unresolved() {
 }
 
 fn constants() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("Status", TypeKind::Enum)
                 .with_field(FieldShape::new("PAID", TypeRef::class("Status")).as_static()),

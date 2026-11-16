@@ -1,5 +1,5 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::{Classification, Types};
+use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
 #[test]
@@ -10,7 +10,7 @@ fn calling_a_method_on_an_unassigned_local_is_a_violation() {
         1,
     ));
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -68,7 +68,7 @@ fn calling_a_method_on_a_local_holding_a_parameter_is_allowed() {
                 .with(Expression::parameter("amount", TypeRef::class("Amount"))),
         );
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -95,7 +95,7 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_an_own_field_is_allowed() {
         ))),
     );
 
-    let verdicts = ship_all.verdicts(&Types::new());
+    let verdicts = ship_all.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -118,7 +118,7 @@ fn calling_a_method_on_an_object_created_in_the_method_is_allowed() {
         1,
     ));
 
-    let verdicts = greeting.verdicts(&Types::new());
+    let verdicts = greeting.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -167,7 +167,7 @@ fn calling_a_static_method_on_a_type_is_allowed() {
         1,
     ));
 
-    let verdicts = create.verdicts(&Types::new());
+    let verdicts = create.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -293,7 +293,7 @@ fn calling_a_method_on_a_literal_is_allowed() {
     let shout =
         Method::new("Greeter", "shout", 1).call(Call::new(Expression::literal(), "toUpperCase", 2));
 
-    let verdicts = shout.verdicts(&Types::new());
+    let verdicts = shout.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -302,7 +302,7 @@ fn calling_a_method_on_a_literal_is_allowed() {
 }
 
 fn shop() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class)
                 .with_method(
@@ -340,7 +340,7 @@ fn shop() -> Types {
 }
 
 fn order_with_lines() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class).with_method(
                 MethodShape::new("getLines")
@@ -427,7 +427,7 @@ fn a_loop_variable_takes_the_element_type_of_the_iterable() {
 
 #[test]
 fn a_var_local_takes_the_type_of_its_value() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Config", TypeKind::Record).with_method(
                 MethodShape::new("server")
@@ -464,7 +464,7 @@ fn a_var_local_takes_the_type_of_its_value() {
 
 #[test]
 fn a_local_with_a_declared_type_takes_that_type_when_its_value_has_none() {
-    let types = Types::new().with_shape(TypeShape::new("Server", TypeKind::Record));
+    let types = sample_types().with_shape(TypeShape::new("Server", TypeKind::Record));
     let read_port = Method::new("Connector", "portOf", 1)
         .assign(
             "server",
@@ -495,7 +495,7 @@ fn a_local_with_a_declared_type_takes_that_type_when_its_value_has_none() {
 #[test]
 fn a_fluent_call_on_a_returned_object_is_allowed() {
     let builder = TypeRef::class("ReportBuilder");
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class).with_method(
                 MethodShape::new("getReportBuilder")
@@ -541,7 +541,7 @@ fn a_fluent_call_on_a_returned_object_is_allowed() {
 }
 
 fn settings_with_behavior() -> Types {
-    Types::new().with_shape(
+    sample_types().with_shape(
         TypeShape::new("Settings", TypeKind::Class)
             .with_method(
                 MethodShape::new("current")
@@ -580,7 +580,7 @@ fn the_result_of_a_static_call_is_a_friend() {
 
 #[test]
 fn the_result_of_a_factory_call_on_a_stranger_is_a_stranger() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class).with_method(
                 MethodShape::new("getFactory")
@@ -618,7 +618,7 @@ fn the_result_of_a_factory_call_on_a_stranger_is_a_stranger() {
 }
 
 fn customers_with_queries() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class).with_method(
                 MethodShape::new("getCustomer")
@@ -666,7 +666,7 @@ fn the_result_of_a_query_called_on_a_stranger_is_a_stranger() {
 
 #[test]
 fn the_result_of_a_query_called_on_this_is_a_stranger() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("OrderService", TypeKind::Class).with_method(
                 MethodShape::new("findLine")
@@ -697,7 +697,7 @@ fn the_result_of_a_query_called_on_this_is_a_stranger() {
 
 #[test]
 fn the_result_of_a_query_called_on_a_local_holding_a_field_is_a_friend() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("OrderRepository", TypeKind::Class).with_method(
                 MethodShape::new("findById")
@@ -743,7 +743,7 @@ fn calling_a_method_on_a_returned_object_of_unknown_type_is_a_violation() {
         .then("getWallet", 2),
     );
 
-    let verdicts = pay.verdicts(&Types::new());
+    let verdicts = pay.verdicts(&sample_types());
 
     assert_eq!(
         verdicts,
@@ -760,7 +760,7 @@ fn calling_a_method_on_a_returned_object_of_unknown_type_is_a_violation() {
 
 #[test]
 fn calling_a_method_on_a_returned_object_of_a_type_without_shape_is_a_violation() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Order", TypeKind::Class).with_method(
             MethodShape::new("getCustomer")
                 .reading("customer")
@@ -796,7 +796,7 @@ fn calling_a_method_on_a_returned_object_of_a_type_without_shape_is_a_violation(
 
 #[test]
 fn calling_a_method_on_a_returned_value_is_allowed() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Order", TypeKind::Class).with_method(
                 MethodShape::new("getStatus")
@@ -831,7 +831,7 @@ fn calling_a_method_on_a_returned_value_is_allowed() {
 
 #[test]
 fn a_lambda_body_can_assign_a_local_with_a_declared_type() {
-    let types = Types::new().with_shape(TypeShape::new("Server", TypeKind::Record));
+    let types = sample_types().with_shape(TypeShape::new("Server", TypeKind::Record));
     let read_ports = Method::new("Connector", "readPorts", 1).call(
         Call::new(
             Expression::field(
@@ -882,7 +882,7 @@ fn customers_with_list() -> Types {
 }
 
 fn customers() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("java.util.List", TypeKind::Interface)
                 .with_type_parameter("E")

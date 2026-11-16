@@ -1,5 +1,5 @@
 use super::{Call, Creation, Expression, Lambda, Method, MethodReference, Reason, Verdict};
-use crate::domain::classification::{Classification, Types};
+use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const ARRAYS: &str = "java.util.Arrays";
@@ -43,7 +43,7 @@ fn customer() -> TypeRef {
 }
 
 fn shop() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             class(ARRAYS).with_method(
                 MethodShape::new("stream")

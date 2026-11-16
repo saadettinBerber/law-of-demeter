@@ -1,5 +1,5 @@
 use super::{Call, Creation, Expression, Lambda, Method, Reason, Verdict};
-use crate::domain::classification::Types;
+use crate::domain::classification::{Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const CONSUMER: &str = "java.util.function.Consumer";
@@ -17,7 +17,7 @@ fn event() -> TypeRef {
 }
 
 fn events() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new(CONSUMER, TypeKind::Interface)
                 .with_type_parameter("T")

@@ -5,7 +5,7 @@ use law_of_demeter_core::domain::method::{Reason, Verdict};
 use law_of_demeter_core::domain::type_shape::{
     FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
 };
-use law_of_demeter_java_source::map_source;
+use law_of_demeter_java_source::{java_platform, map_source};
 
 const JDK_TYPES: &[&str] = &[
     "java.lang.String",
@@ -44,9 +44,10 @@ fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> V
         .filter(|candidate| candidate.class_name() == class_name && candidate.name() == method)
         .collect();
     assert!(!found.is_empty(), "{class_name}.{method} was not mapped");
+    let types = types.clone().with_known(java_platform());
     found
         .into_iter()
-        .flat_map(|candidate| candidate.verdicts(types))
+        .flat_map(|candidate| candidate.verdicts(&types))
         .collect()
 }
 

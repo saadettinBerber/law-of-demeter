@@ -1,5 +1,6 @@
 use super::{
     Classification, HybridClass, KnownTypes, Types, is_factory_method, is_repository_query,
+    sample_types,
 };
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -64,7 +65,7 @@ fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argu
 
 #[test]
 fn a_record_is_a_data_structure() {
-    let types = Types::new().with_shape(TypeShape::new("Server", TypeKind::Record));
+    let types = sample_types().with_shape(TypeShape::new("Server", TypeKind::Record));
 
     let classification = types.classify(&TypeRef::class("Server"));
 
@@ -77,7 +78,7 @@ fn string() -> TypeRef {
 
 fn classify(shape: TypeShape) -> Classification {
     let name = shape.name().to_owned();
-    Types::new()
+    sample_types()
         .with_shape(shape)
         .classify(&TypeRef::class(&name))
 }
@@ -244,7 +245,7 @@ fn an_interface_is_an_object() {
 
 #[test]
 fn a_data_structure_and_the_object_it_carries_are_told_apart() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("OrderShippedEvent", TypeKind::Class)
                 .with_field(FieldShape::new("order", TypeRef::class("Order")))
@@ -276,68 +277,22 @@ fn classify_names(types: &Types, names: &[&str]) -> Vec<Classification> {
 }
 
 #[test]
-fn well_known_jdk_values_are_values_without_a_shape() {
-    let names = [
-        "java.lang.String",
-        "java.lang.StringBuilder",
-        "java.lang.Integer",
-        "java.lang.Boolean",
-        "java.lang.Character",
-        "java.lang.Number",
-        "java.math.BigDecimal",
-        "java.time.Instant",
-        "java.time.Duration",
-        "java.time.temporal.ChronoUnit",
-        "java.util.UUID",
-        "java.util.Date",
-    ];
-
-    let classifications = classify_names(&Types::new(), &names);
-
-    assert_eq!(classifications, vec![Classification::Value; names.len()]);
-}
-
-#[test]
 fn primitives_are_values() {
-    let classification = Types::new().classify(&int());
+    let classification = sample_types().classify(&int());
 
     assert_eq!(classification, Classification::Value);
 }
 
 #[test]
-fn jdk_collections_maps_optionals_and_streams_are_containers_without_a_shape() {
-    let names = [
-        "java.util.List",
-        "java.util.ArrayList",
-        "java.util.Set",
-        "java.util.Map",
-        "java.util.HashMap",
-        "java.util.Collection",
-        "java.util.Optional",
-        "java.util.stream.Stream",
-        "java.util.stream.IntStream",
-        "java.util.concurrent.ConcurrentHashMap",
-        "java.lang.Iterable",
-    ];
-
-    let classifications = classify_names(&Types::new(), &names);
-
-    assert_eq!(
-        classifications,
-        vec![Classification::Container; names.len()]
-    );
-}
-
-#[test]
 fn an_array_is_a_container() {
-    let classification = Types::new().classify(&TypeRef::array(TypeRef::class("Order")));
+    let classification = sample_types().classify(&TypeRef::array(TypeRef::class("Order")));
 
     assert_eq!(classification, Classification::Container);
 }
 
 #[test]
 fn a_subtype_of_number_is_a_value() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Money", TypeKind::Class)
                 .extending(TypeRef::class("java.lang.Number"))
@@ -364,7 +319,9 @@ fn a_subtype_of_a_collection_is_a_container() {
     let order_source = TypeShape::new("OrderSource", TypeKind::Interface).extending(
         TypeRef::generic("java.util.List", vec![TypeRef::class("Order")]),
     );
-    let types = Types::new().with_shape(order_list).with_shape(order_source);
+    let types = sample_types()
+        .with_shape(order_list)
+        .with_shape(order_source);
 
     let classifications = classify_names(&types, &["OrderList", "OrderSource"]);
 
@@ -373,7 +330,7 @@ fn a_subtype_of_a_collection_is_a_container() {
 
 #[test]
 fn a_type_with_no_shape_is_unknown() {
-    let types = Types::new();
+    let types = sample_types();
 
     let classification = types.classify(&TypeRef::class("com.example.Mystery"));
 
@@ -382,14 +339,14 @@ fn a_type_with_no_shape_is_unknown() {
 
 #[test]
 fn a_type_variable_is_unknown() {
-    let classification = Types::new().classify(&TypeRef::variable("T"));
+    let classification = sample_types().classify(&TypeRef::variable("T"));
 
     assert_eq!(classification, Classification::Unknown);
 }
 
 #[test]
 fn the_catalog_returns_the_shape_registered_under_a_name() {
-    let types = Types::new().with_shape(TypeShape::new("Order", TypeKind::Class));
+    let types = sample_types().with_shape(TypeShape::new("Order", TypeKind::Class));
 
     let shape = types.shape("Order").map(TypeShape::name);
 
@@ -398,7 +355,7 @@ fn the_catalog_returns_the_shape_registered_under_a_name() {
 
 #[test]
 fn the_catalog_has_no_shape_for_an_unregistered_name() {
-    let types = Types::new();
+    let types = sample_types();
 
     let shape = types.shape("Order");
 
@@ -406,7 +363,7 @@ fn the_catalog_has_no_shape_for_an_unregistered_name() {
 }
 
 fn order_with_customer_lookups() -> Types {
-    Types::new().with_shape(
+    sample_types().with_shape(
         TypeShape::new("Order", TypeKind::Class)
             .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
             .with_method(
@@ -451,7 +408,7 @@ fn overloads_are_told_apart_by_parameter_count() {
 
 #[test]
 fn overloads_with_the_same_parameter_count_and_different_returns_are_ambiguous() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Order", TypeKind::Class)
             .with_method(
                 MethodShape::new("find")
@@ -485,7 +442,7 @@ fn a_return_type_is_unknown_for_a_missing_type_or_method() {
 
 #[test]
 fn a_return_type_is_found_on_a_supertype() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("BaseEntity", TypeKind::Class)
                 .with_method(MethodShape::new("getId").returning(TypeRef::class("EntityId"))),
@@ -501,7 +458,7 @@ fn a_return_type_is_found_on_a_supertype() {
 
 #[test]
 fn a_return_type_declared_on_the_type_wins_over_the_supertype() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("BaseEntity", TypeKind::Class)
                 .with_method(MethodShape::new("copy").returning(TypeRef::class("BaseEntity"))),
@@ -518,7 +475,7 @@ fn a_return_type_declared_on_the_type_wins_over_the_supertype() {
 }
 
 fn order_builder() -> Types {
-    Types::new().with_shape(
+    sample_types().with_shape(
         TypeShape::new("Order$Builder", TypeKind::Class)
             .with_method(
                 MethodShape::new("id")
@@ -690,22 +647,6 @@ fn names_that_only_start_with_a_query_word_are_not_repository_queries() {
     assert_eq!(queries, vec![false; names.len()]);
 }
 
-#[test]
-fn a_map_entry_is_a_data_structure_without_a_shape() {
-    let names = [
-        "java.util.Map$Entry",
-        "java.util.AbstractMap$SimpleEntry",
-        "java.util.AbstractMap$SimpleImmutableEntry",
-    ];
-
-    let classifications = classify_names(&Types::new(), &names);
-
-    assert_eq!(
-        classifications,
-        vec![Classification::DataStructure; names.len()]
-    );
-}
-
 fn getter(name: &str, field: &str) -> MethodShape {
     MethodShape::new(name).returning(string()).reading(field)
 }
@@ -733,7 +674,7 @@ fn root(name: &str, methods: Vec<MethodShape>) -> TypeShape {
 
 #[test]
 fn behavior_inherited_from_a_superclass_makes_a_class_an_object() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(root("Base", vec![behavior("charge")]))
         .with_shape(class("Address", "Base", vec![getter("getCity", "city")]));
 
@@ -744,7 +685,7 @@ fn behavior_inherited_from_a_superclass_makes_a_class_an_object() {
 
 #[test]
 fn behavior_inherited_through_several_superclasses_counts() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(root("Root", vec![behavior("charge")]))
         .with_shape(class("Middle", "Root", vec![]))
         .with_shape(class("Address", "Middle", vec![getter("getCity", "city")]));
@@ -756,7 +697,7 @@ fn behavior_inherited_through_several_superclasses_counts() {
 
 #[test]
 fn an_inherited_setter_together_with_own_behavior_makes_a_hybrid() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Base".to_owned()])
         .with_shape(root("Base", vec![setter("setName", "name")]))
         .with_shape(class("Account", "Base", vec![behavior("withdraw")]));
@@ -768,7 +709,7 @@ fn an_inherited_setter_together_with_own_behavior_makes_a_hybrid() {
 
 #[test]
 fn inherited_accessors_keep_a_class_a_data_structure() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(root(
             "BaseDto",
             vec![getter("getId", "id"), setter("setId", "id")],
@@ -782,7 +723,7 @@ fn inherited_accessors_keep_a_class_a_data_structure() {
 
 #[test]
 fn an_override_replaces_the_inherited_method() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(root("Base", vec![behavior("getId")]))
         .with_shape(class("Address", "Base", vec![getter("getId", "id")]));
 
@@ -793,7 +734,7 @@ fn an_override_replaces_the_inherited_method() {
 
 #[test]
 fn an_interface_supertype_adds_no_behavior() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Describable", TypeKind::Interface).with_method(behavior("describe")),
         )
@@ -824,7 +765,7 @@ fn a_class_with_a_superclass_missing_from_the_catalog_is_unknown_not_a_data_stru
 
 #[test]
 fn a_missing_supertype_higher_up_the_chain_makes_the_class_unknown() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(class("Base", "com.example.LibraryBase", vec![]))
         .with_shape(class("Address", "Base", vec![getter("getCity", "city")]));
 
@@ -858,7 +799,7 @@ fn the_methods_of_object_in_the_catalog_are_not_inherited_behavior() {
         .with_method(behavior("getClass"))
         .with_method(behavior("notify"))
         .with_method(behavior("wait"));
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(object)
         .with_shape(root("Address", vec![getter("getCity", "city")]));
 
@@ -881,34 +822,6 @@ fn known_behavior_wins_over_a_missing_supertype() {
     assert_eq!(
         classifications,
         (Classification::Object, Classification::Hybrid)
-    );
-}
-
-#[test]
-fn supertypes_the_rule_knows_do_not_make_a_class_unknown() {
-    let supertypes = [
-        "java.lang.Object",
-        "java.io.Serializable",
-        "java.lang.Cloneable",
-        "java.lang.Comparable",
-        "java.util.Map$Entry",
-    ];
-    let dtos: Vec<String> = (0..supertypes.len()).map(|n| format!("Dto{n}")).collect();
-    let types = supertypes
-        .iter()
-        .zip(&dtos)
-        .fold(Types::new(), |types, (supertype, dto)| {
-            types.with_shape(class(dto, supertype, vec![getter("getCity", "city")]))
-        });
-
-    let classifications: Vec<_> = dtos
-        .iter()
-        .map(|dto| types.classify(&TypeRef::class(dto)))
-        .collect();
-
-    assert_eq!(
-        classifications,
-        vec![Classification::DataStructure; dtos.len()]
     );
 }
 
@@ -948,7 +861,7 @@ fn account(generated: bool) -> TypeShape {
 
 #[test]
 fn a_hybrid_class_is_reported_with_its_behavior_methods_and_setters() {
-    let types = Types::new().with_shape(account(true));
+    let types = sample_types().with_shape(account(true));
 
     let hybrid = types.hybrid_class("Account");
 
@@ -964,8 +877,8 @@ fn a_hybrid_class_is_reported_with_its_behavior_methods_and_setters() {
 
 #[test]
 fn generated_and_hand_written_accessors_give_the_same_hybrid_finding() {
-    let generated = Types::new().with_shape(account(true));
-    let hand_written = Types::new().with_shape(account(false));
+    let generated = sample_types().with_shape(account(true));
+    let hand_written = sample_types().with_shape(account(false));
 
     let findings = (
         generated.hybrid_class("Account"),
@@ -978,7 +891,7 @@ fn generated_and_hand_written_accessors_give_the_same_hybrid_finding() {
 
 #[test]
 fn the_hybrid_finding_names_every_behavior_method_and_setter_once() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Account", TypeKind::Class)
             .with_method(getter("getOwner", "owner"))
             .with_method(setter("setOwner", "owner"))
@@ -1003,7 +916,7 @@ fn the_hybrid_finding_names_every_behavior_method_and_setter_once() {
 
 #[test]
 fn a_hybrid_finding_includes_methods_inherited_from_a_superclass() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Base".to_owned()])
         .with_shape(root("Base", vec![setter("setName", "name")]))
         .with_shape(class("Account", "Base", vec![behavior("withdraw")]));
@@ -1022,7 +935,7 @@ fn a_hybrid_finding_includes_methods_inherited_from_a_superclass() {
 
 #[test]
 fn a_hybrid_finding_names_its_class() {
-    let types = Types::new().with_shape(account(true));
+    let types = sample_types().with_shape(account(true));
 
     let hybrid = types.hybrid_class("Account");
 
@@ -1031,7 +944,7 @@ fn a_hybrid_finding_names_its_class() {
 
 #[test]
 fn types_that_are_not_hybrid_classes_have_no_hybrid_finding() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(root(
             "Order",
             vec![behavior("charge"), getter("getId", "id")],
@@ -1067,14 +980,14 @@ fn types_that_are_not_hybrid_classes_have_no_hybrid_finding() {
 }
 
 fn cyclic_classes() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(class("First", "Second", vec![getter("getCity", "city")]))
         .with_shape(class("Second", "First", vec![getter("getId", "id")]))
         .with_shape(class("Itself", "Itself", vec![getter("getCity", "city")]))
 }
 
 fn cyclic_interfaces() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("Left", TypeKind::Interface)
                 .extending(TypeRef::class("Right"))
@@ -1123,87 +1036,13 @@ fn fluency_in_a_cyclic_hierarchy_terminates() {
 }
 
 fn with_jdk_shapes(names: &[&str], kind: TypeKind) -> Types {
-    names.iter().fold(Types::new(), |types, name| {
+    names.iter().fold(sample_types(), |types, name| {
         types.with_shape(
             TypeShape::new(name, kind)
                 .with_method(behavior("compute"))
                 .with_method(setter("setValue", "value")),
         )
     })
-}
-
-#[test]
-fn jdk_value_names_stay_values_when_their_shapes_are_in_the_catalog() {
-    let names = [
-        "java.lang.String",
-        "java.lang.Integer",
-        "java.math.BigDecimal",
-        "java.time.Instant",
-        "java.util.UUID",
-        "java.util.Date",
-    ];
-    let types = with_jdk_shapes(&names, TypeKind::Class);
-
-    let classifications = classify_names(&types, &names);
-
-    assert_eq!(classifications, vec![Classification::Value; names.len()]);
-}
-
-#[test]
-fn jdk_container_names_stay_containers_when_their_shapes_are_in_the_catalog() {
-    let classes = [
-        "java.util.ArrayList",
-        "java.util.Optional",
-        "java.util.HashMap",
-    ];
-    let interfaces = [
-        "java.util.List",
-        "java.util.stream.Stream",
-        "java.lang.Iterable",
-    ];
-    let types = with_jdk_shapes(&classes, TypeKind::Class);
-    let types = interfaces.iter().fold(types, |types, name| {
-        types.with_shape(TypeShape::new(name, TypeKind::Interface).with_method(behavior("size")))
-    });
-
-    let classifications = (
-        classify_names(&types, &classes),
-        classify_names(&types, &interfaces),
-    );
-
-    assert_eq!(
-        classifications,
-        (
-            vec![Classification::Container; classes.len()],
-            vec![Classification::Container; interfaces.len()]
-        )
-    );
-}
-
-#[test]
-fn a_map_entry_stays_a_data_structure_when_its_shape_is_in_the_catalog() {
-    let entry = TypeShape::new("java.util.Map$Entry", TypeKind::Interface)
-        .with_method(behavior("comparingByKey"))
-        .with_method(getter("getKey", "key"));
-    let types = Types::new().with_shape(entry);
-
-    let classification = types.classify(&TypeRef::class("java.util.Map$Entry"));
-
-    assert_eq!(classification, Classification::DataStructure);
-}
-
-#[test]
-fn a_jdk_type_with_behavior_and_setters_is_never_reported_as_a_hybrid_class() {
-    let names = [
-        "java.util.Date",
-        "java.util.ArrayList",
-        "java.util.Map$Entry",
-    ];
-    let types = with_jdk_shapes(&names, TypeKind::Class);
-
-    let findings: Vec<_> = names.iter().map(|name| types.hybrid_class(name)).collect();
-
-    assert_eq!(findings, vec![None; names.len()]);
 }
 
 #[test]
@@ -1266,7 +1105,7 @@ fn generic_collections() -> Types {
                 .with_parameters(vec![TypeRef::class("java.util.function.Function")])
                 .returning(generic_of("java.util.Optional", vec![variable("U")])),
         );
-    Types::new()
+    sample_types()
         .with_shape(list)
         .with_shape(array_list)
         .with_shape(map)
@@ -1388,7 +1227,7 @@ fn renamed_type_parameters_are_substituted_along_the_whole_chain() {
 
 #[test]
 fn a_return_type_that_is_not_generic_is_returned_unchanged() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Order", TypeKind::Class)
             .with_type_parameter("T")
             .with_method(MethodShape::new("getCustomer").returning(TypeRef::class("Customer")))
@@ -1429,7 +1268,7 @@ fn an_unknown_receiver_or_method_has_no_substituted_return_type() {
 
 #[test]
 fn overloads_with_different_substituted_returns_are_ambiguous() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Box", TypeKind::Class)
             .with_type_parameter("T")
             .with_method(
@@ -1451,7 +1290,7 @@ fn overloads_with_different_substituted_returns_are_ambiguous() {
 
 #[test]
 fn a_substituted_return_type_terminates_in_a_cyclic_hierarchy() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Left", TypeKind::Interface)
                 .with_type_parameter("T")
@@ -1479,7 +1318,7 @@ fn the_element_of_a_direct_container_is_found_with_or_without_shapes() {
         generic_of("java.util.ArrayList", vec![order()]),
         TypeRef::array(order()),
     ];
-    let catalogs = [Types::new(), generic_collections()];
+    let catalogs = [sample_types(), generic_collections()];
 
     let elements: Vec<_> = catalogs
         .iter()
@@ -1528,7 +1367,7 @@ fn the_element_of_a_subtype_of_a_container_is_found_through_its_declaration() {
 
 #[test]
 fn the_element_of_a_raw_container_subtype_stays_a_variable() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Registry", TypeKind::Class)
             .with_type_parameter("V")
             .with_superclass(generic_of(
@@ -1544,7 +1383,7 @@ fn the_element_of_a_raw_container_subtype_stays_a_variable() {
 
 #[test]
 fn a_raw_container_or_a_non_container_has_no_element() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Page", TypeKind::Class)
             .with_type_parameter("T")
             .with_method(MethodShape::new("first").returning(variable("T"))),
@@ -1563,7 +1402,7 @@ fn a_raw_container_or_a_non_container_has_no_element() {
 
 #[test]
 fn the_element_of_a_type_in_a_cyclic_hierarchy_terminates() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(class("First", "Second", vec![]))
         .with_shape(class("Second", "First", vec![]));
 
@@ -1574,7 +1413,7 @@ fn the_element_of_a_type_in_a_cyclic_hierarchy_terminates() {
 
 #[test]
 fn only_types_declared_in_the_analysed_sources_are_project_types() {
-    let types = Types::new().with_project_types(["shop.Order".to_owned()]);
+    let types = sample_types().with_project_types(["shop.Order".to_owned()]);
 
     let answers = (
         types.is_project_type("shop.Order"),
@@ -1584,26 +1423,8 @@ fn only_types_declared_in_the_analysed_sources_are_project_types() {
     assert_eq!(answers, (true, false));
 }
 
-#[test]
-fn java_lang_class_is_a_value_with_or_without_a_shape() {
-    let class_shape = TypeShape::new("java.lang.Class", TypeKind::Class)
-        .with_type_parameter("T")
-        .with_method(behavior("getName"));
-    let name = TypeRef::generic("java.lang.Class", vec![TypeRef::class("Order")]);
-
-    let classifications = (
-        Types::new().classify(&name),
-        Types::new().with_shape(class_shape).classify(&name),
-    );
-
-    assert_eq!(
-        classifications,
-        (Classification::Value, Classification::Value)
-    );
-}
-
 fn root_shapes() -> Types {
-    Types::new()
+    sample_types()
         .with_shape(
             TypeShape::new("java.lang.Object", TypeKind::Class)
                 .with_method(
@@ -1870,7 +1691,7 @@ fn equals_and_hash_code_of_the_object_shape_do_not_make_a_class_a_value() {
             MethodShape::new("equals").with_parameters(vec![TypeRef::class("java.lang.Object")]),
         )
         .with_method(MethodShape::new("hashCode").returning(int()));
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(object)
         .with_shape(version(vec![final_field("major")], vec![behavior("bump")]));
 
@@ -1908,7 +1729,7 @@ fn a_class_without_instance_fields_is_not_a_value() {
 
 #[test]
 fn a_superclass_with_a_mutable_field_keeps_a_class_from_being_a_value() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Base", TypeKind::Class)
                 .with_superclass(TypeRef::class("java.lang.Object"))
@@ -1930,7 +1751,7 @@ fn a_superclass_with_a_mutable_field_keeps_a_class_from_being_a_value() {
 
 #[test]
 fn equals_and_hash_code_inherited_from_a_project_superclass_count() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Base", TypeKind::Class)
                 .with_superclass(TypeRef::class("java.lang.Object"))
@@ -2026,7 +1847,7 @@ fn a_to_builder_of_another_class_or_with_parameters_is_behavior() {
 
 #[test]
 fn a_to_builder_inherited_from_the_class_that_declares_the_builder_is_not_behavior() {
-    let types = Types::new()
+    let types = sample_types()
         .with_shape(
             TypeShape::new("Base", TypeKind::Class)
                 .with_superclass(TypeRef::class("java.lang.Object"))
@@ -2045,7 +1866,7 @@ fn a_hybrid_finding_leaves_out_a_to_builder() {
         .with_method(setter("setBalance", "balance"))
         .with_method(behavior("withdraw"))
         .with_method(to_builder("Account$AccountBuilder"));
-    let types = Types::new().with_shape(account);
+    let types = sample_types().with_shape(account);
 
     let hybrid = types.hybrid_class("Account");
 
@@ -2072,7 +1893,7 @@ fn library_base() -> TypeShape {
 
 #[test]
 fn setters_inherited_from_a_library_class_do_not_make_a_project_class_a_hybrid() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Order".to_owned()])
         .with_shape(library_base())
         .with_shape(class("Order", "LibraryBase", vec![behavior("charge")]));
@@ -2087,7 +1908,7 @@ fn setters_inherited_from_a_library_class_do_not_make_a_project_class_a_hybrid()
 
 #[test]
 fn behavior_inherited_from_a_library_class_does_not_make_a_project_class_a_hybrid() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Address".to_owned()])
         .with_shape(library_base())
         .with_shape(class(
@@ -2106,7 +1927,7 @@ fn behavior_inherited_from_a_library_class_does_not_make_a_project_class_a_hybri
 
 #[test]
 fn a_library_base_class_with_only_setters_leaves_a_project_data_structure_alone() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Address".to_owned()])
         .with_shape(root("LibraryBase", vec![setter("setName", "name")]))
         .with_shape(class(
@@ -2122,7 +1943,7 @@ fn a_library_base_class_with_only_setters_leaves_a_project_data_structure_alone(
 
 #[test]
 fn setters_of_a_project_superclass_still_count_below_a_library_class() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Account".to_owned(), "Middle".to_owned()])
         .with_shape(library_base())
         .with_shape(class(
@@ -2146,7 +1967,7 @@ fn setters_of_a_project_superclass_still_count_below_a_library_class() {
 
 #[test]
 fn a_hybrid_finding_names_only_project_methods() {
-    let types = Types::new()
+    let types = sample_types()
         .with_project_types(["Account".to_owned()])
         .with_shape(library_base())
         .with_shape(class(
@@ -2169,7 +1990,7 @@ fn a_hybrid_finding_names_only_project_methods() {
 
 #[test]
 fn a_class_that_is_not_marked_as_a_project_type_still_counts_its_own_methods() {
-    let types = Types::new().with_shape(library_base()).with_shape(class(
+    let types = sample_types().with_shape(library_base()).with_shape(class(
         "Account",
         "LibraryBase",
         vec![behavior("withdraw"), setter("setBalance", "balance")],
@@ -2253,7 +2074,7 @@ fn a_private_setter_does_not_make_an_object_a_hybrid() {
 
 #[test]
 fn a_hybrid_finding_names_package_private_methods_but_not_private_ones() {
-    let types = Types::new().with_shape(
+    let types = sample_types().with_shape(
         TypeShape::new("Account", TypeKind::Class)
             .with_method(package_private(setter("setBalance", "balance")))
             .with_method(package_private(behavior("withdraw")))

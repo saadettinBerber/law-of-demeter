@@ -1,5 +1,5 @@
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
-use crate::domain::classification::Types;
+use crate::domain::classification::{Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const STREAM: &str = "java.util.stream.Stream";
@@ -67,7 +67,7 @@ fn streams(varargs_returns: TypeRef) -> Types {
         .with_method(
             MethodShape::new("forEach").with_parameters(vec![generic(CONSUMER, &[variable("T")])]),
         );
-    Types::new()
+    sample_types()
         .with_shape(stream)
         .with_shape(
             interface(FUNCTION, &["T", "R"]).with_method(
