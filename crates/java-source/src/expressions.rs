@@ -331,7 +331,7 @@ impl Reader<'_> {
     fn class_literal(&self, node: Node, scope: &Scope) -> Expression {
         named_children(node)
             .first()
-            .map_or(Expression::Literal(LiteralType::Null), |named| {
+            .map_or(Expression::Operation(Vec::new()), |named| {
                 Expression::ClassLiteral(self.declared_type(*named, scope))
             })
     }
