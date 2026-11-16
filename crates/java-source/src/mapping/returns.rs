@@ -5,12 +5,28 @@ use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
 use super::lineage::{Ancestor, has_variable, lineage, substitute};
+use super::overloads::{ArgumentType, Selection, is_known, select};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
     pub(super) fn returned_by(&self, call: &model::Call) -> Option<TypeRef> {
         let receiver = self.receiver_type(call)?;
-        declared_return(self.types, &receiver, &call.name, call.arguments.len())
+        let arguments: Vec<_> = call
+            .arguments
+            .iter()
+            .map(|argument| self.argument_type(argument))
+            .collect();
+        declared_return(self.types, &receiver, &call.name, &arguments)
+    }
+
+    fn argument_type(&self, argument: &model::Expression) -> Option<ArgumentType> {
+        match argument {
+            model::Expression::Literal(literal) => Some(ArgumentType::of_literal(*literal)),
+            other => self
+                .type_of(other)
+                .filter(|type_ref| is_known(self.types, type_ref))
+                .map(ArgumentType::Typed),
+        }
     }
 
     fn receiver_type(&self, call: &model::Call) -> Option<TypeRef> {
@@ -43,24 +59,78 @@ fn declared_return(
     types: &Types,
     receiver: &TypeRef,
     method: &str,
-    argument_count: usize,
+    arguments: &[Option<ArgumentType>],
 ) -> Option<TypeRef> {
-    let (ancestor, declared) = lineage(types, receiver)
-        .into_iter()
-        .map(|ancestor| {
-            let methods = named(ancestor.shape, method);
-            (ancestor, methods)
-        })
-        .find(|(_, methods)| methods.iter().any(takes(argument_count)))?;
-    if declared.iter().any(|candidate| candidate.is_varargs()) {
+    let ancestors = lineage(types, receiver);
+    let candidates = candidates(&ancestors, method, arguments.len());
+    if candidates.is_empty()
+        || candidates
+            .iter()
+            .any(|candidate| candidate.method.is_varargs())
+    {
         return None;
     }
-    let matching: Vec<_> = declared.into_iter().filter(takes(argument_count)).collect();
-    agreed_return(&matching, &ancestor)
+    let parameters: Vec<_> = candidates.iter().map(Candidate::parameters).collect();
+    let returned = match select(types, &parameters, arguments) {
+        Selection::Chosen(index) => candidates[index].returned(),
+        Selection::Undecided => agreed_return(&candidates),
+        Selection::Unresolvable => None,
+    };
+    returned.filter(|returned| !has_variable(returned))
 }
 
-fn takes(argument_count: usize) -> impl Fn(&&MethodShape) -> bool {
-    move |candidate| candidate.parameters().len() == argument_count
+struct Candidate<'a> {
+    method: &'a MethodShape,
+    ancestor: &'a Ancestor<'a>,
+}
+
+impl Candidate<'_> {
+    fn parameters(&self) -> Vec<TypeRef> {
+        self.method
+            .parameters()
+            .iter()
+            .map(|parameter| self.specialize(parameter))
+            .collect()
+    }
+
+    fn returned(&self) -> Option<TypeRef> {
+        let returned = self.method.returns()?;
+        if self.ancestor.erased && mentions_generics(returned) {
+            return None;
+        }
+        Some(self.specialize(returned))
+    }
+
+    fn specialize(&self, type_ref: &TypeRef) -> TypeRef {
+        let own = self.method.type_parameters();
+        let shadowed = |name: &str| own.iter().any(|variable| variable == name);
+        substitute(type_ref, &|name| {
+            self.ancestor.bound(name).filter(|_| !shadowed(name))
+        })
+    }
+}
+
+fn candidates<'a>(
+    ancestors: &'a [Ancestor<'a>],
+    method: &str,
+    argument_count: usize,
+) -> Vec<Candidate<'a>> {
+    let mut candidates: Vec<Candidate> = Vec::new();
+    for ancestor in ancestors {
+        for declared in named(ancestor.shape, method) {
+            let candidate = Candidate {
+                method: declared,
+                ancestor,
+            };
+            let overridden = candidates
+                .iter()
+                .any(|known| known.parameters() == candidate.parameters());
+            if declared.parameters().len() == argument_count && !overridden {
+                candidates.push(candidate);
+            }
+        }
+    }
+    candidates
 }
 
 fn named<'t>(shape: &'t TypeShape, method: &str) -> Vec<&'t MethodShape> {
@@ -71,25 +141,13 @@ fn named<'t>(shape: &'t TypeShape, method: &str) -> Vec<&'t MethodShape> {
         .collect()
 }
 
-fn agreed_return(candidates: &[&MethodShape], ancestor: &Ancestor) -> Option<TypeRef> {
+fn agreed_return(candidates: &[Candidate]) -> Option<TypeRef> {
     let (first, rest) = candidates.split_first()?;
-    let returned = returned_by_candidate(first, ancestor)?;
+    let returned = first.returned()?;
     let agreed = rest
         .iter()
-        .all(|candidate| returned_by_candidate(candidate, ancestor).as_ref() == Some(&returned));
-    (agreed && !has_variable(&returned)).then_some(returned)
-}
-
-fn returned_by_candidate(candidate: &MethodShape, ancestor: &Ancestor) -> Option<TypeRef> {
-    let returned = candidate.returns()?;
-    if ancestor.erased && mentions_generics(returned) {
-        return None;
-    }
-    let own = candidate.type_parameters();
-    let shadowed = |name: &str| own.iter().any(|variable| variable == name);
-    Some(substitute(returned, &|name| {
-        ancestor.bound(name).filter(|_| !shadowed(name))
-    }))
+        .all(|candidate| candidate.returned().as_ref() == Some(&returned));
+    agreed.then_some(returned)
 }
 
 fn mentions_generics(type_ref: &TypeRef) -> bool {
