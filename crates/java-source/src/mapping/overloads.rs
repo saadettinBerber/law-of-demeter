@@ -45,9 +45,6 @@ pub(super) fn select(
     candidates: &[Vec<TypeRef>],
     arguments: &[Option<ArgumentType>],
 ) -> Selection {
-    if candidates.len() == 1 {
-        return Selection::Chosen(0);
-    }
     let Some(arguments) = arguments
         .iter()
         .map(Option::as_ref)
