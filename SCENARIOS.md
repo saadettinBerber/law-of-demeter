@@ -35,6 +35,7 @@
 | Uygun değil | 9. Kendi metodunun döndürdüğü nesneyle konuşmak | Raporlanır | ✅ |
 | Uygun değil | 10. Akışın yabancıdan ürettiği elemanla konuşmak | Raporlanır | ✅ |
 | Uygun değil | 11. Yabancıyla metot referansıyla konuşmak | Raporlanır | ✅ |
+| Uygun değil | 12. Gruplanan anahtarla konuşmak | Raporlanır | ✅ |
 | Uygun | 1. Parametreden değer okumak | Raporlanmaz | ✅ |
 | Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ✅ |
 | Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ✅ |
@@ -245,6 +246,25 @@ List<Wallet> wallets() {
 - **Not:** İç içe çağrıda da sonuç aynı: `collect(Collectors.groupingBy(Customer::getWallet))`. `wallet::withdraw` gibi bağlı referans `wallet.withdraw(...)` gibi, `Optional::of` gibi statik referans statik çağrı gibi yargılanır. `Order::new` çağrı sayılmaz. Değişkene atanan ya da döndürülen referans da eşdeğer lambda gibi yargılanır: `return event.getReceipt().getOrder()::ship;`, `e -> e.getReceipt().getOrder().ship()` ile aynı ihlalleri verir.
 
 - **Örnek projede:** [`ReportingService.java:44`](examples/shop/src/main/java/shop/service/ReportingService.java#L44), [`EventDispatcher.java:39`](examples/shop/src/main/java/shop/service/EventDispatcher.java#L39)
+
+</details>
+
+<details>
+<summary><strong>12. Gruplanan anahtarla konuşmak</strong></summary>
+
+```java
+void rename(List<Order> orders, String prefix) {
+    for (Customer buyer : orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()) {
+        buyer.rename(prefix);
+    }
+}
+```
+
+- **Neden:** Harita anahtarlarını sınıflandırıcı üretir; burada `Order::getCustomer`, yani anahtarlar `getCustomer()` çağrısından gelen yabancılar. f, `order.getCustomer().rename(prefix)` ile aynı yere uzanıyor; gruplama bunu gizlemez. `rename` raporlanır.
+
+- **Not:** Haritanın değerleri akışın elemanlarından gelir ve elemanların durumunu korur: `grouped.get(customer).get(0).getStatus()` arkadaş olan siparişle konuşur. Anahtarın durumu yalnızca anahtarları veren çağrıdan okunur (`keySet()`); haritanın kendisi ve değerleri değişmez.
+
+- **Örnek projede:** [`ReportingService.java:53`](examples/shop/src/main/java/shop/service/ReportingService.java#L53)
 
 </details>
 

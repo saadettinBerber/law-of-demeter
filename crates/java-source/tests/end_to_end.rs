@@ -1720,7 +1720,7 @@ fn nested_generic_5_a_method_reference_grouping_types_the_groups() {
 }
 
 #[test]
-fn nested_generic_6_the_keys_grouped_by_a_stranger_are_strangers() {
+fn violation_12_talking_to_a_key_a_stream_grouped_by_a_stranger_produced() {
     let snippet = "void charge(List<Order> orders) {\n    for (Customer customer : orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()) {\n        customer.getWallet();\n    }\n}";
 
     let verdicts = verdicts_in_c(
@@ -1749,7 +1749,7 @@ fn nested_generic_6_the_keys_grouped_by_a_stranger_are_strangers() {
 }
 
 #[test]
-fn nested_generic_7_the_values_grouped_by_a_stranger_keep_the_elements_standing() {
+fn violation_12_counter_case_the_values_grouped_by_a_stranger_stay_friends() {
     let snippet = "void ship(List<Order> orders, Customer customer) {\n    orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).get(customer).get(0).getCustomer().rename();\n}";
 
     let verdicts = verdicts_in_c(
