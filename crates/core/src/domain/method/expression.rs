@@ -362,6 +362,7 @@ pub struct MethodReference {
     target: Expression,
     name: String,
     line: usize,
+    resolved: Option<TypeRef>,
 }
 
 impl MethodReference {
@@ -370,7 +371,13 @@ impl MethodReference {
             target,
             name: name.to_owned(),
             line,
+            resolved: None,
         }
+    }
+
+    pub fn returning(mut self, type_ref: TypeRef) -> Self {
+        self.resolved = Some(type_ref);
+        self
     }
 
     fn judge(
@@ -404,6 +411,10 @@ impl MethodReference {
                 functional.map(|_| self.on(types, &target.subject, arity))
             }
         };
+        let result = result.map(|subject| Subject {
+            type_ref: self.resolved.clone().or(subject.type_ref),
+            ..subject
+        });
         Produced {
             verdicts,
             result: result.as_ref().and_then(|subject| subject.type_ref.clone()),

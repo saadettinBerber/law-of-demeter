@@ -1,8 +1,11 @@
-use super::{Call, Expression, Lambda, Method, Reason, Verdict};
+use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 const CONSUMER: &str = "java.util.function.Consumer";
+const FUNCTION: &str = "java.util.function.Function";
+const STREAM: &str = "java.util.stream.Stream";
+const LIST: &str = "java.util.List";
 const OBJECT: &str = "java.lang.Object";
 const BIG_DECIMAL: &str = "java.math.BigDecimal";
 
@@ -173,5 +176,86 @@ fn a_lambda_argument_takes_its_resolved_parameter_type_over_the_functional_inter
     assert_eq!(
         verdicts[1],
         Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
+    );
+}
+
+fn generic(name: &str, arguments: &[TypeRef]) -> TypeRef {
+    TypeRef::generic(name, arguments.to_vec())
+}
+
+fn streaming() -> Types {
+    let element = TypeRef::variable("T");
+    let result = TypeRef::variable("R");
+    shop()
+        .with_shape(
+            TypeShape::new(STREAM, TypeKind::Interface)
+                .with_type_parameter("T")
+                .with_method(
+                    MethodShape::new("map")
+                        .with_type_parameter("R")
+                        .with_parameters(vec![generic(
+                            FUNCTION,
+                            &[element.clone(), result.clone()],
+                        )])
+                        .returning(generic(STREAM, std::slice::from_ref(&result))),
+                )
+                .with_method(
+                    MethodShape::new("forEach")
+                        .with_parameters(vec![generic(CONSUMER, std::slice::from_ref(&element))]),
+                ),
+        )
+        .with_shape(
+            TypeShape::new(FUNCTION, TypeKind::Interface)
+                .with_type_parameter("T")
+                .with_type_parameter("R")
+                .with_method(
+                    MethodShape::new("apply")
+                        .with_parameters(vec![element.clone()])
+                        .returning(result)
+                        .as_abstract(),
+                ),
+        )
+        .with_shape(
+            TypeShape::new(CONSUMER, TypeKind::Interface)
+                .with_type_parameter("T")
+                .with_method(
+                    MethodShape::new("accept")
+                        .with_parameters(vec![element])
+                        .as_abstract(),
+                ),
+        )
+        .with_shape(
+            TypeShape::new(LIST, TypeKind::Interface)
+                .with_type_parameter("E")
+                .with_method(
+                    MethodShape::new("stream")
+                        .returning(generic(STREAM, &[TypeRef::variable("E")])),
+                ),
+        )
+}
+
+#[test]
+fn a_method_reference_takes_its_resolved_result_type_over_the_one_its_shape_declares() {
+    let total = MethodReference::new(Expression::static_type(order()), "getTotal", 2)
+        .returning(TypeRef::class(BIG_DECIMAL));
+    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
+    let sign = Lambda::new(&["total"]).call(Call::new(Expression::local("total"), "signum", 3));
+    let charge = Method::new("Billing", "charge", 1).call(
+        Call::new(orders, "stream", 2)
+            .then("map", 2)
+            .with(total)
+            .then("forEach", 3)
+            .with(sign),
+    );
+
+    let verdicts = charge.verdicts(&streaming());
+
+    assert_eq!(
+        verdicts[3],
+        Verdict::allowed(
+            "signum",
+            3,
+            Reason::classified(Classification::Value, TypeRef::class(BIG_DECIMAL))
+        )
     );
 }
