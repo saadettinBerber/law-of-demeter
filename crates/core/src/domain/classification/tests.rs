@@ -195,7 +195,7 @@ fn int() -> TypeRef {
 }
 
 #[test]
-fn a_class_hiding_its_data_behind_behavior_is_an_object() {
+fn a_class_carrying_behavior_whose_data_has_no_setters_is_an_object() {
     let order = TypeShape::new("Order", TypeKind::Class)
         .with_method(MethodShape::new("getId").returning(string()).reading("id"))
         .with_method(MethodShape::new("charge").with_parameters(vec![int()]));
