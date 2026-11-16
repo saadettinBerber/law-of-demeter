@@ -62,6 +62,7 @@ impl MethodMapper<'_> {
                         Round::Remaining => true,
                     }
             }
+            model::Expression::Call(call) => round == Round::Nested && self.is_open(call),
             _ => false,
         }
     }
@@ -98,6 +99,10 @@ impl MethodMapper<'_> {
                 let pattern = invocation.functional_returns(self.types, index)?;
                 let result = self.reference_result(referenced, name, Some(&target))?;
                 Some((pattern, result))
+            }
+            model::Expression::Call(call) => {
+                let result = self.returned_by(call, Some(&target))?;
+                Some((target, result))
             }
             _ => None,
         }

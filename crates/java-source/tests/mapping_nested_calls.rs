@@ -182,8 +182,10 @@ fn streamed(name: &str, element: TypeRef) -> Expression {
     Expression::return_of(stream)
 }
 
-fn collecting(source: Expression, collector: Call) -> Method {
-    let collect = call(source, "collect", 3).with(Expression::return_of(collector));
+fn collecting(source: Expression, collector: Call, returned: TypeRef) -> Method {
+    let collect = call(source, "collect", 3)
+        .with(Expression::return_of(collector))
+        .returning(returned);
 
     f(2).call(collect)
 }
@@ -219,7 +221,11 @@ fn a_lambda_inside_a_nested_call_gets_its_parameter_from_the_outer_stream() {
     let grouping = collectors_call("groupingBy").with(classifier);
     assert_eq!(
         mapped,
-        collecting(streamed("customers", customer()), grouping)
+        collecting(
+            streamed("customers", customer()),
+            grouping,
+            map_of(wallet(), list_of(customer()))
+        )
     );
 }
 
@@ -232,6 +238,46 @@ fn a_method_reference_inside_a_nested_call_binds_the_group_key() {
     let grouping = collectors_call("groupingBy").with(classifier);
     assert_eq!(
         mapped,
-        collecting(streamed("customers", customer()), grouping)
+        collecting(
+            streamed("customers", customer()),
+            grouping,
+            map_of(wallet(), list_of(customer()))
+        )
+    );
+}
+
+#[test]
+fn collecting_into_a_list_types_the_result_by_the_stream_elements() {
+    let mapped = mapped_collect("orders.stream().collect(Collectors.toList())");
+
+    assert_eq!(
+        mapped,
+        collecting(
+            streamed("orders", order()),
+            collectors_call("toList"),
+            list_of(order())
+        )
+    );
+}
+
+#[test]
+fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
+    let mapped = mapped_collect(
+        "orders.stream().collect(Collectors.groupingBy(Order::getCustomer, Collectors.mapping(Order::getTotal, Collectors.toList())))",
+    );
+
+    let mapping = collectors_call("mapping")
+        .with(through(order(), "getTotal").returning(money()))
+        .with(Expression::return_of(collectors_call("toList")));
+    let grouping = collectors_call("groupingBy")
+        .with(through(order(), "getCustomer").returning(customer()))
+        .with(Expression::return_of(mapping));
+    assert_eq!(
+        mapped,
+        collecting(
+            streamed("orders", order()),
+            grouping,
+            map_of(customer(), list_of(money()))
+        )
     );
 }
