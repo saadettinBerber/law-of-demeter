@@ -18,7 +18,7 @@ impl ClassFileTypes {
 impl TypeSource for ClassFileTypes {
     fn read(&self) -> TypeReading {
         let mut reading = TypeReading {
-            known: java_platform(),
+            platform: java_platform(),
             ..TypeReading::default()
         };
         if let Some((jdk, release)) = &self.jdk {

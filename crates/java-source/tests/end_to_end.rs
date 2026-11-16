@@ -44,7 +44,7 @@ fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> V
         .filter(|candidate| candidate.class_name() == class_name && candidate.name() == method)
         .collect();
     assert!(!found.is_empty(), "{class_name}.{method} was not mapped");
-    let types = types.clone().with_known(java_platform());
+    let types = types.clone().with_platform(java_platform());
     found
         .into_iter()
         .flat_map(|candidate| candidate.verdicts(&types))

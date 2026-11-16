@@ -5,7 +5,7 @@ use super::{
     CheckProject, Counts, Finding, HybridFinding, ReadError, Report, SourceFile, SourceReader,
     TypeReading, TypeSource,
 };
-use crate::domain::classification::{Classification, KnownTypes, Types};
+use crate::domain::classification::{Classification, Platform, Types};
 use crate::domain::method::{Call, Expression, Method, Reason, Verdict};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
@@ -20,7 +20,7 @@ impl SourceReader for FakeSources {
 struct FakeTypes {
     shapes: Vec<TypeShape>,
     errors: Vec<ReadError>,
-    known: KnownTypes,
+    platform: Platform,
 }
 
 impl FakeTypes {
@@ -28,7 +28,7 @@ impl FakeTypes {
         Self {
             shapes,
             errors: Vec::new(),
-            known: KnownTypes::new(),
+            platform: Platform::new(),
         }
     }
 }
@@ -38,7 +38,7 @@ impl TypeSource for FakeTypes {
         TypeReading {
             shapes: self.shapes.clone(),
             errors: self.errors.clone(),
-            known: self.known.clone(),
+            platform: self.platform.clone(),
         }
     }
 }
@@ -221,7 +221,7 @@ fn the_counts_separate_real_violations_from_unresolved_types() {
     let types = FakeTypes {
         shapes,
         errors: vec![ReadError::new(Path::new("lib/broken.jar"), "bozuk arşiv")],
-        known: KnownTypes::new(),
+        platform: Platform::new(),
     };
 
     let counts = CheckProject::new(&sources, &types).execute().counts();
@@ -340,7 +340,7 @@ fn what_the_type_source_knows_about_a_type_decides_its_classification() {
         vec![pay_method()],
     ))]);
     let types = FakeTypes {
-        known: KnownTypes::new().with_type("Customer", Classification::DataStructure),
+        platform: Platform::new().with_type("Customer", Classification::DataStructure),
         ..shop_types()
     };
 

@@ -3,7 +3,7 @@ use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, Ty
 use law_of_demeter_java_source::java_platform;
 
 fn platform_types() -> Types {
-    Types::new().with_known(java_platform())
+    Types::new().with_platform(java_platform())
 }
 
 fn classify_names(types: &Types, names: &[&str]) -> Vec<Classification> {

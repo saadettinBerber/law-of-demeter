@@ -105,11 +105,11 @@ fn a_jdk_that_cannot_give_the_release_is_reported_and_the_classpath_is_still_rea
 fn the_reading_carries_what_the_java_platform_knows_about_its_types() {
     let types = ClassFileTypes::new(Vec::new(), None);
 
-    let known = types.read().known;
+    let platform = types.read().platform;
 
     assert_eq!(
         Types::new()
-            .with_known(known)
+            .with_platform(platform)
             .classify(&TypeRef::class("java.util.List")),
         Classification::Container
     );

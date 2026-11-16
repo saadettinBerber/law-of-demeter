@@ -1,27 +1,29 @@
-use super::{Classification, KnownTypes, Types};
+use super::{Classification, Platform, Types};
 
 pub(crate) fn sample_types() -> Types {
-    Types::new().with_known(sample_platform())
+    Types::new().with_platform(sample_platform())
 }
 
-fn sample_platform() -> KnownTypes {
+fn sample_platform() -> Platform {
     let types = [
         (VALUES, Classification::Value),
         (CONTAINERS, Classification::Container),
         (DATA_STRUCTURES, Classification::DataStructure),
     ];
-    let known = types
+    let platform = types
         .into_iter()
         .flat_map(|(names, classification)| names.iter().map(move |name| (name, classification)))
-        .fold(KnownTypes::new(), |known, (name, classification)| {
-            known.with_type(name, classification)
+        .fold(Platform::new(), |platform, (name, classification)| {
+            platform.with_type(name, classification)
         });
-    let known = known
+    let platform = platform
         .with_namespace("java.time.", Classification::Value)
         .with_namespace("java.util.stream.", Classification::Container);
     BEHAVIORLESS_SUPERTYPES
         .iter()
-        .fold(known, |known, name| known.with_behaviorless_supertype(name))
+        .fold(platform, |platform, name| {
+            platform.with_behaviorless_supertype(name)
+        })
 }
 
 const VALUES: &[&str] = &[

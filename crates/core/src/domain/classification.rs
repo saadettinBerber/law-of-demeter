@@ -1,10 +1,10 @@
 mod functional;
 mod invocation;
-mod known;
 mod naming;
+mod platform;
 
-pub use known::KnownTypes;
 pub use naming::{is_factory_method, is_repository_query};
+pub use platform::Platform;
 
 use std::collections::{HashMap, HashSet};
 
@@ -27,7 +27,7 @@ pub enum Classification {
 pub struct Types {
     shapes: HashMap<String, TypeShape>,
     project_types: HashSet<String>,
-    known: KnownTypes,
+    platform: Platform,
 }
 
 impl Types {
@@ -35,8 +35,8 @@ impl Types {
         Self::default()
     }
 
-    pub fn with_known(mut self, known: KnownTypes) -> Self {
-        self.known = known;
+    pub fn with_platform(mut self, platform: Platform) -> Self {
+        self.platform = platform;
         self
     }
 
@@ -230,7 +230,7 @@ impl Types {
     pub fn element_type_of(&self, type_ref: &TypeRef) -> Option<TypeRef> {
         let container = self.ancestors(type_ref).into_iter().find(|ancestor| {
             matches!(ancestor, TypeRef::Array(_))
-                || class_name(ancestor).and_then(|name| self.known.classify(name))
+                || class_name(ancestor).and_then(|name| self.platform.classify(name))
                     == Some(Classification::Container)
         })?;
         self.element_type(&container).cloned()
@@ -240,7 +240,7 @@ impl Types {
         match type_ref {
             TypeRef::Array(element) => Some(element),
             TypeRef::Class { name, arguments }
-                if self.known.classify(name) == Some(Classification::Container) =>
+                if self.platform.classify(name) == Some(Classification::Container) =>
             {
                 arguments.last()
             }
@@ -286,7 +286,7 @@ impl Types {
     }
 
     fn classify_named(&self, name: &str) -> Classification {
-        self.known.classify(name).unwrap_or_else(|| {
+        self.platform.classify(name).unwrap_or_else(|| {
             self.shapes
                 .get(name)
                 .map_or(Classification::Unknown, |shape| self.classify_shape(shape))
@@ -312,7 +312,7 @@ impl Types {
             let Some(name) = current.superclass().and_then(class_name) else {
                 continue;
             };
-            if self.known.is_behaviorless(name) {
+            if self.platform.is_behaviorless(name) {
                 continue;
             }
             match self.shape(name) {
@@ -321,7 +321,7 @@ impl Types {
                         chain.push(superclass);
                     }
                 }
-                None => complete &= self.known.classify(name).is_some(),
+                None => complete &= self.platform.classify(name).is_some(),
             }
         }
         let mut methods: Vec<&MethodShape> = Vec::new();
@@ -371,7 +371,7 @@ impl Types {
             .iter()
             .skip(1)
             .filter_map(class_name)
-            .filter_map(|name| self.known.classify(name))
+            .filter_map(|name| self.platform.classify(name))
             .find(|classification| {
                 matches!(
                     classification,

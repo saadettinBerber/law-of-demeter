@@ -1,5 +1,5 @@
 use super::{
-    Classification, HybridClass, KnownTypes, Types, is_factory_method, is_repository_query,
+    Classification, HybridClass, Platform, Types, is_factory_method, is_repository_query,
     sample_types,
 };
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
@@ -7,7 +7,7 @@ use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, Type
 #[test]
 fn a_type_the_language_knows_as_a_value_is_a_value() {
     let types =
-        Types::new().with_known(KnownTypes::new().with_type("Money", Classification::Value));
+        Types::new().with_platform(Platform::new().with_type("Money", Classification::Value));
 
     let classification = types.classify(&TypeRef::class("Money"));
 
@@ -17,7 +17,7 @@ fn a_type_the_language_knows_as_a_value_is_a_value() {
 #[test]
 fn a_type_in_a_namespace_the_language_knows_takes_the_namespace_classification() {
     let types = Types::new()
-        .with_known(KnownTypes::new().with_namespace("money.", Classification::Container));
+        .with_platform(Platform::new().with_namespace("money.", Classification::Container));
 
     let classification = types.classify(&TypeRef::class("money.Purse"));
 
@@ -30,7 +30,7 @@ fn what_the_language_knows_about_a_type_wins_over_its_shape() {
         .with_method(MethodShape::new("add").with_parameters(vec![TypeRef::class("Money")]));
     let types = Types::new()
         .with_shape(money)
-        .with_known(KnownTypes::new().with_type("Money", Classification::Value));
+        .with_platform(Platform::new().with_type("Money", Classification::Value));
 
     let classification = types.classify(&TypeRef::class("Money"));
 
@@ -44,7 +44,7 @@ fn a_supertype_the_language_marks_behaviorless_leaves_the_class_to_its_own_membe
         .with_method(MethodShape::new("getX").returning(int()).reading("x"));
     let types = Types::new()
         .with_shape(point)
-        .with_known(KnownTypes::new().with_behaviorless_supertype("Base"));
+        .with_platform(Platform::new().with_behaviorless_supertype("Base"));
 
     let classification = types.classify(&TypeRef::class("Point"));
 
@@ -55,7 +55,7 @@ fn a_supertype_the_language_marks_behaviorless_leaves_the_class_to_its_own_membe
 fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argument() {
     let order = TypeRef::class("Order");
     let types = Types::new()
-        .with_known(KnownTypes::new().with_type("Purse", Classification::Container))
+        .with_platform(Platform::new().with_type("Purse", Classification::Container))
         .with_shape(TypeShape::new("Purse", TypeKind::Class).with_type_parameter("E"));
 
     let element = types.element_type_of(&TypeRef::generic("Purse", vec![order.clone()]));
@@ -530,14 +530,14 @@ fn a_method_that_cannot_be_found_is_not_fluent() {
     assert_eq!(fluent, (false, false));
 }
 
-fn known_as(classification: Classification, names: &[&str]) -> KnownTypes {
-    names.iter().fold(KnownTypes::new(), |known, name| {
-        known.with_type(name, classification)
+fn known_as(classification: Classification, names: &[&str]) -> Platform {
+    names.iter().fold(Platform::new(), |platform, name| {
+        platform.with_type(name, classification)
     })
 }
 
 fn containers(names: &[&str]) -> Types {
-    Types::new().with_known(known_as(Classification::Container, names))
+    Types::new().with_platform(known_as(Classification::Container, names))
 }
 
 #[test]

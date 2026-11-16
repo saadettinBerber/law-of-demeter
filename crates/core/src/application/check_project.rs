@@ -16,11 +16,11 @@ impl<'a> CheckProject<'a> {
         let TypeReading {
             shapes,
             errors,
-            known,
+            platform,
         } = self.types.read();
         let shapes = shapes
             .into_iter()
-            .fold(Types::new().with_known(known), Types::with_shape);
+            .fold(Types::new().with_platform(platform), Types::with_shape);
         let files = self.sources.read(&|name| shapes.shape(name).is_some());
         let declared = files
             .iter()

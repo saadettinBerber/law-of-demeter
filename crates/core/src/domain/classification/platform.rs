@@ -3,13 +3,13 @@ use std::collections::{HashMap, HashSet};
 use super::Classification;
 
 #[derive(Debug, Clone, Default)]
-pub struct KnownTypes {
+pub struct Platform {
     types: HashMap<String, Classification>,
     namespaces: Vec<(String, Classification)>,
     behaviorless_supertypes: HashSet<String>,
 }
 
-impl KnownTypes {
+impl Platform {
     pub fn new() -> Self {
         Self::default()
     }

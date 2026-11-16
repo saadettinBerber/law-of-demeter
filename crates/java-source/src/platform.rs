@@ -1,4 +1,4 @@
-use law_of_demeter_core::domain::classification::{Classification, KnownTypes};
+use law_of_demeter_core::domain::classification::{Classification, Platform};
 
 const VALUE_NAMESPACES: [&str; 1] = ["java.time."];
 
@@ -81,7 +81,7 @@ const BEHAVIORLESS_SUPERTYPES: [&str; 6] = [
     "java.lang.Comparable",
 ];
 
-pub fn java_platform() -> KnownTypes {
+pub fn java_platform() -> Platform {
     let types = [
         (&VALUES[..], Classification::Value),
         (&CONTAINERS[..], Classification::Container),
@@ -91,21 +91,23 @@ pub fn java_platform() -> KnownTypes {
         (&VALUE_NAMESPACES[..], Classification::Value),
         (&CONTAINER_NAMESPACES[..], Classification::Container),
     ];
-    let known = types
+    let platform = types
         .into_iter()
         .flat_map(|(names, classification)| names.iter().map(move |name| (name, classification)))
-        .fold(KnownTypes::new(), |known, (name, classification)| {
-            known.with_type(name, classification)
+        .fold(Platform::new(), |platform, (name, classification)| {
+            platform.with_type(name, classification)
         });
-    let known = namespaces
+    let platform = namespaces
         .into_iter()
         .flat_map(|(prefixes, classification)| {
             prefixes.iter().map(move |prefix| (prefix, classification))
         })
-        .fold(known, |known, (prefix, classification)| {
-            known.with_namespace(prefix, classification)
+        .fold(platform, |platform, (prefix, classification)| {
+            platform.with_namespace(prefix, classification)
         });
     BEHAVIORLESS_SUPERTYPES
         .iter()
-        .fold(known, |known, name| known.with_behaviorless_supertype(name))
+        .fold(platform, |platform, name| {
+            platform.with_behaviorless_supertype(name)
+        })
 }
