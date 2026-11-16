@@ -8,15 +8,22 @@ use super::MethodMapper;
 use super::inference::{Bindings, apply_bindings, bind_results, complete};
 use super::lambdas::functional_method;
 use super::lineage::{Ancestor, class_name, has_variable, lineage, substitute};
+use super::memo::address;
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
-    pub(super) fn returned_by(
-        &mut self,
-        call: &model::Call,
-        expected: Option<&TypeRef>,
-    ) -> Option<TypeRef> {
+    fn call_type(&mut self, call: &model::Call) -> Option<TypeRef> {
+        let key = address(call);
+        if let Some(known) = self.memo.calls.get(&key) {
+            return known.clone();
+        }
+        let returned = self.returned_by(call, None);
+        self.memo.calls.insert(key, returned.clone());
+        returned
+    }
+
+    fn returned_by(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Option<TypeRef> {
         let invocation = self.invocation_of(call)?;
         let results = self.lambda_results(&call.arguments, &invocation);
         invocation.returned(self.types, &results, expected)
@@ -107,7 +114,7 @@ impl MethodMapper<'_> {
             model::Expression::OuterField { owner, name } => Some(self.field_type(owner, name)),
             model::Expression::Captured(name) => Some(self.captured_type(name)),
             model::Expression::Type(name) => Some(named_type(name)),
-            model::Expression::Call(call) => self.returned_by(call, None),
+            model::Expression::Call(call) => self.call_type(call),
             model::Expression::New(created) => self.type_ref(&created.created),
             model::Expression::Cast { target, .. } => self.type_ref(target),
             _ => None,

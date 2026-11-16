@@ -3,6 +3,7 @@ mod expressions;
 mod inference;
 mod lambdas;
 mod lineage;
+mod memo;
 mod overloads;
 mod patterns;
 mod returns;
@@ -20,6 +21,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::platform::CONSTRUCTOR_NAME;
 use crate::{Class, DeclaredType, Method as ParsedMethod, ParseError, SourceFile, parse_with};
 
+use memo::Memo;
 use steps::Steps;
 use types::{Bounds, object};
 
@@ -66,6 +68,7 @@ struct MethodMapper<'a> {
     locals: HashMap<String, Option<TypeRef>>,
     lambda_parameters: HashMap<String, TypeRef>,
     yields: Option<Vec<Option<TypeRef>>>,
+    memo: Memo,
     returns: Option<TypeRef>,
     steps: Steps,
 }
@@ -96,6 +99,7 @@ impl<'a> MethodMapper<'a> {
             locals: HashMap::new(),
             lambda_parameters: HashMap::new(),
             yields: None,
+            memo: Memo::default(),
             returns: method
                 .returns
                 .as_ref()

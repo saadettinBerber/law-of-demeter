@@ -10,6 +10,7 @@ use crate::{self as model};
 use super::MethodMapper;
 use super::inference::common_result;
 use super::lineage::{class_name, has_variable, lineage, substitute};
+use super::memo::address;
 
 const OBJECT_METHODS: [(&str, usize); 3] = [("equals", 1), ("hashCode", 0), ("toString", 0)];
 
@@ -18,6 +19,7 @@ pub(super) struct Functional {
     pub(super) returns: Option<TypeRef>,
 }
 
+#[derive(Clone)]
 pub(super) struct Mapped {
     pub(super) lambda: Lambda,
     pub(super) result: Option<TypeRef>,
@@ -45,6 +47,18 @@ impl Typed {
 
 impl MethodMapper<'_> {
     pub(super) fn lambda(&mut self, lambda: &model::Lambda, target: Option<&TypeRef>) -> Mapped {
+        let key = (address(lambda), target.cloned());
+        if let Some(known) = self.memo.lambdas.get(&key) {
+            return known.clone();
+        }
+        let outer = mem::take(&mut self.memo);
+        let mapped = self.map_lambda(lambda, target);
+        self.memo = outer;
+        self.memo.lambdas.insert(key, mapped.clone());
+        mapped
+    }
+
+    fn map_lambda(&mut self, lambda: &model::Lambda, target: Option<&TypeRef>) -> Mapped {
         let typed = self.typed_parameters(lambda, target);
         let names: Vec<&str> = lambda
             .parameters
