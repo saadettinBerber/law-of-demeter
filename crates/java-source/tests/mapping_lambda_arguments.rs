@@ -96,6 +96,10 @@ fn listener(parameter: &str) -> Lambda {
     Lambda::new(&[parameter]).yielding(reading(parameter))
 }
 
+fn fed(lambda: Lambda, parameter: &str) -> Lambda {
+    lambda.fed_by_receiver(parameter)
+}
+
 fn worker() -> Expression {
     parameter("worker", class("Worker"))
 }
@@ -104,13 +108,20 @@ fn running(lambda: Lambda) -> Method {
     f(2).call(call(worker(), "run", 3).with(lambda))
 }
 
+fn running_linked(lambda: Lambda) -> Method {
+    f(2).call(call(worker(), "run", 3).with(lambda).returning_from(&[]))
+}
+
 #[test]
 fn a_lambda_argument_resolves_its_parameter_from_the_method_parameter_type() {
     let types = worker_with(vec![method("run", vec![consumer_of(event())])]);
 
     let mapped = mapped_in(&types, "Worker worker", "worker.run(e -> e.getEntry());");
 
-    assert_eq!(mapped, running(listener("e").resolving("e", event())));
+    assert_eq!(
+        mapped,
+        running_linked(fed(listener("e").resolving("e", event()), "e"))
+    );
 }
 
 #[test]
@@ -129,8 +140,10 @@ fn the_overload_with_the_same_parameter_count_types_the_lambda() {
     let lambda = Lambda::new(&["e", "n"])
         .resolving("e", event())
         .resolving("n", entry())
+        .fed_by_receiver("e")
+        .fed_by_receiver("n")
         .yielding(reading("e"));
-    assert_eq!(mapped, running(lambda));
+    assert_eq!(mapped, running_linked(lambda));
 }
 
 #[test]
@@ -154,7 +167,10 @@ fn a_non_functional_parameter_does_not_fit_a_lambda() {
 
     let mapped = mapped_in(&types, "Worker worker", "worker.run(e -> e.getEntry());");
 
-    assert_eq!(mapped, running(listener("e").resolving("e", entry())));
+    assert_eq!(
+        mapped,
+        running_linked(fed(listener("e").resolving("e", entry()), "e"))
+    );
 }
 
 #[test]
@@ -182,7 +198,8 @@ fn the_other_arguments_choose_the_overload_that_types_the_lambda() {
 
     let run = call(worker(), "run", 3)
         .with(Expression::literal())
-        .with(listener("e").resolving("e", event()));
+        .with(fed(listener("e").resolving("e", event()), "e"))
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(run));
 }
 
@@ -221,7 +238,8 @@ fn a_type_variable_bound_by_another_argument_types_the_lambda() {
 
     let each = call(Expression::static_type(class("Util")), "each", 3)
         .with(parameter("orders", generic("List", &[order()])))
-        .with(listener("o").resolving("o", order()));
+        .with(fed(listener("o").resolving("o", order()), "o"))
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(each));
 }
 
@@ -245,7 +263,8 @@ fn a_type_variable_left_open_by_the_lambda_does_not_stop_its_parameters_from_res
 
     let apply = call(Expression::static_type(class("Util")), "apply", 3)
         .with(parameter("orders", generic("List", &[order()])))
-        .with(listener("o").resolving("o", order()));
+        .with(fed(listener("o").resolving("o", order()), "o"))
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(apply));
 }
 
@@ -272,9 +291,11 @@ fn a_lambda_argument_no_longer_leaves_the_return_type_undecided() {
         .with(
             Lambda::new(&["o"])
                 .resolving("o", order())
+                .fed_by_receiver("o")
                 .yielding(Expression::literal()),
         )
-        .returning(order());
+        .returning(order())
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(first.then("go", 3)));
 }
 
@@ -291,8 +312,9 @@ fn a_variable_arity_method_types_every_lambda_it_takes() {
     );
 
     let run = call(worker(), "run", 3)
-        .with(listener("e").resolving("e", event()))
-        .with(listener("d").resolving("d", event()));
+        .with(fed(listener("e").resolving("e", event()), "e"))
+        .with(fed(listener("d").resolving("d", event()), "d"))
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(run));
 }
 
@@ -405,7 +427,8 @@ fn the_expected_type_binds_the_variable_that_types_the_lambda() {
     let of = call(Expression::static_type(class("Util")), "of", 3)
         .with(parameter("key", class("Key")))
         .with(listener("e").resolving("e", event()))
-        .returning(handlers());
+        .returning(handlers())
+        .returning_from(&[]);
     assert_eq!(
         mapped,
         f(2).assign("handlers", handlers(), Expression::return_of(of))
@@ -420,7 +443,8 @@ fn a_bare_variable_return_takes_the_expected_type_for_its_lambda() {
 
     let wrap = call(Expression::static_type(class("Util")), "wrap", 3)
         .with(listener("e").resolving("e", event()))
-        .returning(consumer_of(event()));
+        .returning(consumer_of(event()))
+        .returning_from(&[]);
     assert_eq!(
         mapped,
         f(2).assign("handler", consumer_of(event()), Expression::return_of(wrap))
@@ -436,6 +460,7 @@ fn a_returned_call_takes_the_return_type_of_the_method_for_its_lambda() {
     let wrap = call(Expression::static_type(class("Util")), "wrap", 3)
         .with(listener("e").resolving("e", event()))
         .returning(consumer_of(event()))
+        .returning_from(&[])
         .expecting(consumer_of(event()));
     assert_eq!(mapped, f(2).call(wrap));
 }

@@ -162,7 +162,9 @@ fn streamed() -> Expression {
 }
 
 fn mapping(reference: MethodReference, returned: Option<TypeRef>) -> Method {
-    let map = call(streamed(), "map", 3).with(reference);
+    let map = call(streamed(), "map", 3)
+        .with(reference.fed_by_receiver())
+        .returning_from(&[0]);
     match returned {
         Some(returned) => f(2).call(map.returning(returned)),
         None => f(2).call(map),
@@ -184,7 +186,9 @@ fn mapped_map(reference_source: &str) -> Method {
 fn an_unbound_reference_binds_the_result_type_variable_with_the_method_return() {
     let mapped = mapped_map("Order::getCustomer");
 
-    let reference = through(order(), "getCustomer").returning(customer());
+    let reference = through(order(), "getCustomer")
+        .returning(customer())
+        .resolving(order());
     assert_eq!(mapped, mapping(reference, Some(stream_of(customer()))));
 }
 
@@ -192,7 +196,9 @@ fn an_unbound_reference_binds_the_result_type_variable_with_the_method_return() 
 fn a_static_reference_binds_the_result_type_variable_with_the_method_return() {
     let mapped = mapped_map("Customers::of");
 
-    let reference = through(class("Customers"), "of").returning(customer());
+    let reference = through(class("Customers"), "of")
+        .returning(customer())
+        .resolving(order());
     assert_eq!(mapped, mapping(reference, Some(stream_of(customer()))));
 }
 
@@ -216,8 +222,9 @@ fn a_reference_on_a_parameter_binds_the_result_with_the_return_of_its_type() {
     let customers = parameter("customers", generic("List", &[customer()]));
     let stream = call(customers, "stream", 3).returning(stream_of(customer()));
     let map = call(Expression::return_of(stream), "map", 3)
-        .with(reference)
-        .returning(stream_of(wallet()));
+        .with(reference.fed_by_receiver())
+        .returning(stream_of(wallet()))
+        .returning_from(&[0]);
     assert_eq!(mapped, f(2).call(map));
 }
 
@@ -233,7 +240,9 @@ fn a_constructor_reference_binds_the_result_with_the_class_it_creates() {
 fn a_primitive_return_binds_the_boxed_type() {
     let mapped = mapped_map("Order::count");
 
-    let reference = through(order(), "count").returning(TypeRef::primitive("int"));
+    let reference = through(order(), "count")
+        .returning(TypeRef::primitive("int"))
+        .resolving(order());
     let boxed = stream_of(class("java.lang.Integer"));
     assert_eq!(mapped, mapping(reference, Some(boxed)));
 }
@@ -242,14 +251,20 @@ fn a_primitive_return_binds_the_boxed_type() {
 fn a_reference_to_a_method_that_returns_nothing_leaves_the_result_unresolved() {
     let mapped = mapped_map("Order::touch");
 
-    assert_eq!(mapped, mapping(through(order(), "touch"), None));
+    assert_eq!(
+        mapped,
+        mapping(through(order(), "touch").resolving(order()), None)
+    );
 }
 
 #[test]
 fn a_reference_to_a_method_the_type_does_not_have_leaves_the_result_unresolved() {
     let mapped = mapped_map("Order::vanish");
 
-    assert_eq!(mapped, mapping(through(order(), "vanish"), None));
+    assert_eq!(
+        mapped,
+        mapping(through(order(), "vanish").resolving(order()), None)
+    );
 }
 
 #[test]
@@ -276,21 +291,32 @@ fn a_constructor_reference_to_a_generic_class_leaves_the_result_unresolved() {
 fn a_reference_that_is_both_static_and_unbound_leaves_the_result_unresolved() {
     let mapped = mapped_map("Order::lookup");
 
-    assert_eq!(mapped, mapping(through(order(), "lookup"), None));
+    assert_eq!(
+        mapped,
+        mapping(through(order(), "lookup").resolving(order()), None)
+    );
 }
 
 #[test]
 fn the_result_of_a_reference_types_the_next_call_of_the_chain() {
     let mapped = mapped_map("Order::getCustomer).map(Customer::getWallet");
 
-    let first = through(order(), "getCustomer").returning(customer());
+    let first = through(order(), "getCustomer")
+        .returning(customer())
+        .resolving(order())
+        .fed_by_receiver();
     let first_map = call(streamed(), "map", 3)
         .with(first)
-        .returning(stream_of(customer()));
-    let second = through(customer(), "getWallet").returning(wallet());
+        .returning(stream_of(customer()))
+        .returning_from(&[0]);
+    let second = through(customer(), "getWallet")
+        .returning(wallet())
+        .resolving(customer())
+        .fed_by_receiver();
     let second_map = call(Expression::return_of(first_map), "map", 3)
         .with(second)
-        .returning(stream_of(wallet()));
+        .returning(stream_of(wallet()))
+        .returning_from(&[0]);
     assert_eq!(mapped, f(2).call(second_map));
 }
 
@@ -306,11 +332,15 @@ fn the_type_arguments_of_the_owner_come_from_the_receiver_the_stream_feeds() {
         "maybes",
         generic("List", std::slice::from_ref(&maybe_order)),
     );
-    let stream = call(maybes, "stream", 3).returning(stream_of(maybe_order));
-    let reference = through(class("Optional"), "get").returning(order());
+    let stream = call(maybes, "stream", 3).returning(stream_of(maybe_order.clone()));
+    let reference = through(class("Optional"), "get")
+        .returning(order())
+        .resolving(maybe_order.clone())
+        .fed_by_receiver();
     let map = call(Expression::return_of(stream), "map", 3)
         .with(reference)
-        .returning(stream_of(order()));
+        .returning(stream_of(order()))
+        .returning_from(&[0]);
     assert_eq!(mapped, f(2).call(map));
 }
 
@@ -318,10 +348,14 @@ fn the_type_arguments_of_the_owner_come_from_the_receiver_the_stream_feeds() {
 fn a_reference_only_fits_the_overload_that_takes_a_functional_interface() {
     let mapped = mapped_in("Taker taker", "taker.take(Order::getCustomer);");
 
-    let reference = through(order(), "getCustomer").returning(customer());
+    let reference = through(order(), "getCustomer")
+        .returning(customer())
+        .resolving(order())
+        .fed_by_receiver();
     let take = call(parameter("taker", class("Taker")), "take", 3)
         .with(reference)
-        .returning(customer());
+        .returning(customer())
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(take));
 }
 

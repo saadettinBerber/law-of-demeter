@@ -8,6 +8,7 @@ use super::MethodMapper;
 use super::inference::{Bindings, apply_bindings, bind_results, complete};
 use super::lambdas::functional_method;
 use super::lineage::{Ancestor, class_name, has_variable, lineage, substitute};
+use super::links::Declared;
 use super::memo::address;
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
@@ -148,9 +149,14 @@ pub(super) struct Invocation {
     free: Vec<String>,
     bounds: Bindings,
     results: Vec<(TypeRef, TypeRef)>,
+    declared: Option<Declared>,
 }
 
 impl Invocation {
+    pub(super) fn declared(&self) -> Option<&Declared> {
+        self.declared.as_ref()
+    }
+
     pub(super) fn parameter(&self, index: usize) -> Option<&TypeRef> {
         self.parameters.get(index)
     }
@@ -269,7 +275,7 @@ pub(super) fn invoked(
             index,
             bindings,
             parameters,
-        } => Some(candidates[index].invocation(bindings, parameters)),
+        } => Some(candidates[index].invocation(types, (bindings, parameters), arguments.len())),
         Selection::Undecided => Some(Invocation {
             parameters: Vec::new(),
             bindings: Bindings::new(),
@@ -277,6 +283,7 @@ pub(super) fn invoked(
             free: Vec::new(),
             bounds: Bindings::new(),
             results: Vec::new(),
+            declared: None,
         }),
         Selection::Unresolvable => None,
     }
@@ -304,7 +311,12 @@ impl Candidate<'_> {
         }
     }
 
-    fn invocation(&self, bindings: Bindings, parameters: Vec<TypeRef>) -> Invocation {
+    fn invocation(
+        &self,
+        types: &Types,
+        (bindings, parameters): (Bindings, Vec<TypeRef>),
+        argument_count: usize,
+    ) -> Invocation {
         Invocation {
             parameters,
             bindings,
@@ -312,6 +324,12 @@ impl Candidate<'_> {
             free: self.method.type_parameters().to_vec(),
             bounds: self.declared_bounds(),
             results: Vec::new(),
+            declared: Some(Declared::of(
+                types,
+                self.method,
+                self.ancestor.shape,
+                argument_count,
+            )),
         }
     }
 

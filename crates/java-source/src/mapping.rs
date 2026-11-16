@@ -4,6 +4,7 @@ mod expressions;
 mod inference;
 mod lambdas;
 mod lineage;
+mod links;
 mod memo;
 mod overloads;
 mod patterns;

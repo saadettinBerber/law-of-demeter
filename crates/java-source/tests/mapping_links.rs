@@ -1,0 +1,207 @@
+mod mapped;
+
+use law_of_demeter_core::domain::classification::Types;
+use law_of_demeter_core::domain::method::{Expression, Lambda, Method};
+use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use law_of_demeter_java_source::java_platform;
+use mapped::{call, class, method_f_in, parameter};
+
+const STREAM: &str = "java.util.stream.Stream";
+const COLLECTOR: &str = "java.util.stream.Collector";
+const COLLECTORS: &str = "java.util.stream.Collectors";
+const FUNCTION: &str = "java.util.function.Function";
+const LIST: &str = "java.util.List";
+const MAP: &str = "java.util.Map";
+const SET: &str = "java.util.Set";
+
+fn shape(name: &str) -> TypeShape {
+    TypeShape::new(name, TypeKind::Class)
+}
+
+fn interface(name: &str, parameters: &[&str]) -> TypeShape {
+    parameters.iter().fold(
+        TypeShape::new(name, TypeKind::Interface),
+        |shape, parameter| shape.with_type_parameter(parameter),
+    )
+}
+
+fn generic(name: &str, arguments: &[TypeRef]) -> TypeRef {
+    TypeRef::generic(name, arguments.to_vec())
+}
+
+fn variable(name: &str) -> TypeRef {
+    TypeRef::variable(name)
+}
+
+fn order() -> TypeRef {
+    class("Order")
+}
+
+fn customer() -> TypeRef {
+    class("Customer")
+}
+
+fn list_of(element: TypeRef) -> TypeRef {
+    generic(LIST, &[element])
+}
+
+fn stream_of(element: TypeRef) -> TypeRef {
+    generic(STREAM, &[element])
+}
+
+fn map_of(key: TypeRef, value: TypeRef) -> TypeRef {
+    generic(MAP, &[key, value])
+}
+
+fn function_of(argument: TypeRef, result: TypeRef) -> TypeRef {
+    generic(FUNCTION, &[argument, result])
+}
+
+fn collector_of(element: TypeRef, result: TypeRef) -> TypeRef {
+    generic(COLLECTOR, &[element, class("java.lang.Object"), result])
+}
+
+fn collectors() -> TypeShape {
+    let grouping = MethodShape::new("groupingBy")
+        .as_static()
+        .with_type_parameter("T")
+        .with_type_parameter("K")
+        .with_parameters(vec![function_of(variable("T"), variable("K"))])
+        .returning(collector_of(
+            variable("T"),
+            map_of(variable("K"), list_of(variable("T"))),
+        ));
+    let collecting_and_then = MethodShape::new("collectingAndThen")
+        .as_static()
+        .with_type_parameter("T")
+        .with_type_parameter("R")
+        .with_type_parameter("RR")
+        .with_parameters(vec![
+            collector_of(variable("T"), variable("R")),
+            function_of(variable("R"), variable("RR")),
+        ])
+        .returning(collector_of(variable("T"), variable("RR")));
+    let to_list = MethodShape::new("toList")
+        .as_static()
+        .with_type_parameter("T")
+        .returning(collector_of(variable("T"), list_of(variable("T"))));
+    shape(COLLECTORS)
+        .with_method(grouping)
+        .with_method(collecting_and_then)
+        .with_method(to_list)
+}
+
+fn world() -> Types {
+    let mapping = MethodShape::new("map")
+        .with_type_parameter("R")
+        .with_parameters(vec![function_of(variable("T"), variable("R"))])
+        .returning(stream_of(variable("R")));
+    let collecting = MethodShape::new("collect")
+        .with_type_parameter("R")
+        .with_parameters(vec![collector_of(variable("T"), variable("R"))])
+        .returning(variable("R"));
+    let applying = MethodShape::new("apply")
+        .with_parameters(vec![variable("T")])
+        .returning(variable("R"))
+        .as_abstract();
+    let streaming = MethodShape::new("stream").returning(stream_of(variable("E")));
+    let keys = MethodShape::new("keySet").returning(generic(SET, &[variable("K")]));
+    Types::new()
+        .with_platform(java_platform())
+        .with_shape(shape("java.lang.Object"))
+        .with_shape(collectors())
+        .with_shape(interface(COLLECTOR, &["T", "A", "R"]))
+        .with_shape(
+            interface(STREAM, &["T"])
+                .with_method(mapping)
+                .with_method(collecting),
+        )
+        .with_shape(interface(FUNCTION, &["T", "R"]).with_method(applying))
+        .with_shape(interface(LIST, &["E"]).with_method(streaming))
+        .with_shape(interface(MAP, &["K", "V"]).with_method(keys))
+        .with_shape(interface(SET, &["E"]))
+        .with_shape(
+            shape("Order").with_method(MethodShape::new("getCustomer").returning(customer())),
+        )
+        .with_shape(shape("Customer"))
+}
+
+fn mapped(statement: &str) -> Method {
+    let source = format!(
+        "import java.util.List; import java.util.Map; import java.util.stream.Collectors;\nclass OrderService {{\n void f(List<Order> orders, Map<Customer, List<Order>> grouped) {{\n  {statement};\n }}\n}}"
+    );
+
+    method_f_in(&source, &world())
+}
+
+fn f() -> Method {
+    Method::new("OrderService", "f", 3)
+}
+
+fn streamed_orders() -> Expression {
+    let stream = call(parameter("orders", list_of(order())), "stream", 4);
+    Expression::return_of(stream.returning(stream_of(order())))
+}
+
+fn customer_of_order() -> Expression {
+    let read = call(Expression::local("order"), "getCustomer", 4).returning(customer());
+    Expression::return_of(read)
+}
+
+#[test]
+fn a_lambda_given_to_a_stream_is_fed_by_its_elements_and_its_result_flows_to_the_return() {
+    let mapped = mapped("orders.stream().map(order -> order.getCustomer())");
+
+    let each = Lambda::new(&["order"])
+        .resolving("order", order())
+        .fed_by_elements("order")
+        .yielding(customer_of_order());
+    let map = call(streamed_orders(), "map", 4)
+        .with(each)
+        .returning(stream_of(customer()))
+        .returning_from(&[0]);
+    assert_eq!(mapped, f().call(map));
+}
+
+#[test]
+fn a_lambda_that_receives_a_collected_result_is_fed_by_its_receiver() {
+    let mapped = mapped(
+        "orders.stream().collect(Collectors.collectingAndThen(Collectors.toList(), list -> list))",
+    );
+
+    let finisher = Lambda::new(&["list"])
+        .resolving("list", list_of(order()))
+        .fed_by_receiver("list")
+        .yielding(Expression::local("list"));
+    let to_list = call(Expression::static_type(class(COLLECTORS)), "toList", 4);
+    let finishing = call(
+        Expression::static_type(class(COLLECTORS)),
+        "collectingAndThen",
+        4,
+    )
+    .with(Expression::return_of(to_list))
+    .with(finisher)
+    .returning_from(&[1]);
+    let collect = call(streamed_orders(), "collect", 4)
+        .with(Expression::return_of(finishing))
+        .returning(list_of(order()));
+    assert_eq!(mapped, f().call(collect));
+}
+
+#[test]
+fn a_lambda_in_a_nested_call_is_fed_by_the_elements_of_the_outer_stream() {
+    let mapped =
+        mapped("orders.stream().collect(Collectors.groupingBy(order -> order.getCustomer()))");
+
+    let classifier = Lambda::new(&["order"])
+        .resolving("order", order())
+        .fed_by_elements("order")
+        .yielding(customer_of_order());
+    let grouping = call(Expression::static_type(class(COLLECTORS)), "groupingBy", 4)
+        .with(classifier)
+        .returning_from(&[0]);
+    let collect = call(streamed_orders(), "collect", 4)
+        .with(Expression::return_of(grouping))
+        .returning(map_of(customer(), list_of(order())));
+    assert_eq!(mapped, f().call(collect));
+}

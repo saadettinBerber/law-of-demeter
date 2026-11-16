@@ -229,8 +229,11 @@ fn a_lambda_inside_a_nested_call_gets_its_parameter_from_the_outer_stream() {
 
     let classifier = Lambda::new(&["customer"])
         .resolving("customer", customer())
+        .fed_by_receiver("customer")
         .yielding(reading("getWallet", wallet()));
-    let grouping = collectors_call("groupingBy").with(classifier);
+    let grouping = collectors_call("groupingBy")
+        .with(classifier)
+        .returning_from(&[0]);
     assert_eq!(
         mapped,
         collecting(
@@ -246,8 +249,13 @@ fn a_method_reference_inside_a_nested_call_binds_the_group_key() {
     let mapped =
         mapped_collect("customers.stream().collect(Collectors.groupingBy(Customer::getWallet))");
 
-    let classifier = through(customer(), "getWallet").returning(wallet());
-    let grouping = collectors_call("groupingBy").with(classifier);
+    let classifier = through(customer(), "getWallet")
+        .returning(wallet())
+        .resolving(customer())
+        .fed_by_receiver();
+    let grouping = collectors_call("groupingBy")
+        .with(classifier)
+        .returning_from(&[0]);
     assert_eq!(
         mapped,
         collecting(
@@ -278,12 +286,22 @@ fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
         "orders.stream().collect(Collectors.groupingBy(Order::getCustomer, Collectors.mapping(Order::getTotal, Collectors.toList())))",
     );
 
+    let total = through(order(), "getTotal")
+        .returning(money())
+        .resolving(order())
+        .fed_by_receiver();
     let mapping = collectors_call("mapping")
-        .with(through(order(), "getTotal").returning(money()))
-        .with(Expression::return_of(collectors_call("toList")));
+        .with(total)
+        .with(Expression::return_of(collectors_call("toList")))
+        .returning_from(&[]);
+    let customer_of = through(order(), "getCustomer")
+        .returning(customer())
+        .resolving(order())
+        .fed_by_receiver();
     let grouping = collectors_call("groupingBy")
-        .with(through(order(), "getCustomer").returning(customer()))
-        .with(Expression::return_of(mapping));
+        .with(customer_of)
+        .with(Expression::return_of(mapping))
+        .returning_from(&[0]);
     assert_eq!(
         mapped,
         collecting(
@@ -305,10 +323,12 @@ fn a_lambda_after_a_nested_call_gets_its_parameter_from_the_nested_result() {
         .returning(order());
     let finisher = Lambda::new(&["list"])
         .resolving("list", list_of(order()))
+        .fed_by_receiver("list")
         .yielding(Expression::return_of(first));
     let finishing = collectors_call("collectingAndThen")
         .with(Expression::return_of(collectors_call("toList")))
-        .with(finisher);
+        .with(finisher)
+        .returning_from(&[1]);
     assert_eq!(
         mapped,
         collecting(streamed("orders", order()), finishing, order())

@@ -5,6 +5,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
+use super::links::{ArgumentLinks, Declared};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
@@ -81,14 +82,28 @@ impl MethodMapper<'_> {
     }
 
     fn call(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Expression {
-        let mapped = self.mapped_call(call, expected);
+        self.returning_call(call, expected, &[])
+    }
+
+    fn returning_call(
+        &mut self,
+        call: &model::Call,
+        expected: Option<&TypeRef>,
+        inherited: &[String],
+    ) -> Expression {
+        let mapped = self.mapped_call(call, expected, inherited);
         match self.returned_by(call, expected) {
             Some(returned) => Expression::return_of(mapped.returning(returned)),
             None => Expression::return_of(mapped),
         }
     }
 
-    fn mapped_call(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Call {
+    fn mapped_call(
+        &mut self,
+        call: &model::Call,
+        expected: Option<&TypeRef>,
+        inherited: &[String],
+    ) -> Call {
         let receiver = match (&call.receiver, &call.implicit_target) {
             (Some(receiver), _) => self.expression(receiver),
             (None, Some(ImplicitTarget::StaticImport { owner })) => {
@@ -96,16 +111,68 @@ impl MethodMapper<'_> {
             }
             (None, _) => Expression::This,
         };
-        let targets = self
-            .resolve(call, expected)
+        let resolved = self.resolve(call, expected);
+        let declared = resolved
+            .as_ref()
+            .and_then(|resolved| resolved.invocation.declared().cloned());
+        let targets = resolved
             .map(|resolved| resolved.targets)
             .unwrap_or_default();
         let mut mapped = Call::new(receiver, &call.name, call.line);
         for (index, argument) in call.arguments.iter().enumerate() {
             let target = targets.get(index).and_then(Option::as_ref);
-            mapped = mapped.with(self.argument(argument, target));
+            let links = self.argument_links(declared.as_ref(), index, argument, inherited);
+            mapped = mapped.with(self.argument(argument, target, &links));
         }
-        mapped
+        match declared {
+            Some(declared) => self.linked(mapped, call, &declared),
+            None => mapped,
+        }
+    }
+
+    fn argument_links(
+        &mut self,
+        declared: Option<&Declared>,
+        index: usize,
+        argument: &model::Expression,
+        inherited: &[String],
+    ) -> ArgumentLinks {
+        let Some(declared) = declared else {
+            return ArgumentLinks::default();
+        };
+        match argument {
+            model::Expression::Lambda(_) | model::Expression::MethodReference { .. } => {
+                declared.links(self.types, index, inherited)
+            }
+            model::Expression::Call(nested) => {
+                let nested = self
+                    .invocation_of(nested)
+                    .and_then(|found| found.declared().cloned());
+                ArgumentLinks {
+                    inherited: nested.map_or_else(Vec::new, |nested| {
+                        declared.inherited_by(index, &nested, inherited)
+                    }),
+                    ..ArgumentLinks::default()
+                }
+            }
+            _ => ArgumentLinks::default(),
+        }
+    }
+
+    fn linked(&self, mapped: Call, call: &model::Call, declared: &Declared) -> Call {
+        if !call.arguments.iter().any(is_functional) {
+            return mapped;
+        }
+        let feeding: Vec<usize> = call
+            .arguments
+            .iter()
+            .enumerate()
+            .filter(|(index, argument)| {
+                is_functional(argument) && declared.feeds_return(self.types, *index)
+            })
+            .map(|(index, _)| index)
+            .collect();
+        mapped.returning_from(&feeding)
     }
 
     fn creation(&mut self, created: &model::New) -> Expression {
@@ -113,15 +180,26 @@ impl MethodMapper<'_> {
         let mut creation = Creation::new(self.type_ref_or_object(&created.created));
         for (index, argument) in created.arguments.iter().enumerate() {
             let target = invocation.as_ref().and_then(|found| found.parameter(index));
-            creation = creation.with(self.argument(argument, target));
+            creation = creation.with(self.argument(argument, target, &ArgumentLinks::default()));
         }
         Expression::created(creation)
     }
 
-    fn argument(&mut self, argument: &model::Expression, target: Option<&TypeRef>) -> Argument {
+    fn argument(
+        &mut self,
+        argument: &model::Expression,
+        target: Option<&TypeRef>,
+        links: &ArgumentLinks,
+    ) -> Argument {
         match argument {
             model::Expression::Lambda(lambda) => {
-                Argument::Lambda(self.lambda(lambda, target).lambda)
+                let names: Vec<&str> = lambda
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.name.as_str())
+                    .collect();
+                let mapped = self.lambda(lambda, target).lambda;
+                Argument::Lambda(links.on_lambda(mapped, &names))
             }
             model::Expression::MethodReference {
                 target: referenced,
@@ -130,14 +208,19 @@ impl MethodMapper<'_> {
             } => {
                 let result = self.reference_result(referenced, name, target);
                 let reference = MethodReference::new(self.expression(referenced), name, *line);
+                let reference = links.on_reference(reference);
+                let reference = match self.reference_input(referenced, name, target) {
+                    Some(input) => reference.resolving(input),
+                    None => reference,
+                };
                 match result {
                     Some(returned) => Argument::MethodReference(reference.returning(returned)),
                     None => Argument::MethodReference(reference),
                 }
             }
-            model::Expression::Call(call) if self.is_open(call) => {
-                Argument::Value(Expression::return_of(self.mapped_call(call, target)))
-            }
+            model::Expression::Call(call) if self.is_open(call) => Argument::Value(
+                Expression::return_of(self.mapped_call(call, target, &links.inherited)),
+            ),
             other => Argument::Value(self.expression(other)),
         }
     }
@@ -166,6 +249,13 @@ impl MethodMapper<'_> {
             _ => None,
         }
     }
+}
+
+fn is_functional(argument: &model::Expression) -> bool {
+    matches!(
+        argument,
+        model::Expression::Lambda(_) | model::Expression::MethodReference { .. }
+    )
 }
 
 pub(super) fn expecting(value: Expression, type_ref: TypeRef) -> Expression {

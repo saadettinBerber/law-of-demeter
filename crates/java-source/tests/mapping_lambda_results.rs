@@ -105,7 +105,7 @@ fn reading(method: &str, returned: TypeRef, line: usize) -> Expression {
 }
 
 fn mapping(lambda: Lambda, returned: Option<TypeRef>) -> Call {
-    let map = call(streamed(), "map", 3).with(lambda);
+    let map = call(streamed(), "map", 3).with(lambda).returning_from(&[0]);
     match returned {
         Some(returned) => map.returning(returned),
         None => map,
@@ -113,7 +113,9 @@ fn mapping(lambda: Lambda, returned: Option<TypeRef>) -> Call {
 }
 
 fn ordering() -> Lambda {
-    Lambda::new(&["o"]).resolving("o", order())
+    Lambda::new(&["o"])
+        .resolving("o", order())
+        .fed_by_receiver("o")
 }
 
 fn mapped_map(lambda_source: &str) -> Method {
@@ -251,7 +253,8 @@ fn a_variable_bound_by_another_argument_keeps_its_binding() {
     let pick = call(Expression::static_type(class("Util")), "pick", 3)
         .with(parameter("customer", customer()))
         .with(Lambda::new(&[]).yielding(parameter("premium", class("Premium"))))
-        .returning(customer());
+        .returning(customer())
+        .returning_from(&[1]);
     assert_eq!(mapped, f(2).call(pick.then("go", 3)));
 }
 
@@ -268,9 +271,11 @@ fn the_result_of_a_mapped_stream_types_the_next_lambda() {
         .with(
             Lambda::new(&["c"])
                 .resolving("c", customer())
+                .fed_by_receiver("c")
                 .yielding(Expression::return_of(wallet_of_c)),
         )
-        .returning(stream_of(wallet()));
+        .returning(stream_of(wallet()))
+        .returning_from(&[0]);
     assert_eq!(mapped, f(2).call(second));
 }
 

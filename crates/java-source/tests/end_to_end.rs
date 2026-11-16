@@ -34,14 +34,14 @@ fn getter(name: &str, field: &str, returns: &str) -> MethodShape {
 }
 
 fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> Vec<Verdict> {
-    let mapped = map_source(Path::new("OrderService.java"), source, &catalog_of(types)).unwrap();
+    let types = types.clone().with_platform(java_platform());
+    let mapped = map_source(Path::new("OrderService.java"), source, &catalog_of(&types)).unwrap();
     let found: Vec<_> = mapped
         .methods
         .iter()
         .filter(|candidate| candidate.class_name() == class_name && candidate.name() == method)
         .collect();
     assert!(!found.is_empty(), "{class_name}.{method} was not mapped");
-    let types = types.clone().with_platform(java_platform());
     found
         .into_iter()
         .flat_map(|candidate| candidate.verdicts(&types))

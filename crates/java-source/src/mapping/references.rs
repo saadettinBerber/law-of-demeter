@@ -4,7 +4,7 @@ use crate::{self as model, TypeName};
 
 use super::MethodMapper;
 use super::lambdas::functional_method;
-use super::lineage::{class_name, closure, lineage};
+use super::lineage::{class_name, closure, has_variable, lineage};
 use super::overloads::{ArgumentType, is_known};
 use super::returns::{Dispatch, Invocation, invoked};
 use super::types::named_type;
@@ -23,6 +23,20 @@ impl MethodMapper<'_> {
             (_, "new") => None,
             _ => self.through_value(target, name, &parameters),
         }
+    }
+
+    pub(super) fn reference_input(
+        &self,
+        target: &model::Expression,
+        name: &str,
+        functional: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
+        let unbound = matches!(target, model::Expression::Type(_)) && name != "new";
+        let inputs = functional_method(self.types, functional?)?.parameters;
+        inputs
+            .into_iter()
+            .next()
+            .filter(|input| unbound && !has_variable(input))
     }
 
     fn constructed(&self, owner: &TypeName) -> Option<TypeRef> {
