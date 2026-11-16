@@ -236,9 +236,8 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
         allowed(9, Reason::static_result("builder")),
         allowed(10, Reason::factory_result("create")),
         allowed(11, Reason::query_result("findById")),
-        allowed(12, Reason::static_field("PAID")),
         allowed(
-            13,
+            12,
             Reason::method_reference(
                 TypeRef::class("Order"),
                 "getCustomer",
@@ -261,10 +260,16 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
             "builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı",
             "create() factory çağrısının döndürdüğü nesne f'nin arkadaşı",
             "findById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı",
-            "PAID statik sabiti f'nin arkadaşı",
             "Order::getCustomer metot referansı: fonksiyona argüman olarak verilen nesne",
         ]
     );
+}
+
+#[test]
+fn a_static_constant_reads_as_a_constant_not_a_call() {
+    let lines = allowed_lines(vec![allowed(1, Reason::static_field("PAID"))]);
+
+    assert_eq!(lines, ["PAID statik sabiti f'nin arkadaşı"]);
 }
 
 #[test]
