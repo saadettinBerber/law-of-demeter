@@ -37,7 +37,7 @@
 | İç içe generic çağrının maliyetini sınırla: her iç içe seviye yargılamayı ikiye katlıyor. | Yapılmadı |
 | Rapor metninde statik sabiti metot çağrısı gibi yazma: `PAID() statik çağrısı` yerine `PAID statik sabiti`. | Yapıldı |
 | Gruplama anahtarının durumunu sınıflandırıcıdan al: `groupingBy(Order::getCustomer)` haritasının anahtarları yabancı, değerleri arkadaş olsun. | Yapılmadı |
-| Değer konumundaki metot referansını da yargıla: `Function<Order, Customer> f = Order::getCustomer;`, `return this::handle;`. | Yapılmadı |
+| Değer konumundaki metot referansını da yargıla: `Function<Order, Customer> f = Order::getCustomer;`, `return this::handle;`. | Yapıldı |
 | Yıldızlı statik import ile gelen sabitleri çöz: `import static shop.Status.*;` sonrası `PAID.name()`. | Yapıldı |
 | [JDK tip kataloğunu domain'den Java adapter'ına taşı: değer, konteyner, veri yapısı ve davranışsız tipleri dil versin; domain yalnızca bilinen tiplerin sınıfını alsın.](README.md#mimari) | Yapıldı |
 | [Java'nın nesne modelini domain'den çıkar: gizli üst tipler (`Object`, `Enum`, `Record`), `equals`, `hashCode`, `toString`, `canEqual`, kurucu adı `<init>`, Lombok'un `toBuilder`'ı ve değiştirici metot adları dilden gelsin.](README.md#mimari) | Yapıldı |
@@ -50,7 +50,7 @@
 | [Değişken sayıda argümanı adapter çözsün: `Stream.of(a, b)`, `String.format("%s %s", a, b)`.](README.md#mimari) | Yapıldı |
 | [Generic metodun tip değişkenini adapter çıkarsın: argümandan, beklenen tipten ve sınırından (`<T extends Shape>`).](README.md#mimari) | Yapıldı |
 | [Lambda parametresinin tipini adapter bulsun: fonksiyonel arayüzün tek soyut metodundan; hedef tip atamadan, dönüşten ya da kurucu parametresinden.](README.md#mimari) | Yapıldı |
-| [Metot referansının tipini adapter çözsün: `Order::getCustomer`, `this::handle`, kurucu referansı.](README.md#mimari) | Yapılmadı |
+| [Metot referansının tipini adapter çözsün: `Order::getCustomer`, `this::handle`, kurucu referansı.](README.md#mimari) | Yapıldı |
 | [İç içe generic çağrının tiplerini adapter çözsün: `collect(Collectors.groupingBy(...))`.](README.md#mimari) | Yapılmadı |
 | [Veri akışı bağlarını adapter versin: hangi lambda parametresi alıcının elemanlarıyla besleniyor, lambda sonucu dönüşe akıyor mu; domain arkadaş ya da yabancı durumunu bu bağlar boyunca taşısın.](README.md#mimari) | Yapılmadı |
 | [Tip çıkarımını domain'den sil: `invocation.rs`, `functional.rs`, aşırı yükleme ve generic bağlama; domain testleri çözülmüş tiplerle sadeleşsin.](README.md#mimari) | Yapılmadı |
