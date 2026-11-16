@@ -1068,7 +1068,7 @@ fn customer_catalog() -> Types {
 }
 
 #[test]
-fn inference_1_the_element_type_of_an_array_argument_types_the_lambda_parameter() {
+fn inference_the_element_type_of_an_array_argument_types_the_lambda_parameter() {
     let snippet = "void notify(Order[] orders) {\n    Arrays.stream(orders).forEach(order -> order.getCustomer().rename());\n}";
 
     let verdicts = verdicts_in_c(
@@ -1150,7 +1150,7 @@ fn closing_the_record_of_the_event() -> [Verdict; 3] {
 }
 
 #[test]
-fn inference_2_the_declared_type_of_a_local_types_the_lambda_parameter() {
+fn inference_the_declared_type_of_a_local_types_the_lambda_parameter() {
     let snippet = "void register() {\n    Map<String, Consumer<Event>> handlers = Map.of(\"created\", e -> e.getRecord().close());\n}";
 
     let verdicts = verdicts_in_c(
@@ -1165,7 +1165,7 @@ fn inference_2_the_declared_type_of_a_local_types_the_lambda_parameter() {
 }
 
 #[test]
-fn inference_2_the_declared_type_of_a_field_types_the_lambda_parameter() {
+fn inference_the_declared_type_of_a_field_types_the_lambda_parameter() {
     let snippet =
         "void register() {\n    handlers = Map.of(\"created\", e -> e.getRecord().close());\n}";
 
@@ -1181,7 +1181,7 @@ fn inference_2_the_declared_type_of_a_field_types_the_lambda_parameter() {
 }
 
 #[test]
-fn inference_3_the_result_of_a_method_reference_types_the_next_lambda_parameter() {
+fn inference_the_result_of_a_method_reference_types_the_next_lambda_parameter() {
     let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(Order::getCustomer).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
 
     let verdicts = verdicts_in_c(
@@ -1224,7 +1224,7 @@ fn charging_the_wallets_of_customers_mapped_from_a_stranger(first: Vec<Verdict>)
 }
 
 #[test]
-fn inference_3_the_result_of_a_lambda_types_the_next_lambda_parameter() {
+fn inference_the_result_of_a_lambda_types_the_next_lambda_parameter() {
     let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(order -> order.getCustomer()).forEach(customer -> customer.getWallet().withdraw(amount));\n}";
 
     let verdicts = verdicts_in_c(
@@ -1255,7 +1255,7 @@ fn shape_catalog() -> Types {
 }
 
 #[test]
-fn inference_4_a_type_variable_bound_makes_the_elements_known() {
+fn inference_a_type_variable_bound_makes_the_elements_known() {
     let snippet = "<T extends Shape> double area(List<T> shapes) {\n    return shapes.get(0).getOutline().length();\n}";
 
     let verdicts = verdicts_in_c(
@@ -1277,7 +1277,7 @@ fn inference_4_a_type_variable_bound_makes_the_elements_known() {
 }
 
 #[test]
-fn inference_4_counter_case_an_unbounded_type_variable_stays_unresolved() {
+fn inference_counter_case_an_unbounded_type_variable_stays_unresolved() {
     let snippet =
         "<T> double area(List<T> shapes) {\n    return shapes.get(0).getOutline().length();\n}";
 
@@ -1325,7 +1325,7 @@ fn constants_catalog() -> Types {
 }
 
 #[test]
-fn on_demand_static_names_1_a_constant_of_the_imported_type_is_a_friend() {
+fn on_demand_static_names_a_constant_of_the_imported_type_is_a_friend() {
     let snippet = "String label() {\n    return PAID.name();\n}";
 
     let verdicts = verdicts_in_c(
@@ -1343,7 +1343,7 @@ fn on_demand_static_names_1_a_constant_of_the_imported_type_is_a_friend() {
 }
 
 #[test]
-fn on_demand_static_names_2_the_first_import_that_declares_the_constant_decides_its_type() {
+fn on_demand_static_names_the_first_import_that_declares_the_constant_decides_its_type() {
     let snippet = "void audit() {\n    LIMIT.getOwner().rename();\n}";
 
     let verdicts = verdicts_in_c(
@@ -1364,7 +1364,7 @@ fn on_demand_static_names_2_the_first_import_that_declares_the_constant_decides_
 }
 
 #[test]
-fn on_demand_static_names_3_a_name_no_imported_type_declares_stays_unresolved() {
+fn on_demand_static_names_a_name_no_imported_type_declares_stays_unresolved() {
     let snippet = "String label() {\n    return SHIPPED.name();\n}";
 
     let verdicts = verdicts_in_c(
@@ -1432,7 +1432,7 @@ fn variable_arity_catalog() -> Types {
 }
 
 #[test]
-fn variable_arity_1_a_stream_of_several_arguments_gets_its_element_type() {
+fn variable_arity_a_stream_of_several_arguments_gets_its_element_type() {
     let snippet = "void notify(Optional<Order> first, Optional<Order> second, Optional<Order> third) {\n    Stream.of(first, second, third).flatMap(Optional::stream).toList().get(0).getCustomer().rename();\n}";
 
     let verdicts = verdicts_in_c(
@@ -1467,7 +1467,7 @@ fn variable_arity_1_a_stream_of_several_arguments_gets_its_element_type() {
 }
 
 #[test]
-fn variable_arity_2_a_formatted_string_gets_its_return_type() {
+fn variable_arity_a_formatted_string_gets_its_return_type() {
     let snippet = "boolean blank(Order first, Order second) {\n    return String.format(\"%s %s\", first, second).trim().isEmpty();\n}";
 
     let verdicts = verdicts_in_c("", "", snippet, "blank", &variable_arity_catalog());
@@ -1613,7 +1613,7 @@ fn collectors_type() -> Reason {
 const NESTED_IMPORTS: &str = "import java.util.List; import java.util.stream.Collectors;";
 
 #[test]
-fn nested_generic_1_a_collected_list_of_mapped_customers_keeps_them_strangers() {
+fn nested_generic_a_collected_list_of_mapped_customers_keeps_them_strangers() {
     let snippet = "void charge(List<Order> orders, int amount) {\n    orders.stream().map(Order::getCustomer).collect(Collectors.toList()).get(0).getWallet().withdraw(amount);\n}";
 
     let verdicts = verdicts_in_c(
@@ -1654,7 +1654,7 @@ fn nested_generic_1_a_collected_list_of_mapped_customers_keeps_them_strangers() 
 }
 
 #[test]
-fn nested_generic_2_a_collected_list_of_orders_keeps_the_elements_typed() {
+fn nested_generic_a_collected_list_of_orders_keeps_the_elements_typed() {
     let snippet = "void ship(List<Order> orders) {\n    orders.stream().collect(Collectors.toList()).get(0).getCustomer().rename();\n}";
 
     let verdicts = verdicts_in_c(
@@ -1679,7 +1679,7 @@ fn nested_generic_2_a_collected_list_of_orders_keeps_the_elements_typed() {
 }
 
 #[test]
-fn nested_generic_3_a_lambda_grouping_mapped_customers_receives_strangers() {
+fn nested_generic_a_lambda_grouping_mapped_customers_receives_strangers() {
     let snippet = "void group(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).collect(Collectors.groupingBy(customer -> customer.getWallet()));\n}";
 
     let verdicts = verdicts_in_c(
@@ -1715,7 +1715,7 @@ fn nested_generic_3_a_lambda_grouping_mapped_customers_receives_strangers() {
 }
 
 #[test]
-fn nested_generic_4_a_lambda_grouping_the_orders_receives_friends() {
+fn nested_generic_a_lambda_grouping_the_orders_receives_friends() {
     let snippet = "void group(List<Order> orders) {\n    orders.stream().collect(Collectors.groupingBy(order -> order.getStatus()));\n}";
 
     let verdicts = verdicts_in_c(
@@ -1742,7 +1742,7 @@ fn nested_generic_4_a_lambda_grouping_the_orders_receives_friends() {
 }
 
 #[test]
-fn nested_generic_5_a_method_reference_grouping_types_the_groups() {
+fn nested_generic_a_method_reference_grouping_types_the_groups() {
     let snippet = "void ship(List<Order> orders, Status status) {\n    orders.stream().collect(Collectors.groupingBy(Order::getStatus)).get(status).get(0).getCustomer().rename();\n}";
 
     let verdicts = verdicts_in_c(
@@ -2015,7 +2015,7 @@ fn lambda_target_verdicts(members: &str, snippet: &str, method: &str) -> Vec<Ver
 }
 
 #[test]
-fn lambda_target_1_a_local_declared_with_a_functional_type_types_the_parameter() {
+fn lambda_target_a_local_declared_with_a_functional_type_types_the_parameter() {
     let snippet = "void register() {\n    Consumer<Event> handler = e -> e.getRecord().getLock().release();\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "register");
@@ -2027,7 +2027,7 @@ fn lambda_target_1_a_local_declared_with_a_functional_type_types_the_parameter()
 }
 
 #[test]
-fn lambda_target_2_a_field_assignment_types_the_parameter() {
+fn lambda_target_a_field_assignment_types_the_parameter() {
     let snippet = "void register() {\n    onField = e -> e.getRecord().getLock().release();\n}";
 
     let verdicts = lambda_target_verdicts("Consumer<Event> onField;", snippet, "register");
@@ -2039,7 +2039,7 @@ fn lambda_target_2_a_field_assignment_types_the_parameter() {
 }
 
 #[test]
-fn lambda_target_3_a_returned_lambda_takes_the_return_type_of_the_method() {
+fn lambda_target_a_returned_lambda_takes_the_return_type_of_the_method() {
     let snippet = "Consumer<Event> make() {\n    return e -> e.getRecord().getLock().release();\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "make");
@@ -2051,7 +2051,7 @@ fn lambda_target_3_a_returned_lambda_takes_the_return_type_of_the_method() {
 }
 
 #[test]
-fn lambda_target_4_a_constructor_argument_takes_the_parameter_type_of_the_constructor() {
+fn lambda_target_a_constructor_argument_takes_the_parameter_type_of_the_constructor() {
     let snippet =
         "Worker make() {\n    return new Worker(e -> e.getRecord().getLock().release());\n}";
 
@@ -2106,8 +2106,7 @@ fn the_record_of_a_related_event() -> Verdict {
 }
 
 #[test]
-fn lambda_target_4b_a_constructor_lambda_is_fed_by_the_elements_of_the_argument_binding_its_input()
-{
+fn lambda_target_a_constructor_lambda_is_fed_by_the_elements_of_the_argument_binding_its_input() {
     let snippet =
         "void start(Event event) {\n    new Batch<>(event.getRelated(), e -> e.getRecord());\n}";
 
@@ -2117,8 +2116,7 @@ fn lambda_target_4b_a_constructor_lambda_is_fed_by_the_elements_of_the_argument_
 }
 
 #[test]
-fn lambda_target_4c_a_static_call_lambda_is_fed_by_the_elements_of_the_argument_binding_its_input()
-{
+fn lambda_target_a_static_call_lambda_is_fed_by_the_elements_of_the_argument_binding_its_input() {
     let snippet =
         "void start(Event event) {\n    Batches.each(event.getRelated(), e -> e.getRecord());\n}";
 
@@ -2128,7 +2126,7 @@ fn lambda_target_4c_a_static_call_lambda_is_fed_by_the_elements_of_the_argument_
 }
 
 #[test]
-fn lambda_target_5_a_cast_types_the_parameter() {
+fn lambda_target_a_cast_types_the_parameter() {
     let snippet = "void register() {\n    Object handler = (Consumer<Event>) e -> e.getRecord().getLock().release();\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "register");
@@ -2140,7 +2138,7 @@ fn lambda_target_5_a_cast_types_the_parameter() {
 }
 
 #[test]
-fn lambda_target_6_the_variable_holding_the_lambda_has_its_declared_type() {
+fn lambda_target_the_variable_holding_the_lambda_has_its_declared_type() {
     let snippet = "void register(Event event) {\n    Consumer<Event> handler = e -> e.getRecord().getLock().release();\n    handler.accept(event);\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "register");
@@ -2157,7 +2155,7 @@ fn lambda_target_6_the_variable_holding_the_lambda_has_its_declared_type() {
 }
 
 #[test]
-fn lambda_target_7_a_var_local_has_no_target_and_leaves_the_parameter_untyped() {
+fn lambda_target_a_var_local_has_no_target_and_leaves_the_parameter_untyped() {
     let snippet = "void register() {\n    var handler = e -> e.getRecord().getLock().release();\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "register");
@@ -2181,7 +2179,7 @@ fn lambda_target_7_a_var_local_has_no_target_and_leaves_the_parameter_untyped() 
 }
 
 #[test]
-fn lambda_target_8_an_explicitly_typed_parameter_keeps_its_type_in_an_argument() {
+fn lambda_target_an_explicitly_typed_parameter_keeps_its_type_in_an_argument() {
     let snippet = "void register(Registry registry) {\n    registry.add((Event e) -> e.getRecord().getLock().release());\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "register");
@@ -2198,7 +2196,7 @@ fn lambda_target_8_an_explicitly_typed_parameter_keeps_its_type_in_an_argument()
 }
 
 #[test]
-fn lambda_target_8_counter_case_without_a_declared_type_the_argument_parameter_stays_untyped() {
+fn lambda_target_counter_case_without_a_declared_type_the_argument_parameter_stays_untyped() {
     let snippet = "void register(Registry registry) {\n    registry.add(e -> e.getRecord().getLock().release());\n}";
 
     let verdicts = lambda_target_verdicts("", snippet, "register");
@@ -2249,7 +2247,7 @@ fn a_stream_of_customers() -> Reason {
 }
 
 #[test]
-fn method_reference_1_an_unbound_reference_on_mapped_strangers_is_a_violation() {
+fn method_reference_an_unbound_reference_on_mapped_strangers_is_a_violation() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Customer::getWallet);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2277,7 +2275,7 @@ fn method_reference_1_an_unbound_reference_on_mapped_strangers_is_a_violation() 
 }
 
 #[test]
-fn method_reference_2_a_nested_reference_receives_the_strangers_of_the_stream_collected() {
+fn method_reference_a_nested_reference_receives_the_strangers_of_the_stream_collected() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).collect(Collectors.groupingBy(Customer::getWallet));\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2306,7 +2304,7 @@ fn method_reference_2_a_nested_reference_receives_the_strangers_of_the_stream_co
 }
 
 #[test]
-fn method_reference_3_a_static_reference_is_allowed_whoever_feeds_it() {
+fn method_reference_a_static_reference_is_allowed_whoever_feeds_it() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Wallets::of);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2326,7 +2324,7 @@ fn method_reference_3_a_static_reference_is_allowed_whoever_feeds_it() {
 }
 
 #[test]
-fn method_reference_4_a_bound_reference_on_this_is_allowed() {
+fn method_reference_a_bound_reference_on_this_is_allowed() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().forEach(this::ship);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2342,7 +2340,7 @@ fn method_reference_4_a_bound_reference_on_this_is_allowed() {
 }
 
 #[test]
-fn method_reference_5_a_bound_reference_on_what_a_stranger_returned_is_a_violation() {
+fn method_reference_a_bound_reference_on_what_a_stranger_returned_is_a_violation() {
     let snippet = "void charge(Order order, List<Order> orders) {\n    orders.stream().forEach(order.getCustomer()::rename);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2359,7 +2357,7 @@ fn method_reference_5_a_bound_reference_on_what_a_stranger_returned_is_a_violati
 }
 
 #[test]
-fn method_reference_6_a_bound_reference_on_a_field_is_allowed() {
+fn method_reference_a_bound_reference_on_a_field_is_allowed() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).forEach(wallet::withdraw);\n}";
 
     let verdicts = method_reference_verdicts("Wallet wallet;", snippet);
@@ -2374,7 +2372,7 @@ fn method_reference_6_a_bound_reference_on_a_field_is_allowed() {
 }
 
 #[test]
-fn method_reference_7_a_constructor_reference_is_not_a_call() {
+fn method_reference_a_constructor_reference_is_not_a_call() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Order::getCustomer).map(Wallet::new);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2393,7 +2391,7 @@ fn method_reference_7_a_constructor_reference_is_not_a_call() {
 }
 
 #[test]
-fn method_reference_8_an_array_constructor_reference_is_not_a_call() {
+fn method_reference_an_array_constructor_reference_is_not_a_call() {
     let snippet =
         "void charge(List<Order> orders) {\n    orders.stream().toArray(Order[]::new);\n}";
 
@@ -2409,7 +2407,7 @@ fn method_reference_8_an_array_constructor_reference_is_not_a_call() {
 }
 
 #[test]
-fn method_reference_9_a_reference_on_a_type_that_cannot_be_resolved_is_unresolved() {
+fn method_reference_a_reference_on_a_type_that_cannot_be_resolved_is_unresolved() {
     let snippet = "void charge(List<Order> orders) {\n    orders.stream().map(Missing::of);\n}";
 
     let verdicts = method_reference_verdicts("", snippet);
@@ -2432,7 +2430,7 @@ fn factories_catalog(owners: &[&str]) -> Types {
 }
 
 #[test]
-fn on_demand_static_methods_1_the_result_of_an_imported_static_call_is_a_friend() {
+fn on_demand_static_methods_the_result_of_an_imported_static_call_is_a_friend() {
     let snippet = "void audit() {\n    customer().getWallet().withdraw(1);\n}";
 
     let verdicts = verdicts_in_c(
@@ -2458,7 +2456,7 @@ fn on_demand_static_methods_1_the_result_of_an_imported_static_call_is_a_friend(
 }
 
 #[test]
-fn on_demand_static_methods_2_a_name_two_imports_declare_is_not_a_static_call() {
+fn on_demand_static_methods_a_name_two_imports_declare_is_not_a_static_call() {
     let snippet = "void audit() {\n    customer().getWallet().withdraw(1);\n}";
 
     let verdicts = verdicts_in_c(
@@ -2488,7 +2486,7 @@ fn on_demand_static_methods_2_a_name_two_imports_declare_is_not_a_static_call() 
 }
 
 #[test]
-fn on_demand_static_methods_3_an_enclosing_class_method_is_a_call_on_the_own_object() {
+fn on_demand_static_methods_an_enclosing_class_method_is_a_call_on_the_own_object() {
     let members = "Customer customer() { return null; }\nclass Inner {";
     let snippet = "void audit() {\n    customer().getWallet();\n}\n}";
 
@@ -2523,7 +2521,7 @@ fn raw_box_catalog() -> Types {
 }
 
 #[test]
-fn raw_receiver_1_a_bounded_type_variable_returned_by_a_raw_receiver_is_its_bound() {
+fn raw_receiver_a_bounded_type_variable_returned_by_a_raw_receiver_is_its_bound() {
     let snippet = "void audit(Box box) {\n    box.get().rename();\n}";
 
     let verdicts = verdicts_in_c("", "", snippet, "audit", &raw_box_catalog());
@@ -2538,7 +2536,7 @@ fn raw_receiver_1_a_bounded_type_variable_returned_by_a_raw_receiver_is_its_boun
 }
 
 #[test]
-fn raw_receiver_2_a_parameterized_type_returned_by_a_raw_receiver_is_its_raw_class() {
+fn raw_receiver_a_parameterized_type_returned_by_a_raw_receiver_is_its_raw_class() {
     let snippet = "void audit(Box box) {\n    box.names().size();\n}";
 
     let verdicts = verdicts_in_c("", "", snippet, "audit", &raw_box_catalog());
