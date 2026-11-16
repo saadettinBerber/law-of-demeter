@@ -236,7 +236,7 @@ Sonuç: `portOf` aynı kalıyor; `Config` ve `Server` davranış taşımadığı
 
 ## Akışlar, lambdalar ve statik importlar
 
-Akış, lambda ya da metot referansı yabancıyla konuşmayı gizlemez. Araç elemanların nereden geldiğini izler ve zincirle aynı kararı verir. Her örnek, ihlalin düzeltilmiş hâliyle birlikte durur: nesneye sormak yerine ona söylenir. Tam liste [SCENARIOS.md](SCENARIOS.md)'de.
+Akış, lambda ya da metot referansı yabancıyla konuşmayı gizlemez. Araç elemanların nereden geldiğini izler ve zincirle aynı kararı verir. Her ihlalin düzeltilmiş hâli yanında durur: nesneye sormak yerine ona söylenir. Tam liste [SCENARIOS.md](SCENARIOS.md)'de.
 
 Örneklerde `Order`, `Customer` ve `Wallet` davranış taşıyan nesnelerdir. `Order` müşterisini, `Customer` de cüzdanını `getCustomer()` ve `getWallet()` ile verir.
 
@@ -418,7 +418,7 @@ class ReportingService {
 5. `.deposit(bonus)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor.
 6. `entry.getValue().ship()`: Serbest. Değer eşleyici `order -> order` elemanı olduğu gibi verir; sipariş arkadaş.
 
-Sonuç: Harita yabancıyı gizlemez. Anahtarın ve değerin durumu ayrı izlenir: yabancı olan anahtar ve değer ihlal sayılır, sipariş olan değer sayılmaz.
+Sonuç: Harita yabancıyı gizlemez. Anahtar ve değer ayrı izlenir: yabancı olanlar ihlal sayılır, sipariş olan değer sayılmaz.
 
 </details>
 
@@ -444,7 +444,7 @@ class ReportingService {
 2. `Order::activateCustomer`: Serbest. Referans siparişte çağrılıyor; arkadaş.
 3. `order.reward(bonus)` ve `order.ship()`: Serbest. `order`, `orders`'ın elemanı; arkadaş.
 
-Sonuç: Müşteriye ve cüzdana `Order` ulaşıyor. `ReportingService` haritaya ve girdilere hiç ihtiyaç duymuyor.
+Sonuç: `Order` müşteriye ve cüzdana ulaşıyor; `ReportingService` haritaya ve girdilere ihtiyaç duymuyor.
 
 </details>
 
@@ -514,7 +514,7 @@ class GuestService {
 2. `.getWallet()`: Serbest. Bu metot, arkadaş olan `guest()` sonucunda çağrılıyor.
 3. `.deposit(amount)`: Kuralı çiğner. `getWallet()`, `Customer`'ın alanını döndürür ve o cüzdan listede yok.
 
-Sonuç: İmport çağrının nereden geldiğini gizler ama kararı değiştirmez. `guest()` statik çağrı sayılır ve sonucu arkadaştır; o sonucun döndürdüğü cüzdan ise yabancıdır.
+Sonuç: İmport çağrının kaynağını gizler ama kararı değiştirmez. `guest()` statik çağrıdır, sonucu arkadaştır; o sonucun döndürdüğü cüzdan yabancıdır.
 
 </details>
 
