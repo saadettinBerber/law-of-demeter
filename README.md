@@ -593,7 +593,7 @@ src/shop/Account.java  shop.Account  Hibrit sınıf: davranış: withdraw; sette
   2  Döndürülen nesne f'nin arkadaşı değil
 ```
 
-Her satır dosyayı, satırı, sınıfı, metodu, çağrıyı ve nedeni gösterir; ihlal ve hibrit sınıf olduğu için araç 1 ile çıkar.
+Her ihlal satırı dosyayı, satırı, sınıfı, metodu, çağrıyı ve nedeni gösterir; ihlal ve hibrit sınıf olduğu için araç 1 ile çıkar.
 
 </details>
 
