@@ -152,10 +152,7 @@ impl Declared {
     pub(super) fn value_flow(&self, types: &Types, index: usize) -> Flow {
         let returned = self.returned.as_ref();
         let whole = |name: &String| returned == Some(&TypeRef::variable(name));
-        match self.flow(types, self.parameters.get(index).cloned(), whole) {
-            Flow::Values => Flow::Return,
-            flow => flow,
-        }
+        self.flow(types, self.parameters.get(index).cloned(), whole)
     }
 
     fn flow(

@@ -1524,6 +1524,21 @@ fn nested_generic_catalog() -> Types {
                 )),
         )
         .with_method(
+            MethodShape::new("groupingBy")
+                .as_static()
+                .with_type_parameter("T")
+                .with_type_parameter("K")
+                .with_type_parameter("D")
+                .with_parameters(vec![
+                    function(variable("T"), variable("K")),
+                    collector(variable("T"), variable("D")),
+                ])
+                .returning(collector(
+                    variable("T"),
+                    generic_of("java.util.Map", &[variable("K"), variable("D")]),
+                )),
+        )
+        .with_method(
             MethodShape::new("toMap")
                 .as_static()
                 .with_type_parameter("T")
@@ -1915,6 +1930,29 @@ fn violation_12_counter_case_the_value_of_an_entry_mapped_from_the_elements_stay
             "ship",
             4,
             Reason::lambda_parameter("order", Reason::parameter("orders"))
+        ))
+    );
+}
+
+#[test]
+fn violation_12_talking_to_a_value_of_a_map_grouped_over_a_map_a_stream_mapped_by_a_stranger_produced()
+ {
+    let snippet = "void charge(List<Order> orders, Status status) {\n    orders.stream().collect(Collectors.groupingBy(Order::getStatus, Collectors.toMap(Order::getStatus, Order::getCustomer))).get(status).get(status).getWallet();\n}";
+
+    let verdicts = verdicts_in_c(
+        MAP_IMPORTS,
+        "",
+        snippet,
+        "charge",
+        &nested_generic_catalog(),
+    );
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation(
+            "getWallet",
+            3,
+            Reason::return_of("getCustomer")
         ))
     );
 }
