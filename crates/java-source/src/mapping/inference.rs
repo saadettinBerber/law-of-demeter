@@ -45,9 +45,7 @@ pub(super) fn instantiate(
     let settled = instantiated
         .iter()
         .zip(arguments)
-        .all(|(parameter, argument)| {
-            matches!(argument, ArgumentType::Lambda(_)) || !has_variable(parameter)
-        });
+        .all(|(parameter, argument)| argument.is_functional() || !has_variable(parameter));
     settled.then_some((instantiated, bindings))
 }
 

@@ -43,6 +43,11 @@ impl MethodMapper<'_> {
                 {
                     self.lambda(lambda, invocation.parameter(index)).result
                 }
+                model::Expression::MethodReference { target, name, .. }
+                    if invocation.awaits_result(self.types, index) =>
+                {
+                    self.reference_result(target, name, invocation.parameter(index))
+                }
                 _ => None,
             })
             .collect()
@@ -54,7 +59,7 @@ impl MethodMapper<'_> {
         invoked(
             self.types,
             lineage(self.types, &receiver),
-            &call.name,
+            (&call.name, Dispatch::Any),
             &arguments,
         )
     }
@@ -70,7 +75,12 @@ impl MethodMapper<'_> {
         if !is_the_class {
             return None;
         }
-        invoked(self.types, own, CONSTRUCTOR_NAME, &arguments)
+        invoked(
+            self.types,
+            own,
+            (CONSTRUCTOR_NAME, Dispatch::Any),
+            &arguments,
+        )
     }
 
     fn argument_types(&mut self, arguments: &[model::Expression]) -> Vec<Option<ArgumentType>> {
@@ -86,6 +96,7 @@ impl MethodMapper<'_> {
             model::Expression::Lambda(lambda) => {
                 Some(ArgumentType::Lambda(lambda.parameters.len()))
             }
+            model::Expression::MethodReference { .. } => Some(ArgumentType::Reference),
             other => self
                 .type_of(other)
                 .filter(|type_ref| is_known(self.types, type_ref))
@@ -156,6 +167,10 @@ impl Invocation {
         }
     }
 
+    pub(super) fn returns_to(&self, types: &Types) -> Option<TypeRef> {
+        self.returned(types, &[], None)
+    }
+
     pub(super) fn awaits_result(&self, types: &Types, index: usize) -> bool {
         self.functional_returns(types, index)
             .is_some_and(|returned| has_variable(&returned))
@@ -202,13 +217,30 @@ impl Invocation {
     }
 }
 
-fn invoked(
+#[derive(Clone, Copy)]
+pub(super) enum Dispatch {
+    Any,
+    Static,
+    Instance,
+}
+
+impl Dispatch {
+    fn admits(self, method: &MethodShape) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Static => method.is_static(),
+            Self::Instance => !method.is_static(),
+        }
+    }
+}
+
+pub(super) fn invoked(
     types: &Types,
     ancestors: Vec<Ancestor>,
-    method: &str,
+    (method, dispatch): (&str, Dispatch),
     arguments: &[Option<ArgumentType>],
 ) -> Option<Invocation> {
-    let candidates = candidates(&ancestors, method, arguments.len());
+    let candidates = candidates(&ancestors, (method, dispatch), arguments.len());
     if candidates.is_empty() {
         return None;
     }
@@ -294,12 +326,15 @@ impl Candidate<'_> {
 
 fn candidates<'a>(
     ancestors: &'a [Ancestor<'a>],
-    method: &str,
+    (method, dispatch): (&str, Dispatch),
     argument_count: usize,
 ) -> Vec<Candidate<'a>> {
     let mut candidates: Vec<Candidate> = Vec::new();
     for ancestor in ancestors {
-        for declared in named(ancestor.shape, method) {
+        for declared in named(ancestor.shape, method)
+            .into_iter()
+            .filter(|declared| dispatch.admits(declared))
+        {
             let candidate = Candidate {
                 method: declared,
                 ancestor,

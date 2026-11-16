@@ -6,6 +6,7 @@ mod lineage;
 mod memo;
 mod overloads;
 mod patterns;
+mod references;
 mod returns;
 mod statements;
 mod steps;

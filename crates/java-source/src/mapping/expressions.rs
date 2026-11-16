@@ -131,9 +131,20 @@ impl MethodMapper<'_> {
                 let mapped = self.lambda(lambda, target);
                 (Argument::Lambda(mapped.lambda), mapped.result)
             }
-            model::Expression::MethodReference { target, name, line } => {
-                let reference = MethodReference::new(self.expression(target), name, *line);
-                (Argument::MethodReference(reference), None)
+            model::Expression::MethodReference {
+                target: referenced,
+                name,
+                line,
+            } => {
+                let result = self.reference_result(referenced, name, target);
+                let reference = MethodReference::new(self.expression(referenced), name, *line);
+                match result {
+                    Some(returned) => (
+                        Argument::MethodReference(reference.returning(returned.clone())),
+                        Some(returned),
+                    ),
+                    None => (Argument::MethodReference(reference), None),
+                }
             }
             other => (Argument::Value(self.expression(other)), None),
         }

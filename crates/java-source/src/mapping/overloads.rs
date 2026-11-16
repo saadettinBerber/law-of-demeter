@@ -12,9 +12,14 @@ pub(super) enum ArgumentType {
     Null,
     Typed(TypeRef),
     Lambda(usize),
+    Reference,
 }
 
 impl ArgumentType {
+    pub(super) fn is_functional(&self) -> bool {
+        matches!(self, Self::Lambda(_) | Self::Reference)
+    }
+
     pub(super) fn of_literal(literal: LiteralType) -> Self {
         match literal {
             LiteralType::Null => Self::Null,
@@ -154,6 +159,10 @@ fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: P
             matches!(parameter, TypeRef::Variable(_))
                 || functional_method(types, parameter)
                     .is_some_and(|functional| functional.parameters.len() == *arity)
+        }
+        ArgumentType::Reference => {
+            matches!(parameter, TypeRef::Variable(_))
+                || functional_method(types, parameter).is_some()
         }
         ArgumentType::Typed(argument) => {
             substitutable(types, argument, parameter)
