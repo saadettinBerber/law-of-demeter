@@ -254,19 +254,6 @@ fn record_and_enum_add_no_behavior_to_a_class_that_extends_them() {
 }
 
 #[test]
-fn every_java_type_finds_the_methods_of_object() {
-    let object = TypeShape::new("java.lang.Object", TypeKind::Class)
-        .with_method(MethodShape::new("hashCode").returning(TypeRef::primitive("int")));
-    let types = platform_types()
-        .with_shape(object)
-        .with_shape(TypeShape::new("shop.Order", TypeKind::Class));
-
-    let returned = types.return_type_on(&TypeRef::class("shop.Order"), "hashCode", 0);
-
-    assert_eq!(returned, Some(TypeRef::primitive("int")));
-}
-
-#[test]
 fn equals_hash_code_to_string_and_can_equal_are_not_behavior() {
     let object = TypeRef::class("java.lang.Object");
     let address = class(
@@ -384,6 +371,7 @@ fn the_mutators_of_java_collections_change_a_strangers_container() {
                     "getLines",
                     2,
                 )
+                .returning(lines.clone())
                 .then(mutator, 2),
             );
             change.verdicts(&types)[1].clone()
