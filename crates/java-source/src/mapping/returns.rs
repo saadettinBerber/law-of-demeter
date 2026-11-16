@@ -386,7 +386,7 @@ impl Candidate<'_> {
         Signature {
             parameters: self.parameters(),
             variable_arity: self.method.is_varargs(),
-            free: self.own_variables(),
+            free: self.method.type_parameters().to_vec(),
         }
     }
 
@@ -400,7 +400,7 @@ impl Candidate<'_> {
             parameters,
             bindings,
             returned: self.returned(),
-            free: self.own_variables(),
+            free: self.method.type_parameters().to_vec(),
             bounds: self.declared_bounds(),
             results: Vec::new(),
             declared: Some(Declared::of(
@@ -413,11 +413,14 @@ impl Candidate<'_> {
     }
 
     fn declared_bounds(&self) -> Bindings {
-        self.own_variables()
-            .into_iter()
+        self.method
+            .type_parameters()
+            .iter()
             .filter_map(|name| {
-                let bound = self.method.type_parameter_bound(&name)?.clone();
-                Some((name, bound))
+                Some((
+                    name.clone(),
+                    self.method.type_parameter_bound(name)?.clone(),
+                ))
             })
             .collect()
     }
@@ -435,13 +438,6 @@ impl Candidate<'_> {
         substitute(type_ref, &|name| {
             self.ancestor.bound(name).filter(|_| !shadowed(name))
         })
-    }
-
-    fn own_variables(&self) -> Vec<String> {
-        if self.is_raw_member() {
-            return Vec::new();
-        }
-        self.method.type_parameters().to_vec()
     }
 
     fn is_raw_member(&self) -> bool {
