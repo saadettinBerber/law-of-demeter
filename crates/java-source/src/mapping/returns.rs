@@ -135,6 +135,11 @@ impl MethodMapper<'_> {
             model::Expression::Call(call) => self.call_type(call),
             model::Expression::New(created) => self.type_ref(&created.created),
             model::Expression::Cast { target, .. } => self.type_ref(target),
+            model::Expression::FieldAccess { target, name } => self.field_access_type(target, name),
+            model::Expression::StaticImport { owner, name } => self.static_field_type(owner, name),
+            model::Expression::OnDemandStaticImport { name, candidates } => {
+                self.on_demand_field_type(candidates, name)
+            }
             _ => None,
         }
     }

@@ -1,6 +1,7 @@
 mod arguments;
 mod conversions;
 mod expressions;
+mod fields;
 mod inference;
 mod lambdas;
 mod lineage;

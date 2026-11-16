@@ -2,7 +2,9 @@ mod mapped;
 
 use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::{Creation, Expression, Method};
-use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
+use law_of_demeter_core::domain::type_shape::{
+    FieldShape, MethodShape, TypeKind, TypeRef, TypeShape,
+};
 use mapped::{call, class, method_f_in, parameter};
 
 fn f(line: usize) -> Method {
@@ -546,6 +548,92 @@ fn a_raw_receiver_still_gives_a_call_returning_a_plain_type_that_type() {
             call(parameter("orders", class("java.util.List")), "owner", 4)
                 .returning(class("Customer"))
                 .then("go", 4)
+        )
+    );
+}
+
+fn customer_field(owner: &str, name: &str) -> TypeShape {
+    shape(owner).with_field(FieldShape::new(name, class("Customer")))
+}
+
+#[test]
+fn a_field_of_a_receiver_gives_the_call_its_return_type() {
+    let source =
+        "class OrderService {\n void f(Order order) {\n  order.customer.getWallet().go();\n }\n}";
+    let types = shop().with_shape(customer_field("Order", "customer"));
+
+    let mapped = method_f_in(source, &types);
+
+    let customer = Expression::field_of(parameter("order", class("Order")), "customer");
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(customer, "getWallet", 3)
+                .returning(class("Wallet"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_field_inherited_from_a_superclass_gives_the_call_its_return_type() {
+    let source =
+        "class OrderService {\n void f(Order order) {\n  order.customer.getWallet().go();\n }\n}";
+    let types = shop()
+        .with_shape(shape("Order").with_superclass(class("Document")))
+        .with_shape(customer_field("Document", "customer"));
+
+    let mapped = method_f_in(source, &types);
+
+    let customer = Expression::field_of(parameter("order", class("Order")), "customer");
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(customer, "getWallet", 3)
+                .returning(class("Wallet"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_statically_imported_constant_gives_the_call_its_return_type() {
+    let source = "import static shop.Limits.LIMIT;\nclass OrderService {\n void f() {\n  LIMIT.getWallet().go();\n }\n}";
+    let limits =
+        shape("shop.Limits").with_field(FieldShape::new("LIMIT", class("Customer")).as_static());
+    let types = shop().with_shape(limits);
+
+    let mapped = method_f_in(source, &types);
+
+    let limit = Expression::field_of(Expression::static_type(class("shop.Limits")), "LIMIT");
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 3).call(
+            call(limit, "getWallet", 4)
+                .returning(class("Wallet"))
+                .then("go", 4)
+        )
+    );
+}
+
+#[test]
+fn an_on_demand_imported_constant_takes_its_type_from_the_first_type_declaring_it() {
+    let source = "import static shop.Colors.*;\nimport static shop.Limits.*;\nclass OrderService {\n void f() {\n  LIMIT.getWallet().go();\n }\n}";
+    let colors = shape("shop.Colors");
+    let limits =
+        shape("shop.Limits").with_field(FieldShape::new("LIMIT", class("Customer")).as_static());
+    let types = shop().with_shape(colors).with_shape(limits);
+
+    let mapped = method_f_in(source, &types);
+
+    let limit =
+        Expression::unresolved_among("LIMIT", vec![class("shop.Colors"), class("shop.Limits")]);
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4).call(
+            call(limit, "getWallet", 5)
+                .returning(class("Wallet"))
+                .then("go", 5)
         )
     );
 }
