@@ -65,7 +65,7 @@ pub(super) fn complete(
         &mut constraints,
     );
     let mut completed = from_arguments.clone();
-    for (name, wanted) in resolve(types, constraints.equal) {
+    for (name, wanted) in resolve(types, closed(constraints.equal)) {
         let fits = completed
             .get(&name)
             .is_none_or(|argument| covers(types, &wanted, argument));
@@ -74,7 +74,7 @@ pub(super) fn complete(
         }
         completed.insert(name, wanted);
     }
-    for (name, wanted) in resolve(types, constraints.lower) {
+    for (name, wanted) in resolve(types, closed(constraints.lower)) {
         completed.entry(name).or_insert(wanted);
     }
     Some(completed)
@@ -187,6 +187,13 @@ fn from_equal(
         }
         _ => {}
     }
+}
+
+fn closed(constraints: Pairs) -> Pairs {
+    constraints
+        .into_iter()
+        .filter(|(_, type_ref)| !has_variable(type_ref))
+        .collect()
 }
 
 fn supertype_arguments(types: &Types, from: &TypeRef, name: &str) -> Vec<TypeRef> {

@@ -103,6 +103,10 @@ impl MethodMapper<'_> {
         }
     }
 
+    pub(super) fn is_open(&mut self, call: &model::Call) -> bool {
+        self.call_type(call).is_none() && self.open_return_of(call).is_some()
+    }
+
     fn open_return_of(&mut self, call: &model::Call) -> Option<TypeRef> {
         self.invocation_of(call)?.open_return()
     }

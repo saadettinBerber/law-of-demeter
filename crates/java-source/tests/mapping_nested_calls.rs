@@ -1,9 +1,9 @@
 mod mapped;
 
 use law_of_demeter_core::domain::classification::Types;
-use law_of_demeter_core::domain::method::{Call, Expression, Method};
+use law_of_demeter_core::domain::method::{Call, Expression, Lambda, Method, MethodReference};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
-use mapped::{call, class, method_f_in};
+use mapped::{call, class, method_f_in, parameter};
 
 fn shape(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -176,6 +176,27 @@ fn collectors_call(name: &str) -> Call {
     call(Expression::static_type(class("Collectors")), name, 3)
 }
 
+fn streamed(name: &str, element: TypeRef) -> Expression {
+    let source = parameter(name, list_of(element.clone()));
+    let stream = call(source, "stream", 3).returning(stream_of(element));
+    Expression::return_of(stream)
+}
+
+fn collecting(source: Expression, collector: Call) -> Method {
+    let collect = call(source, "collect", 3).with(Expression::return_of(collector));
+
+    f(2).call(collect)
+}
+
+fn through(owner: TypeRef, name: &str) -> MethodReference {
+    MethodReference::new(Expression::static_type(owner), name, 3)
+}
+
+fn reading(method: &str, returned: TypeRef) -> Expression {
+    let read = call(Expression::local("customer"), method, 3).returning(returned);
+    Expression::return_of(read)
+}
+
 #[test]
 fn an_argument_that_is_a_generic_call_selects_the_overload_by_its_return_class() {
     let mapped = mapped_collect("Util.take(Collectors.toList())");
@@ -184,4 +205,33 @@ fn an_argument_that_is_a_generic_call_selects_the_overload_by_its_return_class()
         .with(Expression::return_of(collectors_call("toList")))
         .returning(wallet());
     assert_eq!(mapped, f(2).call(take));
+}
+
+#[test]
+fn a_lambda_inside_a_nested_call_gets_its_parameter_from_the_outer_stream() {
+    let mapped = mapped_collect(
+        "customers.stream().collect(Collectors.groupingBy(customer -> customer.getWallet()))",
+    );
+
+    let classifier = Lambda::new(&["customer"])
+        .resolving("customer", customer())
+        .yielding(reading("getWallet", wallet()));
+    let grouping = collectors_call("groupingBy").with(classifier);
+    assert_eq!(
+        mapped,
+        collecting(streamed("customers", customer()), grouping)
+    );
+}
+
+#[test]
+fn a_method_reference_inside_a_nested_call_binds_the_group_key() {
+    let mapped =
+        mapped_collect("customers.stream().collect(Collectors.groupingBy(Customer::getWallet))");
+
+    let classifier = through(customer(), "getWallet").returning(wallet());
+    let grouping = collectors_call("groupingBy").with(classifier);
+    assert_eq!(
+        mapped,
+        collecting(streamed("customers", customer()), grouping)
+    );
 }
