@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::arguments::{judge_arguments, judge_values, value_types};
+use super::arguments::{Links, judge_arguments, judge_values, value_types};
 use super::block::Block;
 use super::call::{Call, Called, standing_after_call, verdict_on};
 use super::reason::{Reason, Verdict};
@@ -133,19 +133,13 @@ impl Expression {
                 Reason::static_type(type_ref.clone()),
                 type_ref.clone(),
             )),
-            Self::Literal => Judged::quiet(Subject {
-                standing: Standing::Friend(Reason::Literal),
-                type_ref: None,
-            }),
+            Self::Literal => Judged::quiet(Subject::new(Standing::Friend(Reason::Literal), None)),
             Self::Operation(operands) => Judged {
                 verdicts: operands
                     .iter()
                     .flat_map(|operand| operand.judge(context).verdicts)
                     .collect(),
-                subject: Subject {
-                    standing: Standing::Friend(Reason::Literal),
-                    type_ref: None,
-                },
+                subject: Subject::new(Standing::Friend(Reason::Literal), None),
             },
             Self::Unresolved { name, candidates } => judge_unresolved(context, name, candidates),
             Self::FieldOf { target, name } => {
@@ -163,7 +157,7 @@ impl Expression {
                     .and_then(|owner| field_type(context.types, owner, name));
                 Judged {
                     verdicts: judged.verdicts,
-                    subject: Subject { standing, type_ref },
+                    subject: Subject::new(standing, type_ref),
                 }
             }
             Self::Lambda(lambda) => lambda.judge_value(context, target),
@@ -235,10 +229,10 @@ fn judge_unresolved(context: &Context, name: &str, candidates: &[TypeRef]) -> Ju
         Some(owner) => {
             Expression::field_of(Expression::static_type(owner.clone()), name).judge(context)
         }
-        None => Judged::quiet(Subject {
-            standing: Standing::Stranger(Reason::unresolved_name(name)),
-            type_ref: None,
-        }),
+        None => Judged::quiet(Subject::new(
+            Standing::Stranger(Reason::unresolved_name(name)),
+            None,
+        )),
     }
 }
 
@@ -304,7 +298,7 @@ impl Creation {
             &self.arguments,
             values,
             &mut invocation,
-            None,
+            &Links::default(),
             (&created, &created),
         );
         Judged {
@@ -427,10 +421,7 @@ impl MethodReference {
             .as_ref()
             .or(target.and_then(|target| target.type_ref));
         let functional = expected.and_then(|expected| context.types.functional_method(expected));
-        let given = Subject {
-            standing: Standing::Friend(Reason::FunctionArgument),
-            type_ref: None,
-        };
+        let given = Subject::new(Standing::Friend(Reason::FunctionArgument), None);
         let produced = self.judge(context, &given, functional.as_ref(), &given);
         Judged {
             verdicts: produced.verdicts,
@@ -518,20 +509,17 @@ impl MethodReference {
     }
 
     fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Subject {
-        Subject {
-            standing: standing_after_call(types, target, &self.name, arguments, false),
-            type_ref: target
+        Subject::new(
+            standing_after_call(types, target, &self.name, arguments, false),
+            target
                 .type_ref
                 .as_ref()
                 .and_then(|target_type| types.return_type_on(target_type, &self.name, arguments)),
-        }
+        )
     }
 
     fn unresolved(&self) -> Subject {
-        Subject {
-            standing: Standing::Stranger(Reason::return_of(&self.name)),
-            type_ref: None,
-        }
+        Subject::new(Standing::Stranger(Reason::return_of(&self.name)), None)
     }
 }
 
@@ -681,10 +669,7 @@ impl Lambda {
                 .or_else(|| context.types.root_supertype());
             inner.bind(
                 parameter,
-                Subject {
-                    standing: Standing::Friend(Reason::parameter(parameter)),
-                    type_ref,
-                },
+                Subject::new(Standing::Friend(Reason::parameter(parameter)), type_ref),
             );
         }
         let (verdicts, _) = self.judge_body(inner);
@@ -698,10 +683,7 @@ impl Lambda {
 fn functional_value(expected: Option<&TypeRef>) -> Subject {
     match expected {
         Some(expected) => Subject::friend(Reason::created(expected.clone()), expected.clone()),
-        None => Subject {
-            standing: Standing::Friend(Reason::Literal),
-            type_ref: None,
-        },
+        None => Subject::new(Standing::Friend(Reason::Literal), None),
     }
 }
 

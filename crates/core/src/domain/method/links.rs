@@ -1,8 +1,11 @@
 use super::nested::{
-    collecting, collector, collectors_call, collectors_static, customer, list_of, order,
-    orders_collected_by, orders_stream, stranger_customers, stream_of, wildcard,
+    collecting, collector, collectors_call, collectors_static, customer, generic, interface,
+    list_of, order, orders_collected_by, orders_stream, stranger_customers, stream_of, variable,
+    wildcard,
 };
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
+use crate::domain::classification::Types;
+use crate::domain::type_shape::{MethodShape, TypeRef};
 
 fn wallet_of_each() -> Expression {
     Expression::return_of(Call::new(Expression::local("each"), "getWallet", 3))
@@ -157,4 +160,83 @@ fn a_nested_call_with_a_resolved_return_is_judged_once_among_the_elements_of_the
         3,
         Reason::lambda_parameter("each", Reason::parameter("orders"))
     )));
+}
+
+fn keyed() -> Types {
+    let keys = generic("java.util.Set", &[variable("K")]);
+    collecting()
+        .with_shape(
+            interface("java.util.Map", &["K", "V"])
+                .with_method(MethodShape::new("keySet").returning(keys)),
+        )
+        .with_shape(interface("java.util.Set", &["E"]))
+}
+
+fn orders_by_customer() -> TypeRef {
+    generic("java.util.Map", &[customer(), list_of(order())])
+}
+
+fn grouping_by_customer() -> Call {
+    collectors_call("groupingBy")
+        .with(MethodReference::new(
+            Expression::static_type(order()),
+            "getCustomer",
+            2,
+        ))
+        .returning(orders_by_customer())
+        .returning_from(&[])
+}
+
+fn withdrawing_from_each_of(customers: Call) -> Method {
+    Method::new("Billing", "charge", 1)
+        .for_each("customer", Expression::return_of(customers))
+        .call(Call::new(Expression::local("customer"), "getWallet", 3))
+}
+
+fn wallet_of_a_stranger_loop_variable() -> Verdict {
+    Verdict::violation(
+        "getWallet",
+        3,
+        Reason::loop_variable("customer", Reason::return_of("getCustomer")),
+    )
+}
+
+#[test]
+fn a_call_reading_the_keys_takes_the_standing_the_link_gave_them() {
+    let keys = grouping_by_customer()
+        .keyed_by(0)
+        .then("keySet", 2)
+        .yielding_keys();
+
+    let verdicts = withdrawing_from_each_of(keys).verdicts(&keyed());
+
+    assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
+}
+
+#[test]
+fn a_call_that_does_not_read_the_keys_keeps_the_standing_of_its_receiver() {
+    let keys = grouping_by_customer().keyed_by(0).then("keySet", 2);
+
+    let verdicts = withdrawing_from_each_of(keys).verdicts(&keyed());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::allowed(
+            "getWallet",
+            3,
+            Reason::loop_variable("customer", Reason::static_result("groupingBy"))
+        ))
+    );
+}
+
+#[test]
+fn a_call_passes_on_the_keys_of_the_argument_the_link_names() {
+    let grouped = orders_collected_by(grouping_by_customer().keyed_by(0))
+        .returning(orders_by_customer())
+        .keyed_by(0);
+
+    let verdicts =
+        withdrawing_from_each_of(grouped.then("keySet", 2).yielding_keys()).verdicts(&keyed());
+
+    assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
 }

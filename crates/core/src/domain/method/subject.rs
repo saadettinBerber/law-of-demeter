@@ -27,20 +27,26 @@ impl Standing {
 pub(super) struct Subject {
     pub(super) standing: Standing,
     pub(super) type_ref: Option<TypeRef>,
+    pub(super) keys: Option<Standing>,
 }
 
 impl Subject {
-    pub(super) fn friend(reason: Reason, type_ref: TypeRef) -> Self {
+    pub(super) fn new(standing: Standing, type_ref: Option<TypeRef>) -> Self {
         Self {
-            standing: Standing::Friend(reason),
-            type_ref: Some(type_ref),
+            standing,
+            type_ref,
+            keys: None,
         }
+    }
+
+    pub(super) fn friend(reason: Reason, type_ref: TypeRef) -> Self {
+        Self::new(Standing::Friend(reason), Some(type_ref))
     }
 
     pub(super) fn through(self, wrap: impl FnOnce(Reason) -> Reason) -> Self {
         Self {
             standing: self.standing.through(wrap),
-            type_ref: self.type_ref,
+            ..self
         }
     }
 
@@ -52,13 +58,12 @@ impl Subject {
     }
 
     pub(super) fn element(&self, types: &Types, wrap: impl FnOnce(Reason) -> Reason) -> Self {
-        Self {
-            standing: self.standing.clone().through(wrap),
-            type_ref: self
-                .type_ref
+        Self::new(
+            self.standing.clone().through(wrap),
+            self.type_ref
                 .as_ref()
                 .and_then(|type_ref| types.element_type_of(type_ref)),
-        }
+        )
     }
 }
 
@@ -126,9 +131,8 @@ impl<'a> Context<'a> {
     }
 
     pub(super) fn local(&self, name: &str) -> Subject {
-        self.locals.get(name).cloned().unwrap_or_else(|| Subject {
-            standing: Standing::Stranger(Reason::unassigned_local(name)),
-            type_ref: None,
+        self.locals.get(name).cloned().unwrap_or_else(|| {
+            Subject::new(Standing::Stranger(Reason::unassigned_local(name)), None)
         })
     }
 }

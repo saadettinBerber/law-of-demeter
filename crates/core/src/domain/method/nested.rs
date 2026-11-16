@@ -14,18 +14,18 @@ fn class(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
 }
 
-fn interface(name: &str, parameters: &[&str]) -> TypeShape {
+pub(super) fn interface(name: &str, parameters: &[&str]) -> TypeShape {
     parameters.iter().fold(
         TypeShape::new(name, TypeKind::Interface),
         |shape, parameter| shape.with_type_parameter(parameter),
     )
 }
 
-fn generic(name: &str, arguments: &[TypeRef]) -> TypeRef {
+pub(super) fn generic(name: &str, arguments: &[TypeRef]) -> TypeRef {
     TypeRef::generic(name, arguments.to_vec())
 }
 
-fn variable(name: &str) -> TypeRef {
+pub(super) fn variable(name: &str) -> TypeRef {
     TypeRef::variable(name)
 }
 

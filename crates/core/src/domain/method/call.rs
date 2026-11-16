@@ -1,4 +1,4 @@
-use super::arguments::{judge_arguments, judge_values, value_types};
+use super::arguments::{Links, judge_arguments, judge_values, value_types};
 use super::expression::{Argument, Expression};
 use super::reason::{Reason, Verdict};
 use super::subject::{Context, Judged, Standing, Subject, Target};
@@ -17,6 +17,8 @@ pub struct Call {
     expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
     flows: Option<Vec<usize>>,
+    keyed_by: Option<usize>,
+    reads_keys: bool,
 }
 
 impl Call {
@@ -29,6 +31,8 @@ impl Call {
             expected: None,
             resolved: None,
             flows: None,
+            keyed_by: None,
+            reads_keys: false,
         }
     }
 
@@ -44,6 +48,16 @@ impl Call {
 
     pub fn returning_from(mut self, arguments: &[usize]) -> Self {
         self.flows = Some(arguments.to_vec());
+        self
+    }
+
+    pub fn keyed_by(mut self, argument: usize) -> Self {
+        self.keyed_by = Some(argument);
+        self
+    }
+
+    pub fn yielding_keys(mut self) -> Self {
+        self.reads_keys = true;
         self
     }
 
@@ -82,7 +96,10 @@ impl Call {
             &self.arguments,
             values,
             &mut invocation,
-            self.flows.as_deref(),
+            &Links {
+                flows: self.flows.as_deref(),
+                keyed_by: self.keyed_by,
+            },
             (&receiver.subject, outer),
         );
         verdicts.extend(judged.verdicts);
@@ -100,17 +117,19 @@ impl Call {
             Self::is_container(context.types, receiver.subject.type_ref.as_ref())
                 && Self::is_container(context.types, type_ref.as_ref())
         });
+        let read_keys = receiver.subject.keys.clone().filter(|_| self.reads_keys);
+        let standing = read_keys.or(mapped).unwrap_or_else(|| {
+            standing_after_call(
+                context.types,
+                &receiver.subject,
+                &self.name,
+                self.arguments.len(),
+                matches!(self.receiver, Expression::StaticType(_)),
+            )
+        });
         let subject = Subject {
-            standing: mapped.unwrap_or_else(|| {
-                standing_after_call(
-                    context.types,
-                    &receiver.subject,
-                    &self.name,
-                    self.arguments.len(),
-                    matches!(self.receiver, Expression::StaticType(_)),
-                )
-            }),
-            type_ref,
+            keys: judged.keys,
+            ..Subject::new(standing, type_ref)
         };
         Judged { verdicts, subject }
     }

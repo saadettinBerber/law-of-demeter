@@ -4,9 +4,16 @@ use super::subject::{Context, Judged, Standing, Subject, Target};
 use crate::domain::classification::{Invocation, has_variable};
 use crate::domain::type_shape::TypeRef;
 
+#[derive(Default)]
+pub(super) struct Links<'a> {
+    pub(super) flows: Option<&'a [usize]>,
+    pub(super) keyed_by: Option<usize>,
+}
+
 pub(super) struct Judgement {
     pub(super) verdicts: Vec<Verdict>,
     pub(super) mapped: Option<Standing>,
+    pub(super) keys: Option<Standing>,
 }
 
 pub(super) fn judge_values(
@@ -37,33 +44,44 @@ pub(super) fn judge_arguments(
     arguments: &[Argument],
     values: Vec<Option<Judged>>,
     invocation: &mut Invocation,
-    flows: Option<&[usize]>,
+    links: &Links,
     (feed, outer): (&Subject, &Subject),
 ) -> Judgement {
     let mut verdicts = Vec::new();
     let mut mapped = None;
+    let mut keys = None;
     for (index, (argument, value)) in arguments.iter().zip(values).enumerate() {
         match value {
             Some(judged) => {
                 let judged = settled(context, argument, index, judged, invocation, outer);
                 verdicts.extend(judged.verdicts);
+                if links.keyed_by == Some(index) {
+                    keys = keys.or(judged.subject.keys);
+                }
             }
             None => {
                 let functional = invocation.functional_method(context.types, index);
                 let produced = argument.judge(context, feed, functional.as_ref(), outer);
                 verdicts.extend(produced.verdicts);
                 invocation.yielded(context.types, index, produced.result.as_ref());
-                let feeds_return = match flows {
+                let feeds_return = match links.flows {
                     Some(flows) => flows.contains(&index),
                     None => invocation.feeds_return(context.types, index),
                 };
+                if links.keyed_by == Some(index) {
+                    keys = keys.or(produced.standing.clone());
+                }
                 if feeds_return {
                     mapped = mapped.or(produced.standing);
                 }
             }
         }
     }
-    Judgement { verdicts, mapped }
+    Judgement {
+        verdicts,
+        mapped,
+        keys,
+    }
 }
 
 fn settled(
