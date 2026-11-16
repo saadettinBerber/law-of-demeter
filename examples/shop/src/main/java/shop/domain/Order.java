@@ -69,6 +69,26 @@ public class Order {
         status = Status.SHIPPED;
     }
 
+    public void charge(int amount) {
+        customer.charge(amount);
+    }
+
+    public int balance() {
+        return customer.balance();
+    }
+
+    public void activateCustomer() {
+        customer.activate();
+    }
+
+    public void reward(int bonus) {
+        customer.deposit(bonus);
+    }
+
+    public void applyDiscount(int rate) {
+        lines.forEach(line -> line.applyDiscount(rate));
+    }
+
     public static class Builder {
         private String id;
         private int total;

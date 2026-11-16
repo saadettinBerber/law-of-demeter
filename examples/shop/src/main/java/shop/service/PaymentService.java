@@ -21,4 +21,8 @@ public class PaymentService extends BaseService {
     public void withdraw(int amount) {
         wallet.withdraw(amount);
     }
+
+    public void charge(Order order, int amount) {
+        order.charge(amount);
+    }
 }

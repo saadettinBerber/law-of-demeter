@@ -7,6 +7,7 @@ public class Customer {
     private final Wallet wallet;
     private String name;
     private Address address;
+    private boolean active;
 
     public Customer(CustomerId id, Wallet wallet, String name) {
         this.id = id;
@@ -24,6 +25,22 @@ public class Customer {
 
     public Address getAddress() {
         return address;
+    }
+
+    public int balance() {
+        return wallet.getBalance();
+    }
+
+    public void charge(int amount) {
+        wallet.withdraw(amount);
+    }
+
+    public void deposit(int amount) {
+        wallet.deposit(amount);
+    }
+
+    public void activate() {
+        this.active = true;
     }
 
     public void rename(@NonNull String newName) {

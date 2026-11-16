@@ -26,4 +26,8 @@ public class BillingService {
     public long paidCount(List<Order> batch) {
         return batch.stream().filter(Order::isPaid).count();
     }
+
+    public void chargeOrders(int amount) {
+        orders.forEach(order -> order.charge(amount));
+    }
 }

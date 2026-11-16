@@ -396,7 +396,7 @@ private Order(Builder builder) {
 
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
-- **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34), [`Order.java:72-101`](examples/shop/src/main/java/shop/domain/Order.java#L72-L101)
+- **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34), [`Order.java:92-121`](examples/shop/src/main/java/shop/domain/Order.java#L92-L121)
 
 </details>
 

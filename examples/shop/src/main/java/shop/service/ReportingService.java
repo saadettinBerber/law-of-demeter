@@ -70,4 +70,8 @@ public class ReportingService {
     public void discountLines(Order order) {
         new Batch<>(order.getLines(), line -> line.applyDiscount(10));
     }
+
+    public List<Integer> balancesOf(Order[] batch) {
+        return Arrays.stream(batch).map(Order::balance).toList();
+    }
 }
