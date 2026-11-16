@@ -111,4 +111,8 @@ pub fn java_platform() -> Platform {
             platform.with_behaviorless_supertype(name)
         })
         .with_root_supertype("java.lang.Object")
+        .with_object_method("equals", 1)
+        .with_object_method("hashCode", 0)
+        .with_object_method("toString", 0)
+        .with_object_method("canEqual", 1)
 }

@@ -180,6 +180,18 @@ impl Types {
         self.platform.root_supertype().map(TypeRef::class)
     }
 
+    fn is_object_method(&self, method: &MethodShape) -> bool {
+        self.platform
+            .is_object_method(method.name(), method.parameters().len())
+    }
+
+    fn is_exposed(&self, method: &MethodShape) -> bool {
+        !method.is_private()
+            && !method.is_static()
+            && !self.is_object_method(method)
+            && method.name() != "<init>"
+    }
+
     fn is_root_supertype(&self, name: &str) -> bool {
         self.platform.root_supertype() == Some(name)
     }
@@ -329,7 +341,7 @@ impl Types {
             let declared: Vec<_> = class
                 .methods()
                 .iter()
-                .filter(|method| is_exposed(method) && !is_to_builder(class, method))
+                .filter(|method| self.is_exposed(method) && !is_to_builder(class, method))
                 .collect();
             let visible: Vec<_> = declared
                 .iter()
@@ -491,20 +503,6 @@ fn takes_exactly(argument_count: usize) -> impl Fn(&MethodShape) -> bool {
 
 fn takes_variable(argument_count: usize) -> impl Fn(&MethodShape) -> bool {
     move |candidate| candidate.is_varargs() && candidate.parameters().len() <= argument_count + 1
-}
-
-fn is_object_method(method: &MethodShape) -> bool {
-    matches!(
-        (method.name(), method.parameters().len()),
-        ("equals" | "canEqual", 1) | ("hashCode" | "toString", 0)
-    )
-}
-
-fn is_exposed(method: &MethodShape) -> bool {
-    !method.is_private()
-        && !method.is_static()
-        && !is_object_method(method)
-        && method.name() != "<init>"
 }
 
 fn is_to_builder(class: &TypeShape, method: &MethodShape) -> bool {

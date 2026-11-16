@@ -262,3 +262,28 @@ fn every_java_type_finds_the_methods_of_object() {
 
     assert_eq!(returned, Some(TypeRef::primitive("int")));
 }
+
+#[test]
+fn equals_hash_code_to_string_and_can_equal_are_not_behavior() {
+    let object = TypeRef::class("java.lang.Object");
+    let address = class(
+        "shop.Address",
+        "java.lang.Object",
+        vec![
+            getter("getCity", "city"),
+            MethodShape::new("equals")
+                .with_parameters(vec![object.clone()])
+                .returning(TypeRef::primitive("boolean")),
+            MethodShape::new("hashCode").returning(TypeRef::primitive("int")),
+            MethodShape::new("toString").returning(TypeRef::class("java.lang.String")),
+            MethodShape::new("canEqual")
+                .with_parameters(vec![object])
+                .returning(TypeRef::primitive("boolean")),
+        ],
+    );
+    let types = platform_types().with_shape(address);
+
+    let classification = types.classify(&TypeRef::class("shop.Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}

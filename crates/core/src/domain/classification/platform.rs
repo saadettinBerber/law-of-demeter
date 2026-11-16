@@ -8,6 +8,7 @@ pub struct Platform {
     namespaces: Vec<(String, Classification)>,
     behaviorless_supertypes: HashSet<String>,
     root_supertype: Option<String>,
+    object_methods: HashSet<(String, usize)>,
 }
 
 impl Platform {
@@ -35,6 +36,12 @@ impl Platform {
         self
     }
 
+    pub fn with_object_method(mut self, name: &str, parameter_count: usize) -> Self {
+        self.object_methods
+            .insert((name.to_owned(), parameter_count));
+        self
+    }
+
     pub(super) fn classify(&self, name: &str) -> Option<Classification> {
         self.types.get(name).copied().or_else(|| {
             self.namespaces
@@ -46,6 +53,11 @@ impl Platform {
 
     pub(super) fn root_supertype(&self) -> Option<&str> {
         self.root_supertype.as_deref()
+    }
+
+    pub(super) fn is_object_method(&self, name: &str, parameter_count: usize) -> bool {
+        self.object_methods
+            .contains(&(name.to_owned(), parameter_count))
     }
 
     pub(super) fn is_behaviorless(&self, name: &str) -> bool {

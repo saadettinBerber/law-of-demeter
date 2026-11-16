@@ -67,6 +67,24 @@ fn every_type_finds_the_methods_of_the_root_supertype_the_platform_names() {
 }
 
 #[test]
+fn a_method_the_platform_says_every_object_has_is_not_behavior() {
+    let address = TypeShape::new("Address", TypeKind::Class)
+        .with_method(
+            MethodShape::new("getCity")
+                .returning(TypeRef::class("Text"))
+                .reading("city"),
+        )
+        .with_method(MethodShape::new("describe").returning(TypeRef::class("Text")));
+    let types = Types::new()
+        .with_platform(Platform::new().with_object_method("describe", 0))
+        .with_shape(address);
+
+    let classification = types.classify(&TypeRef::class("Address"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
 fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argument() {
     let order = TypeRef::class("Order");
     let types = Types::new()

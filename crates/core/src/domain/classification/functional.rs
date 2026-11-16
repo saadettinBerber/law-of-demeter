@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{Types, class_name, is_object_method, substitute};
+use super::{Types, class_name, substitute};
 use crate::domain::type_shape::{TypeKind, TypeRef};
 
 pub(crate) struct FunctionalMethod {
@@ -25,7 +25,7 @@ impl Types {
             for method in shape
                 .methods()
                 .iter()
-                .filter(|method| !is_object_method(method))
+                .filter(|method| !self.is_object_method(method))
             {
                 declared
                     .entry((method.name(), method.parameters().len()))
