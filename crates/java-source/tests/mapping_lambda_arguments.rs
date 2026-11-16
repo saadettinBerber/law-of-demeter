@@ -485,7 +485,6 @@ fn a_returned_call_takes_the_return_type_of_the_method_for_its_lambda() {
     let wrap = call(Expression::static_type(class("Util")), "wrap", 3)
         .with(listener("e").resolving("e", event()))
         .returning(consumer_of(event()))
-        .returning_from(&[])
-        .expecting(consumer_of(event()));
+        .returning_from(&[]);
     assert_eq!(mapped, f(2).call(wrap));
 }

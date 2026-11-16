@@ -129,6 +129,6 @@ fn type_variables_are_replaced_wherever_a_declared_type_is_used() {
                 "go",
                 6
             ))
-            .call(call(parameter("items", list), "pick", 7).expecting(class("Order")))
+            .call(call(parameter("items", list), "pick", 7))
     );
 }

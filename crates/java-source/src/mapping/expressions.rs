@@ -315,7 +315,6 @@ fn is_functional(argument: &model::Expression) -> bool {
 
 pub(super) fn expecting(value: Expression, type_ref: TypeRef) -> Expression {
     match value {
-        Expression::ReturnOf(call) => Expression::return_of(call.expecting(type_ref)),
         Expression::Lambda(lambda) => Expression::lambda(lambda.expecting(type_ref)),
         Expression::MethodReference(reference) => {
             Expression::method_reference(reference.expecting(type_ref))

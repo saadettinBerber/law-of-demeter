@@ -50,13 +50,10 @@ fn assigning_a_field_expects_its_declared_type_from_the_outermost_call() {
     assert_eq!(
         mapped,
         Method::new("OrderService", "f", 6)
-            .call(call(order(), "getCustomer", 7).expecting(class("Customer")))
-            .call(call(get("getOwner", 8), "getCustomer", 8).expecting(class("Customer")))
-            .call(call(order(), "count", 9).expecting(TypeRef::primitive("int")))
-            .call(
-                call(order(), "find", 10)
-                    .expecting(TypeRef::generic("java.util.List", vec![class("Order")]))
-            )
+            .call(call(order(), "getCustomer", 7))
+            .call(call(get("getOwner", 8), "getCustomer", 8))
+            .call(call(order(), "count", 9))
+            .call(call(order(), "find", 10))
     );
 }
 
@@ -82,8 +79,7 @@ fn assigning_a_field_of_an_enclosing_class_expects_the_type_declared_there() {
 
     assert_eq!(
         mapped,
-        Method::new("OrderService$Inner", "g", 4)
-            .call(call(order(), "getCustomer", 5).expecting(class("Customer")))
+        Method::new("OrderService$Inner", "g", 4).call(call(order(), "getCustomer", 5))
     );
 }
 

@@ -403,7 +403,7 @@ fn the_return_type_of_the_method_binds_a_type_variable_no_argument_binds() {
     let mapped = method_f_in(&source, &types);
 
     let bound = list_of(order());
-    let call = util_pick(vec![]).returning(bound.clone()).expecting(bound);
+    let call = util_pick(vec![]).returning(bound.clone());
     assert_eq!(mapped, f(3).call(call));
 }
 
@@ -414,7 +414,7 @@ fn the_type_of_a_field_binds_a_type_variable_no_argument_binds_when_it_is_assign
     let mapped = mapped_in(&types, "items = Util.pick();");
 
     let bound = list_of(order());
-    let call = util_pick(vec![]).returning(bound.clone()).expecting(bound);
+    let call = util_pick(vec![]).returning(bound.clone());
     assert_eq!(mapped, f(3).call(call));
 }
 

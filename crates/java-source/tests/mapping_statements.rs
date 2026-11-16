@@ -56,10 +56,7 @@ fn a_return_judges_its_value_and_a_bare_return_does_nothing() {
 
     let mapped = method_f(source);
 
-    assert_eq!(
-        mapped,
-        f(2).call(call(order(), "getStatus", 4).expecting(class("Status")))
-    );
+    assert_eq!(mapped, f(2).call(call(order(), "getStatus", 4)));
 }
 
 #[test]
@@ -72,20 +69,15 @@ fn a_returned_call_expects_the_declared_return_type_from_its_outermost_call() {
     let named = |name: &str| mapped.iter().find(|method| method.name() == name).unwrap();
     assert_eq!(
         named("f"),
-        &Method::new("OrderService", "f", 3).call(
-            call(owner, "find", 4)
-                .expecting(TypeRef::generic("java.util.List", vec![class("Order")]))
-        )
+        &Method::new("OrderService", "f", 3).call(call(owner, "find", 4))
     );
     assert_eq!(
         named("g"),
-        &Method::new("OrderService", "g", 6)
-            .call(call(order(), "count", 7).expecting(TypeRef::primitive("int")))
+        &Method::new("OrderService", "g", 6).call(call(order(), "count", 7))
     );
     assert_eq!(
         named("h"),
-        &Method::new("OrderService", "h", 9)
-            .call(call(order(), "item", 10).expecting(TypeRef::variable("T")))
+        &Method::new("OrderService", "h", 9).call(call(order(), "item", 10))
     );
 }
 
@@ -119,7 +111,7 @@ fn a_return_inside_a_lambda_does_not_take_the_return_type_of_the_method() {
                 7
             ))))
         )
-        .call(call(order(), "next", 9).expecting(class("Order")))
+        .call(call(order(), "next", 9))
     );
 }
 

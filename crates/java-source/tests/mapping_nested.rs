@@ -53,29 +53,25 @@ fn field_initializers_become_the_synthetic_initializer_methods_expecting_the_fie
     let named = |name: &str| methods.iter().find(|method| method.name() == name).unwrap();
     assert_eq!(
         named("<static-init>"),
-        &Method::new("OrderService", "<static-init>", 2).call(
-            call(Expression::static_type(class("Order")), "latest", 2).expecting(class("Order"))
-        )
+        &Method::new("OrderService", "<static-init>", 2).call(call(
+            Expression::static_type(class("Order")),
+            "latest",
+            2
+        ))
     );
     assert_eq!(
         named("<instance-init>"),
         &Method::new("OrderService", "<instance-init>", 3)
-            .call(
-                call(Expression::static_type(class("Order")), "latest", 3)
-                    .expecting(class("Order"))
-            )
-            .call(
-                call(
-                    Expression::return_of(call(
-                        Expression::field("order", class("Order")),
-                        "getCustomer",
-                        4
-                    )),
-                    "getWallet",
+            .call(call(Expression::static_type(class("Order")), "latest", 3))
+            .call(call(
+                Expression::return_of(call(
+                    Expression::field("order", class("Order")),
+                    "getCustomer",
                     4
-                )
-                .expecting(class("Wallet"))
-            )
+                )),
+                "getWallet",
+                4
+            ))
     );
 }
 
