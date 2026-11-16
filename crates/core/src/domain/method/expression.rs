@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use super::arguments::{Links, judge_arguments, judge_values, value_types};
+use super::arguments::{Links, judge_arguments, judge_values};
 use super::block::Block;
 use super::call::{Call, Called, standing_after_call, verdict_on};
 use super::reason::{Reason, Verdict};
@@ -128,7 +128,7 @@ impl Expression {
             }
             Self::ReturnOf(call) => call.judge_expecting(context, target),
             Self::Local(name) => Judged::quiet(context.local(name)),
-            Self::New(creation) => creation.judge_expecting(context, target),
+            Self::New(creation) => creation.judge(context),
             Self::StaticType(type_ref) => Judged::quiet(Subject::friend(
                 Reason::static_type(type_ref.clone()),
                 type_ref.clone(),
@@ -283,21 +283,16 @@ impl Creation {
         self
     }
 
-    pub(super) fn judge_expecting(&self, context: &Context, target: Option<Target>) -> Judged {
+    pub(super) fn judge(&self, context: &Context) -> Judged {
         let created = Subject::friend(
             Reason::created(self.type_ref.clone()),
             self.type_ref.clone(),
         );
         let values = judge_values(context, &self.arguments, &created);
-        let mut invocation = context
-            .types
-            .construction(&self.type_ref, &value_types(&values))
-            .expecting(context.types, target.and_then(|target| target.type_ref));
         let judged = judge_arguments(
             context,
             &self.arguments,
             values,
-            &mut invocation,
             &Links::default(),
             (&created, &created),
         );
@@ -310,7 +305,6 @@ impl Creation {
 
 pub(super) struct Produced {
     pub(super) verdicts: Vec<Verdict>,
-    pub(super) result: Option<TypeRef>,
     pub(super) standing: Option<Standing>,
 }
 
@@ -357,7 +351,6 @@ impl Argument {
                 let judged = value.judge(context);
                 Produced {
                     verdicts: judged.verdicts,
-                    result: judged.subject.type_ref,
                     standing: Some(judged.subject.standing),
                 }
             }
@@ -442,7 +435,7 @@ impl MethodReference {
         let mut verdicts = target.verdicts;
         let taken = self.arity;
         let arity = taken.unwrap_or(0);
-        let result = match &self.target {
+        let standing = match &self.target {
             _ if self.name == "new" => taken.map(|_| self.constructed(types, &target.subject)),
             Expression::StaticType(owner) if types.declares_static(owner, &self.name) => {
                 verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
@@ -462,15 +455,7 @@ impl MethodReference {
                 taken.map(|_| self.on(types, &target.subject, arity))
             }
         };
-        let result = result.map(|subject| Subject {
-            type_ref: self.resolved.clone().or(subject.type_ref),
-            ..subject
-        });
-        Produced {
-            verdicts,
-            result: result.as_ref().and_then(|subject| subject.type_ref.clone()),
-            standing: result.map(|subject| subject.standing),
-        }
+        Produced { verdicts, standing }
     }
 
     fn called(&self, argument_count: usize) -> Called<'_> {
@@ -488,31 +473,22 @@ impl MethodReference {
             .declared_as(known)
     }
 
-    fn constructed(&self, types: &Types, target: &Subject) -> Subject {
+    fn constructed(&self, types: &Types, target: &Subject) -> Standing {
         match &self.target {
-            Expression::StaticType(created) => {
-                Subject::friend(Reason::created(created.clone()), created.clone())
-            }
+            Expression::StaticType(created) => Standing::Friend(Reason::created(created.clone())),
             _ => self.on(types, target, 0),
         }
     }
 
-    fn static_result(&self) -> Subject {
-        self.resolved
-            .clone()
-            .map(|type_ref| Subject::friend(Reason::static_result(&self.name), type_ref))
-            .unwrap_or_else(|| self.unresolved())
+    fn static_result(&self) -> Standing {
+        match self.resolved {
+            Some(_) => Standing::Friend(Reason::static_result(&self.name)),
+            None => Standing::Stranger(Reason::return_of(&self.name)),
+        }
     }
 
-    fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Subject {
-        Subject::new(
-            standing_after_call(types, target, &self.name, arguments, false),
-            None,
-        )
-    }
-
-    fn unresolved(&self) -> Subject {
-        Subject::new(Standing::Stranger(Reason::return_of(&self.name)), None)
+    fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Standing {
+        standing_after_call(types, target, &self.name, arguments, false)
     }
 }
 
@@ -613,9 +589,6 @@ impl Lambda {
         let (verdicts, yielded) = self.judge_body(inner);
         Produced {
             verdicts,
-            result: yielded
-                .as_ref()
-                .and_then(|subject| subject.type_ref.clone()),
             standing: yielded.map(|subject| subject.standing),
         }
     }

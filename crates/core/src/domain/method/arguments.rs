@@ -1,12 +1,12 @@
 use super::expression::Argument;
 use super::reason::Verdict;
 use super::subject::{Context, Judged, Standing, Subject, Target};
-use crate::domain::classification::{Invocation, has_variable};
+use crate::domain::classification::has_variable;
 use crate::domain::type_shape::TypeRef;
 
 #[derive(Default)]
 pub(super) struct Links<'a> {
-    pub(super) flows: Option<&'a [usize]>,
+    pub(super) flows: &'a [usize],
     pub(super) keyed_by: Option<usize>,
 }
 
@@ -43,7 +43,6 @@ pub(super) fn judge_arguments(
     context: &Context,
     arguments: &[Argument],
     values: Vec<Option<Judged>>,
-    invocation: &mut Invocation,
     links: &Links,
     (feed, outer): (&Subject, &Subject),
 ) -> Judgement {
@@ -61,15 +60,10 @@ pub(super) fn judge_arguments(
             None => {
                 let produced = argument.judge(context, feed, outer);
                 verdicts.extend(produced.verdicts);
-                invocation.yielded(context.types, index, produced.result.as_ref());
-                let feeds_return = match links.flows {
-                    Some(flows) => flows.contains(&index),
-                    None => invocation.feeds_return(context.types, index),
-                };
                 if links.keyed_by == Some(index) {
                     keys = keys.or(produced.standing.clone());
                 }
-                if feeds_return {
+                if links.flows.contains(&index) {
                     mapped = mapped.or(produced.standing);
                 }
             }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use super::{FunctionalMethod, Types, class_name, substitute};
-use crate::domain::type_shape::{MethodShape, TypeRef, TypeShape};
+use super::{Types, class_name, substitute};
+use crate::domain::type_shape::{MethodShape, TypeRef};
 
 pub(crate) struct Invocation {
     parameters: Vec<TypeRef>,
@@ -38,42 +38,6 @@ impl Invocation {
             method,
             method.type_parameters().to_vec(),
             method.returns().cloned(),
-            class_bindings,
-            values,
-        )
-    }
-
-    pub(super) fn constructing(
-        types: &Types,
-        class: &TypeShape,
-        constructor: &MethodShape,
-        created: &TypeRef,
-        class_bindings: &HashMap<String, TypeRef>,
-        values: &[Option<&TypeRef>],
-    ) -> Self {
-        let inferred = class_bindings.is_empty() && !class.type_parameters().is_empty();
-        let (free, returns) = if inferred {
-            let variables = class
-                .type_parameters()
-                .iter()
-                .map(|parameter| TypeRef::variable(parameter));
-            (
-                class
-                    .type_parameters()
-                    .iter()
-                    .chain(constructor.type_parameters())
-                    .cloned()
-                    .collect(),
-                TypeRef::generic(class.name(), variables.collect()),
-            )
-        } else {
-            (constructor.type_parameters().to_vec(), created.clone())
-        };
-        Self::build(
-            types,
-            constructor,
-            free,
-            Some(returns),
             class_bindings,
             values,
         )
@@ -117,35 +81,6 @@ impl Invocation {
             self.unify(types, &returns, expected);
         }
         self
-    }
-
-    pub(crate) fn yielded(&mut self, types: &Types, index: usize, result: Option<&TypeRef>) {
-        let returned = self
-            .functional_method(types, index)
-            .and_then(|functional| functional.returns);
-        if let Some((returned, result)) = returned.zip(result) {
-            self.unify(types, &returned, result);
-        }
-    }
-
-    pub(crate) fn feeds_return(&self, types: &Types, index: usize) -> bool {
-        let yielded = self
-            .parameters
-            .get(index)
-            .and_then(|parameter| types.functional_method(parameter))
-            .and_then(|functional| functional.returns);
-        yielded
-            .zip(self.returns.as_ref())
-            .is_some_and(|(yielded, returned)| {
-                self.free
-                    .iter()
-                    .any(|name| mentions(&yielded, name) && mentions(returned, name))
-            })
-    }
-
-    fn functional_method(&self, types: &Types, index: usize) -> Option<FunctionalMethod> {
-        let parameter = self.parameters.get(index)?;
-        types.functional_method(&substitute(parameter, &self.bindings))
     }
 
     pub(crate) fn returns(&self) -> Option<TypeRef> {
@@ -262,17 +197,6 @@ fn arguments_in_ancestors(types: &Types, type_ref: &TypeRef, name: &str) -> Opti
             } if ancestor_name == name => Some(arguments),
             _ => None,
         })
-}
-
-fn mentions(type_ref: &TypeRef, name: &str) -> bool {
-    match type_ref {
-        TypeRef::Variable(variable) => variable == name,
-        TypeRef::Class { arguments, .. } => {
-            arguments.iter().any(|argument| mentions(argument, name))
-        }
-        TypeRef::Array(element) => mentions(element, name),
-        TypeRef::Primitive(_) => false,
-    }
 }
 
 fn expanded_parameters(method: &MethodShape, argument_count: usize) -> Vec<TypeRef> {

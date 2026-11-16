@@ -16,7 +16,7 @@ pub struct Call {
     arguments: Vec<Argument>,
     expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
-    flows: Option<Vec<usize>>,
+    flows: Vec<usize>,
     keyed_by: Option<usize>,
     reads_keys: bool,
 }
@@ -30,7 +30,7 @@ impl Call {
             arguments: Vec::new(),
             expected: None,
             resolved: None,
-            flows: None,
+            flows: Vec::new(),
             keyed_by: None,
             reads_keys: false,
         }
@@ -47,7 +47,7 @@ impl Call {
     }
 
     pub fn returning_from(mut self, arguments: &[usize]) -> Self {
-        self.flows = Some(arguments.to_vec());
+        self.flows = arguments.to_vec();
         self
     }
 
@@ -85,7 +85,7 @@ impl Call {
             .expected
             .as_ref()
             .or(target.and_then(|target| target.type_ref));
-        let mut invocation = self.invocation(
+        let invocation = self.invocation(
             context.types,
             &receiver.subject,
             &value_types(&values),
@@ -95,9 +95,8 @@ impl Call {
             context,
             &self.arguments,
             values,
-            &mut invocation,
             &Links {
-                flows: self.flows.as_deref(),
+                flows: &self.flows,
                 keyed_by: self.keyed_by,
             },
             (&receiver.subject, outer),

@@ -1,4 +1,3 @@
-mod functional;
 mod invocation;
 mod naming;
 mod platform;
@@ -8,7 +7,6 @@ pub use platform::Platform;
 
 use std::collections::{HashMap, HashSet};
 
-pub(crate) use functional::FunctionalMethod;
 pub(crate) use invocation::{Invocation, has_variable};
 
 use super::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
@@ -98,37 +96,6 @@ impl Types {
                 unambiguous_return(&overloads)
                     .map(|returned| substitute(returned, &class_bindings)),
             ),
-        }
-    }
-
-    pub(crate) fn construction(
-        &self,
-        created: &TypeRef,
-        values: &[Option<&TypeRef>],
-    ) -> Invocation {
-        let Some((shape, class_bindings)) = self.bound(created) else {
-            return Invocation::unknown();
-        };
-        let constructors = || {
-            shape
-                .methods()
-                .iter()
-                .filter(|method| self.platform.is_constructor(method.name()))
-        };
-        let fixed: Vec<_> = constructors()
-            .filter(|method| takes_exactly(values.len())(method))
-            .collect();
-        let overloads = if fixed.is_empty() {
-            constructors()
-                .filter(|method| takes_variable(values.len())(method))
-                .collect()
-        } else {
-            fixed
-        };
-        let overloads = invocation::applicable(self, overloads, &class_bindings, values);
-        match overloads.as_slice() {
-            [only] => Invocation::constructing(self, shape, only, created, &class_bindings, values),
-            _ => Invocation::ambiguous(None),
         }
     }
 
