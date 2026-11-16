@@ -80,7 +80,9 @@ mod calibration;
 #[cfg(test)]
 mod compound;
 #[cfg(test)]
-mod inference;
+mod fluent_varargs;
+#[cfg(test)]
+mod functional_values;
 #[cfg(test)]
 mod links;
 #[cfg(test)]
@@ -92,8 +94,6 @@ mod resolved;
 #[cfg(test)]
 mod scenarios;
 #[cfg(test)]
-mod targets;
+mod stream_standing;
 #[cfg(test)]
 mod tests;
-#[cfg(test)]
-mod varargs;
