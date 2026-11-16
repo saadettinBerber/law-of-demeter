@@ -34,4 +34,8 @@ public class EventDispatcher {
     public void listenTyped() {
         Consumer<Event> typed = (Event e) -> e.getReceipt().getOrder().ship();
     }
+
+    public Runnable shipping(Event event) {
+        return event.getReceipt().getOrder()::ship;
+    }
 }

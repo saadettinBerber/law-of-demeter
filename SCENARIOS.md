@@ -242,9 +242,9 @@ List<Wallet> wallets() {
 
 - **Neden:** `Customer::getWallet`, `customer -> customer.getWallet()` lambdasıyla aynı çağrıyı yapar. Akışın elemanları `getCustomer()` çağrısından gelen yabancılardır; yabancının metodunu referansla çağırmak da kuralı çiğner. `getWallet` raporlanır. `Order::getCustomer` ise arkadaş olan siparişlerde çağrıldığı için uygundur.
 
-- **Not:** İç içe çağrıda da sonuç aynı: `collect(Collectors.groupingBy(Customer::getWallet))`. `wallet::withdraw` gibi bağlı referans `wallet.withdraw(...)` gibi, `Optional::of` gibi statik referans statik çağrı gibi yargılanır. `Order::new` çağrı sayılmaz.
+- **Not:** İç içe çağrıda da sonuç aynı: `collect(Collectors.groupingBy(Customer::getWallet))`. `wallet::withdraw` gibi bağlı referans `wallet.withdraw(...)` gibi, `Optional::of` gibi statik referans statik çağrı gibi yargılanır. `Order::new` çağrı sayılmaz. Değişkene atanan ya da döndürülen referans da eşdeğer lambda gibi yargılanır: `return event.getReceipt().getOrder()::ship;`, `e -> e.getReceipt().getOrder().ship()` ile aynı ihlalleri verir.
 
-- **Örnek projede:** [`ReportingService.java:44`](examples/shop/src/main/java/shop/service/ReportingService.java#L44)
+- **Örnek projede:** [`ReportingService.java:44`](examples/shop/src/main/java/shop/service/ReportingService.java#L44), [`EventDispatcher.java:39`](examples/shop/src/main/java/shop/service/EventDispatcher.java#L39)
 
 </details>
 
