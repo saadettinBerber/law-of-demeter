@@ -54,8 +54,8 @@ class OrderService {
 Zincirdeki her çağrı ayrı değerlendirilir:
 
 1. `order.getCustomer()`: Serbest. `order`, f'ye argüman olarak verildi.
-2. `.getWallet()`: Kuralı çiğner. Bu metot, `getCustomer()`'ın döndürdüğü müşteride çağrılıyor ve müşteri listede yok.
-3. `.withdraw(amount)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor ve cüzdan da listede yok.
+2. `.getWallet()`: Kuralı çiğner. `getCustomer()`'ın döndürdüğü müşteri listede yok.
+3. `.withdraw(amount)`: Kuralı çiğner. `getWallet()`'ın döndürdüğü cüzdan da listede yok.
 
 Sonuç: `pay`, siparişin bir müşterisi, müşterinin de bir cüzdanı olduğunu bilmek zorunda. Cüzdanın yeri değişirse `pay` de değişir.
 
@@ -74,7 +74,7 @@ class OrderService {
 
 1. `order.charge(amount)`: Serbest. `order`, f'ye argüman olarak verildi.
 
-Sonuç: f yalnızca argümanıyla konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
+Sonuç: Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
 
 </details>
 
@@ -195,7 +195,7 @@ class Connector {
 ```
 
 1. `config.server()`: Serbest. `config`, f'ye argüman olarak verildi.
-2. `.port()`: Kuralı çiğner. Bu metot, `server()`'ın döndürdüğü sunucuda çağrılıyor. `Server` davranış taşıyan bir nesne (`restart()`) ve listede yok.
+2. `.port()`: Kuralı çiğner. `server()`'ın döndürdüğü `Server`, davranış taşıyan (`restart()`) bir nesne ve listede yok.
 
 Sonuç: `portOf`, yapılandırmanın bir sunucusu, sunucunun da bir portu olduğunu bilmek zorunda. `Server` değişirse `portOf` de değişir.
 
@@ -229,7 +229,7 @@ Sonuç: `portOf` aynı kalıyor; `Config` ve `Server` davranış taşımadığı
 
 ## Akışlar, lambdalar ve statik importlar
 
-Akış, lambda ya da metot referansı yabancıyla konuşmayı gizlemez. Araç elemanların nereden geldiğini izler ve zincirle aynı kararı verir. Her ihlalin düzeltilmiş hâli yanında durur: nesneye sormak yerine ona söylenir. Tam liste [SCENARIOS.md](SCENARIOS.md)'de.
+Akış, lambda ya da metot referansı yabancıyla konuşmayı gizlemez. Araç elemanların nereden geldiğini izler ve zincirle aynı kararı verir. Tam liste [SCENARIOS.md](SCENARIOS.md)'de.
 
 Örneklerde `Order`, `Customer` ve `Wallet` davranış taşıyan nesnelerdir. `Order` müşterisini, `Customer` de cüzdanını `getCustomer()` ve `getWallet()` ile verir.
 
@@ -254,8 +254,8 @@ class BillingService {
 1. `orders.stream()`: Serbest. `orders`, C'nin bir alanı.
 2. `.map(order -> order.getCustomer())`: Serbest. `order`, `orders`'ın elemanı; arkadaş.
 3. `.forEach(...)`: Serbest. Akış bir Java konteyneri.
-4. `customer.getWallet()`: Kuralı çiğner. `customer`, `getCustomer()`'ın döndürdüğü müşteri ve listede yok.
-5. `.withdraw(amount)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor.
+4. `customer.getWallet()`: Kuralı çiğner. `customer`, `getCustomer()`'dan gelen yabancı.
+5. `.withdraw(amount)`: Kuralı çiğner. Cüzdan, `getWallet()`'tan gelen yabancı.
 
 Sonuç: Akış yabancıyı gizlemez; `order.getCustomer().getWallet().withdraw(amount)` ile aynı ihlal.
 
@@ -277,7 +277,7 @@ class BillingService {
 1. `orders.forEach(...)`: Serbest. `orders`, C'nin bir alanı.
 2. `order.charge(amount)`: Serbest. `order`, `orders`'ın elemanı; arkadaş.
 
-Sonuç: `BillingService` yalnızca siparişlerle konuşuyor. Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
+Sonuç: Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
 
 </details>
 
@@ -307,7 +307,7 @@ class BalanceService {
 4. `.map(Wallet::getBalance)`: Kuralı çiğner. Cüzdanlar `getWallet()`'tan gelen yabancılar.
 5. `.toList()`: Serbest. Akış bir Java konteyneri.
 
-Sonuç: Metot referansı lambdayla aynı yargılanır; `Order::getCustomer` siparişte çağrıldığı için uygun, sonraki ikisi uygun değil.
+Sonuç: Metot referansı lambdayla aynı yargılanır.
 
 </details>
 
@@ -405,13 +405,12 @@ class ReportingService {
 ```
 
 1. `activateByOrder`: `toMap(...).values()` serbest; `orders`, f'ye argüman olarak verildi.
-2. `buyer.activate()`: Kuralı çiğner. Değer eşleyici `Order::getCustomer` yabancı verdiği için `values()` yabancı verir.
+2. `buyer.activate()`: Kuralı çiğner. Değer eşleyici `Order::getCustomer` yabancı verir.
 3. `rewardBuyers`: `toMap(...).entrySet()` ve `entry.getKey()` serbest; `entry`, `orders`'tan geliyor.
-4. `.getWallet()`: Kuralı çiğner. Anahtar eşleyici `Order::getCustomer`, yani anahtarlar yabancı.
-5. `.deposit(bonus)`: Kuralı çiğner. Bu metot, `getWallet()`'ın döndürdüğü cüzdanda çağrılıyor.
-6. `entry.getValue().ship()`: Serbest. Değer eşleyici `order -> order` elemanı olduğu gibi verir; sipariş arkadaş.
+4. `.getWallet()` ve `.deposit(bonus)`: Kuralı çiğner. Anahtar eşleyici `Order::getCustomer`; anahtarlar ve onların cüzdanı yabancı.
+5. `entry.getValue().ship()`: Serbest. Değer eşleyici `order -> order` elemanı olduğu gibi verir; sipariş arkadaş.
 
-Sonuç: Harita yabancıyı gizlemez. Anahtar ve değer ayrı izlenir: yabancı olanlar ihlal sayılır, sipariş olan değer sayılmaz.
+Sonuç: Harita yabancıyı gizlemez; anahtar ve değer ayrı izlenir, yalnızca yabancı olanlar ihlal sayılır.
 
 </details>
 
