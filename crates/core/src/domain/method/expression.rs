@@ -473,6 +473,7 @@ pub struct Lambda {
     result: Option<Expression>,
     expected: Option<TypeRef>,
     declared: Vec<(String, TypeRef)>,
+    resolved: Vec<(String, TypeRef)>,
 }
 
 impl Lambda {
@@ -483,11 +484,17 @@ impl Lambda {
             result: None,
             expected: None,
             declared: Vec::new(),
+            resolved: Vec::new(),
         }
     }
 
     pub fn declaring(mut self, parameter: &str, type_ref: TypeRef) -> Self {
         self.declared.push((parameter.to_owned(), type_ref));
+        self
+    }
+
+    pub fn resolving(mut self, parameter: &str, type_ref: TypeRef) -> Self {
+        self.resolved.push((parameter.to_owned(), type_ref));
         self
     }
 
@@ -538,7 +545,7 @@ impl Lambda {
             .unwrap_or_default();
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
-            let known = self.declared_type(parameter).or(declared.get(index));
+            let known = self.source_type(parameter).or(declared.get(index));
             let source = element_feed(context.types, outer, feed, known);
             let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
@@ -555,11 +562,8 @@ impl Lambda {
         }
     }
 
-    fn declared_type(&self, parameter: &str) -> Option<&TypeRef> {
-        self.declared
-            .iter()
-            .find(|(name, _)| name == parameter)
-            .map(|(_, type_ref)| type_ref)
+    fn source_type(&self, parameter: &str) -> Option<&TypeRef> {
+        type_named(&self.declared, parameter).or_else(|| type_named(&self.resolved, parameter))
     }
 
     fn judge_body(&self, mut inner: Context) -> (Vec<Verdict>, Option<Subject>) {
@@ -585,7 +589,7 @@ impl Lambda {
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
             let type_ref = self
-                .declared_type(parameter)
+                .source_type(parameter)
                 .or(declared.get(index))
                 .cloned()
                 .or_else(|| context.types.root_supertype());
@@ -607,4 +611,11 @@ impl Lambda {
         };
         Judged { verdicts, subject }
     }
+}
+
+fn type_named<'a>(types: &'a [(String, TypeRef)], parameter: &str) -> Option<&'a TypeRef> {
+    types
+        .iter()
+        .find(|(name, _)| name == parameter)
+        .map(|(_, type_ref)| type_ref)
 }
