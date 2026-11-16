@@ -93,7 +93,9 @@ impl MethodMapper<'_> {
             }
             (None, _) => Expression::This,
         };
-        let invocation = self.invocation_of(call);
+        let invocation = self
+            .invocation_of(call)
+            .map(|found| found.expecting(self.types, expected));
         let mut mapped = Call::new(receiver, &call.name, call.line);
         let mut results = Vec::new();
         for (index, argument) in call.arguments.iter().enumerate() {

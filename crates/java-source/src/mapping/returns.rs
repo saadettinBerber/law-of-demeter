@@ -135,6 +135,27 @@ impl Invocation {
         self.parameters.get(index)
     }
 
+    pub(super) fn expecting(self, types: &Types, expected: Option<&TypeRef>) -> Self {
+        let completed = self
+            .returned
+            .as_ref()
+            .zip(expected)
+            .and_then(|(returned, expected)| {
+                complete(types, &self.free, returned, &self.bindings, expected)
+            });
+        match completed {
+            Some(completed) => Self {
+                parameters: self
+                    .parameters
+                    .iter()
+                    .map(|parameter| apply_bindings(parameter, &completed))
+                    .collect(),
+                ..self
+            },
+            None => self,
+        }
+    }
+
     pub(super) fn awaits_result(&self, types: &Types, index: usize) -> bool {
         self.functional_returns(types, index)
             .is_some_and(|returned| has_variable(&returned))

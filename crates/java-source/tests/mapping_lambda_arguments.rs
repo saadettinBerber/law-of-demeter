@@ -373,3 +373,69 @@ fn the_constructors_of_a_supertype_do_not_type_the_lambda_of_a_subtype() {
 
     assert_eq!(mapped, creating(class("Helper"), listener("e")));
 }
+
+fn keyed_world() -> Types {
+    let of = MethodShape::new("of")
+        .as_static()
+        .with_type_parameter("K")
+        .with_type_parameter("V")
+        .with_parameters(vec![variable("K"), variable("V")])
+        .returning(generic("Map", &[variable("K"), variable("V")]));
+    let wrap = MethodShape::new("wrap")
+        .as_static()
+        .with_type_parameter("T")
+        .with_parameters(vec![variable("T")])
+        .returning(variable("T"));
+    world()
+        .with_shape(interface("Map", &["K", "V"]))
+        .with_shape(shape("Key"))
+        .with_shape(shape("Util").with_method(of).with_method(wrap))
+}
+
+fn handlers() -> TypeRef {
+    generic("Map", &[class("Key"), consumer_of(event())])
+}
+
+#[test]
+fn the_expected_type_binds_the_variable_that_types_the_lambda() {
+    let body = "Map<Key, Consumer<Event>> handlers = Util.of(key, e -> e.getEntry());";
+
+    let mapped = mapped_in(&keyed_world(), "Key key", body);
+
+    let of = call(Expression::static_type(class("Util")), "of", 3)
+        .with(parameter("key", class("Key")))
+        .with(listener("e").resolving("e", event()))
+        .returning(handlers());
+    assert_eq!(
+        mapped,
+        f(2).assign("handlers", handlers(), Expression::return_of(of))
+    );
+}
+
+#[test]
+fn a_bare_variable_return_takes_the_expected_type_for_its_lambda() {
+    let body = "Consumer<Event> handler = Util.wrap(e -> e.getEntry());";
+
+    let mapped = mapped_in(&keyed_world(), "", body);
+
+    let wrap = call(Expression::static_type(class("Util")), "wrap", 3)
+        .with(listener("e").resolving("e", event()))
+        .returning(consumer_of(event()));
+    assert_eq!(
+        mapped,
+        f(2).assign("handler", consumer_of(event()), Expression::return_of(wrap))
+    );
+}
+
+#[test]
+fn a_returned_call_takes_the_return_type_of_the_method_for_its_lambda() {
+    let source = "class OrderService {\n Consumer<Event> f() {\n  return Util.wrap(e -> e.getEntry());\n }\n}";
+
+    let mapped = method_f_in(source, &keyed_world());
+
+    let wrap = call(Expression::static_type(class("Util")), "wrap", 3)
+        .with(listener("e").resolving("e", event()))
+        .returning(consumer_of(event()))
+        .expecting(consumer_of(event()));
+    assert_eq!(mapped, f(2).call(wrap));
+}
