@@ -540,23 +540,43 @@ Araç repo kökünden kurulur:
 cargo install --path crates/cli
 ```
 
-Lombok'un ürettiği metotlar yalnızca derlenmiş sınıflarda göründüğü için proje önce derlenir.
+Lombok'un ürettiği metotlar yalnızca derlenmiş sınıflarda göründüğü için proje önce derlenir ve bağımlılıkların listesi `target/classpath.txt` dosyasına yazılır:
 
 ```bash
-mvn -q compile dependency:build-classpath -Dmdep.outputFile=classpath.txt
+mvn -q compile dependency:build-classpath -Dmdep.outputFile=target/classpath.txt
 ```
+
+Sonra araç projenin kök dizininde argümansız çalıştırılır:
 
 ```bash
-law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/classes"
+law-of-demeter
 ```
 
-- **`-s`, `--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
+`--source` verilmezse araç, çalışma dizinindeki Maven projesini kendisi bulur:
+
+- **Kaynak kökleri:** Çalışma dizininde ve alt modüllerde bulunan `src/main/java` dizinleri. Gizli dizinlere ve `target` dizinlerine bakılmaz.
+- **Classpath:** Her modülün `target/classes` dizini ve `target/classpath.txt` dosyasındaki girişler. `--classpath` ile verilenler bunlara eklenir.
+
+Seçenekler:
+
+- **`-s`, `--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Verilirse proje aranmaz; classpath yalnızca `--classpath` ile verilenlerden oluşur. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
 - **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, `:` ile ayrılmış liste de olur.
 - **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
 - **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
 - **`-h`, `--help`:** Kullanımı gösterir.
 
-Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir, çıkış kodunu değiştirmez.
+Aracın terminaldeki bütün çıktısı İngilizcedir. Araç, denetime başlamadan önce kaynak köklerini, classpath'in giriş sayısını ve JDK'yı yazar. Son satır, sonucu çıkış koduyla birlikte söyler. Bu satırlar standart hataya gider, rapor standart çıkışa gider; rapor dosyaya yönlendirildiğinde de terminalde görünürler:
+
+```text
+Source root: orders/src/main/java
+Source root: src/main/java
+Classpath: 42 entries
+JDK: /usr/lib/jvm/java-21 (release 21)
+
+Result: 2 violations, 1 hybrid class (exit code 1)
+```
+
+Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Sonuç satırı aynı durumu yazıyla söyler: `no violations`, `2 violations, 1 hybrid class` ya da `check did not run`. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir, çıkış kodunu değiştirmez.
 
 ### Örnek
 
@@ -574,23 +594,23 @@ law-of-demeter --source src --classpath out
 <summary><strong>Örnek çıktı</strong></summary>
 
 ```text
-İhlaller (2):
-src/shop/OrderService.java:5  shop.OrderService.pay  getWallet()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
-src/shop/OrderService.java:5  shop.OrderService.pay  withdraw()  İhlal: getWallet() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+Violations (2):
+src/shop/OrderService.java:5  shop.OrderService.pay  getWallet()  Violation: the object returned by getCustomer() is not a friend of f
+src/shop/OrderService.java:5  shop.OrderService.pay  withdraw()  Violation: the object returned by getWallet() is not a friend of f
 
-Hibrit sınıflar (1):
-src/shop/Account.java  shop.Account  Hibrit sınıf: davranış: withdraw; setter: setBalance
+Hybrid classes (1):
+src/shop/Account.java  shop.Account  Hybrid class: behavior: withdraw; setters: setBalance
 
-Özet:
-  Dosya: 7
-  Metot: 13
-  Çağrı: 7 (uygun 5, ihlal 2, belirsiz 0)
-  Hibrit sınıf: 1
-  Kaynak hatası: 0
-  Tip okuma hatası: 0
+Summary:
+  Files: 7
+  Methods: 13
+  Calls: 7 (allowed 5, violations 2, unresolved 0)
+  Hybrid classes: 1
+  Source errors: 0
+  Type reading errors: 0
 
-İhlal nedenleri:
-  2  Döndürülen nesne f'nin arkadaşı değil
+Reasons for violations:
+  2  Returned object is not a friend of f
 ```
 
 Her ihlal satırı dosyayı, satırı, sınıfı, metodu, çağrıyı ve nedeni gösterir; ihlal ve hibrit sınıf olduğu için araç 1 ile çıkar.
