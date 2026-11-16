@@ -569,3 +569,27 @@ fn a_static_method_of_a_generic_class_keeps_its_generic_return_type() {
         expected_pick(vec![an_order()], Some(list_of(order())))
     );
 }
+
+#[test]
+fn an_argument_whose_supertype_is_unknown_still_binds_the_type_variable() {
+    let util = shape("Util").with_method(listing(vec![variable("T")]));
+    let types = world()
+        .with_shape(shape("Gold").with_superclass(class("Ghost")))
+        .with_shape(util);
+    let source = format!(
+        "{IMPORTS} class OrderService {{\n void f(Gold gold) {{\n  Util.pick(gold).go();\n }}\n}}"
+    );
+
+    let mapped = method_f_in(&source, &types);
+
+    let gold = parameter("gold", class("Gold"));
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(Expression::static_type(class("Util")), "pick", 3)
+                .with(gold)
+                .returning(list_of(class("Gold")))
+                .then("go", 3)
+        )
+    );
+}
