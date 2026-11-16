@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
-use super::conversions::boxed;
+use super::conversions::{boxed, is_primitive};
 use super::lineage::{
     ARRAY_SUPERTYPES, OBJECT, arguments_of, class_name, closure, has_variable, substitute,
 };
@@ -245,8 +245,4 @@ fn reference(type_ref: &TypeRef) -> TypeRef {
         }
         _ => type_ref.clone(),
     }
-}
-
-fn is_primitive(type_ref: &TypeRef) -> bool {
-    matches!(type_ref, TypeRef::Primitive(_))
 }

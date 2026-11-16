@@ -3,7 +3,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 
 use crate::LiteralType;
 
-use super::conversions::{boxed, unboxed, widens};
+use super::conversions::{boxed, is_primitive, unboxed, widens};
 use super::inference::{Bindings, apply_bindings, instantiate};
 use super::lambdas::functional_method;
 use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure};
@@ -174,10 +174,6 @@ fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: P
                 || (phase != Phase::Strict && converts_by_boxing(types, argument, parameter))
         }
     }
-}
-
-fn is_primitive(type_ref: &TypeRef) -> bool {
-    matches!(type_ref, TypeRef::Primitive(_))
 }
 
 fn most_specific(

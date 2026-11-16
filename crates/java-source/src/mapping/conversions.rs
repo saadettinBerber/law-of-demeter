@@ -1,3 +1,5 @@
+use law_of_demeter_core::domain::type_shape::TypeRef;
+
 const WIDENINGS: &[(&str, &[&str])] = &[
     ("byte", &["short", "int", "long", "float", "double"]),
     ("short", &["int", "long", "float", "double"]),
@@ -34,4 +36,8 @@ pub(super) fn unboxed(class: &str) -> Option<&'static str> {
     BOXES
         .iter()
         .find_map(|(name, boxed)| (*boxed == class).then_some(*name))
+}
+
+pub(super) fn is_primitive(type_ref: &TypeRef) -> bool {
+    matches!(type_ref, TypeRef::Primitive(_))
 }
