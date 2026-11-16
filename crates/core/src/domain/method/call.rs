@@ -16,6 +16,7 @@ pub struct Call {
     arguments: Vec<Argument>,
     expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
+    flows: Option<Vec<usize>>,
 }
 
 impl Call {
@@ -27,6 +28,7 @@ impl Call {
             arguments: Vec::new(),
             expected: None,
             resolved: None,
+            flows: None,
         }
     }
 
@@ -37,6 +39,11 @@ impl Call {
 
     pub fn returning(mut self, type_ref: TypeRef) -> Self {
         self.resolved = Some(type_ref);
+        self
+    }
+
+    pub fn returning_from(mut self, arguments: &[usize]) -> Self {
+        self.flows = Some(arguments.to_vec());
         self
     }
 
@@ -75,8 +82,8 @@ impl Call {
             &self.arguments,
             values,
             &mut invocation,
-            &receiver.subject,
-            outer,
+            self.flows.as_deref(),
+            (&receiver.subject, outer),
         );
         verdicts.extend(judged.verdicts);
         verdicts.push(verdict_on(

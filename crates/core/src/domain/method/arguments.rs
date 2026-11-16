@@ -33,8 +33,8 @@ pub(super) fn judge_arguments(
     arguments: &[Argument],
     values: Vec<Option<Judged>>,
     invocation: &mut Invocation,
-    feed: &Subject,
-    outer: &Subject,
+    flows: Option<&[usize]>,
+    (feed, outer): (&Subject, &Subject),
 ) -> Judgement {
     let mut verdicts = Vec::new();
     let mut mapped = None;
@@ -49,7 +49,11 @@ pub(super) fn judge_arguments(
                 let produced = argument.judge(context, feed, functional.as_ref(), outer);
                 verdicts.extend(produced.verdicts);
                 invocation.yielded(context.types, index, produced.result.as_ref());
-                if invocation.feeds_return(context.types, index) {
+                let feeds_return = match flows {
+                    Some(flows) => flows.contains(&index),
+                    None => invocation.feeds_return(context.types, index),
+                };
+                if feeds_return {
                     mapped = mapped.or(produced.standing);
                 }
             }

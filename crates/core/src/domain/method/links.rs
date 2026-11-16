@@ -1,5 +1,6 @@
 use super::nested::{
     collecting, collectors_call, collectors_static, customer, order, orders_collected_by,
+    orders_stream, stranger_customers, stream_of,
 };
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 
@@ -80,4 +81,60 @@ fn a_method_reference_linked_to_the_receiver_keeps_its_own_feed_though_its_type_
         3,
         Reason::method_reference(order(), "getStatus", collectors_static())
     )));
+}
+
+fn customers_of_the_orders() -> Lambda {
+    Lambda::new(&["each"])
+        .resolving("each", order())
+        .yielding(Expression::return_of(Call::new(
+            Expression::local("each"),
+            "getCustomer",
+            2,
+        )))
+}
+
+fn wallet_of_the_first_customer_in(customers: Call) -> Method {
+    Method::new("Billing", "charge", 1).call(
+        customers
+            .then("collect", 2)
+            .with(Expression::return_of(collectors_call("toList")))
+            .then("get", 2)
+            .with(Expression::literal())
+            .then("getWallet", 3),
+    )
+}
+
+#[test]
+fn a_result_the_link_keeps_out_of_the_return_leaves_the_standing_of_the_receiver() {
+    let customers = orders_stream()
+        .then("map", 2)
+        .with(customers_of_the_orders())
+        .returning_from(&[]);
+
+    let verdicts = wallet_of_the_first_customer_in(customers).verdicts(&collecting());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::allowed(
+            "getWallet",
+            3,
+            Reason::parameter("orders")
+        ))
+    );
+}
+
+#[test]
+fn a_result_the_link_feeds_into_the_return_gives_it_its_standing() {
+    let customers = orders_stream()
+        .then("transform", 2)
+        .with(customers_of_the_orders())
+        .returning(stream_of(customer()))
+        .returning_from(&[0]);
+
+    let verdicts = wallet_of_the_first_customer_in(customers).verdicts(&collecting());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation("getWallet", 3, stranger_customers()))
+    );
 }

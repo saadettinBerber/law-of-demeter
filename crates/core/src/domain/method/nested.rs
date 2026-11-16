@@ -45,7 +45,7 @@ fn wildcard() -> TypeRef {
     TypeRef::class(OBJECT)
 }
 
-fn stream_of(element: TypeRef) -> TypeRef {
+pub(super) fn stream_of(element: TypeRef) -> TypeRef {
     generic(STREAM, &[element])
 }
 
@@ -172,7 +172,7 @@ pub(super) fn collecting() -> Types {
         .with_shape(class("Status"))
 }
 
-fn orders_stream() -> Call {
+pub(super) fn orders_stream() -> Call {
     let orders = Expression::parameter("orders", list_of(order()));
     Call::new(orders, "stream", 2)
 }
@@ -203,7 +203,7 @@ fn getting_the_customers_of_the_orders() -> Verdict {
     )
 }
 
-fn stranger_customers() -> Reason {
+pub(super) fn stranger_customers() -> Reason {
     Reason::return_of("getCustomer")
 }
 
