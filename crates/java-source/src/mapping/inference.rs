@@ -82,6 +82,32 @@ pub(super) fn complete(
     Some(completed)
 }
 
+pub(super) fn bind_results(
+    types: &Types,
+    free: &[String],
+    bound: &Bindings,
+    results: &[(&TypeRef, &TypeRef)],
+) -> Bindings {
+    let mut constraints = Constraints::default();
+    for (returned, result) in results {
+        from_argument(types, free, returned, &reference(result), &mut constraints);
+    }
+    let mut bindings = bound.clone();
+    bindings.extend(resolve(
+        types,
+        [constraints.lower, constraints.equal].concat(),
+    ));
+    bindings
+}
+
+pub(super) fn common_result(types: &Types, results: &[Option<TypeRef>]) -> Option<TypeRef> {
+    let known: Option<Vec<TypeRef>> = results
+        .iter()
+        .map(|result| result.as_ref().map(reference))
+        .collect();
+    widest(types, &known?)
+}
+
 pub(super) fn apply_bindings(type_ref: &TypeRef, bindings: &Bindings) -> TypeRef {
     substitute(type_ref, &|name| bindings.get(name).cloned())
 }

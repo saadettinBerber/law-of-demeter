@@ -87,6 +87,7 @@ impl MethodMapper<'_> {
     }
 
     fn returned(&mut self, expression: &Expression) {
+        self.record_yield(expression);
         let returns = self.returns.clone();
         let value = self.expression_expecting(expression, returns.as_ref());
         let value = match returns {

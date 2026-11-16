@@ -8,12 +8,19 @@ use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef};
 use crate::{self as model};
 
 use super::MethodMapper;
+use super::inference::common_result;
 use super::lineage::{class_name, has_variable, lineage, substitute};
 
 const OBJECT_METHODS: [(&str, usize); 3] = [("equals", 1), ("hashCode", 0), ("toString", 0)];
 
 pub(super) struct Functional {
     pub(super) parameters: Vec<TypeRef>,
+    pub(super) returns: Option<TypeRef>,
+}
+
+pub(super) struct Mapped {
+    pub(super) lambda: Lambda,
+    pub(super) result: Option<TypeRef>,
 }
 
 struct Typed {
@@ -37,7 +44,7 @@ impl Typed {
 }
 
 impl MethodMapper<'_> {
-    pub(super) fn lambda(&mut self, lambda: &model::Lambda, target: Option<&TypeRef>) -> Lambda {
+    pub(super) fn lambda(&mut self, lambda: &model::Lambda, target: Option<&TypeRef>) -> Mapped {
         let typed = self.typed_parameters(lambda, target);
         let names: Vec<&str> = lambda
             .parameters
@@ -51,16 +58,33 @@ impl MethodMapper<'_> {
         let outer_steps = mem::take(&mut self.steps);
         let outer_returns = self.returns.take();
         let outer_parameters = self.enter_scope(&typed);
+        let outer_yields = self.yields.replace(Vec::new());
         self.statements(body);
-        let result = result.map(|result| self.expression(result));
+        let result = result.map(|result| {
+            self.record_yield(result);
+            self.expression(result)
+        });
+        let yields = mem::replace(&mut self.yields, outer_yields).unwrap_or_default();
         self.lambda_parameters = outer_parameters;
         self.returns = outer_returns;
         let mapped = mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names));
         let mapped = typed.iter().fold(mapped, |mapped, typed| typed.on(mapped));
-        match result {
+        let lambda = match result {
             Some(value) => mapped.yielding(value),
             None => mapped,
+        };
+        Mapped {
+            lambda,
+            result: common_result(self.types, &yields),
         }
+    }
+
+    pub(super) fn record_yield(&mut self, expression: &model::Expression) {
+        if self.yields.is_none() {
+            return;
+        }
+        let yielded = self.type_of(expression);
+        self.yields.get_or_insert_with(Vec::new).push(yielded);
     }
 
     fn enter_scope(&mut self, typed: &[Typed]) -> HashMap<String, TypeRef> {
@@ -130,6 +154,9 @@ pub(super) fn functional_method(types: &Types, target: &TypeRef) -> Option<Funct
                     .iter()
                     .map(|parameter| substitute(parameter, &|name| ancestor.bound(name)))
                     .collect(),
+                returns: method
+                    .returns()
+                    .map(|returned| substitute(returned, &|name| ancestor.bound(name))),
             });
             declared.push((key, functional));
         }

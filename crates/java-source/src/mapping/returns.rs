@@ -5,7 +5,8 @@ use crate::platform::CONSTRUCTOR_NAME;
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
-use super::inference::{Bindings, apply_bindings, complete};
+use super::inference::{Bindings, apply_bindings, bind_results, complete};
+use super::lambdas::functional_method;
 use super::lineage::{Ancestor, class_name, has_variable, lineage, substitute};
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
@@ -16,7 +17,28 @@ impl MethodMapper<'_> {
         call: &model::Call,
         expected: Option<&TypeRef>,
     ) -> Option<TypeRef> {
-        self.invocation_of(call)?.returned(self.types, expected)
+        let invocation = self.invocation_of(call)?;
+        let results = self.lambda_results(&call.arguments, &invocation);
+        invocation.returned(self.types, &results, expected)
+    }
+
+    fn lambda_results(
+        &mut self,
+        arguments: &[model::Expression],
+        invocation: &Invocation,
+    ) -> Vec<Option<TypeRef>> {
+        arguments
+            .iter()
+            .enumerate()
+            .map(|(index, argument)| match argument {
+                model::Expression::Lambda(lambda)
+                    if invocation.awaits_result(self.types, index) =>
+                {
+                    self.lambda(lambda, invocation.parameter(index)).result
+                }
+                _ => None,
+            })
+            .collect()
     }
 
     pub(super) fn invocation_of(&mut self, call: &model::Call) -> Option<Invocation> {
@@ -75,7 +97,7 @@ impl MethodMapper<'_> {
         }
     }
 
-    fn type_of(&mut self, expression: &model::Expression) -> Option<TypeRef> {
+    pub(super) fn type_of(&mut self, expression: &model::Expression) -> Option<TypeRef> {
         match expression {
             model::Expression::This => Some(TypeRef::class(&self.class.name)),
             model::Expression::Parameter(name) => Some(self.parameter_type(name)),
@@ -106,14 +128,44 @@ impl Invocation {
         self.parameters.get(index)
     }
 
-    pub(super) fn returned(&self, types: &Types, expected: Option<&TypeRef>) -> Option<TypeRef> {
+    pub(super) fn awaits_result(&self, types: &Types, index: usize) -> bool {
+        self.functional_returns(types, index)
+            .is_some_and(|returned| has_variable(&returned))
+    }
+
+    pub(super) fn returned(
+        &self,
+        types: &Types,
+        results: &[Option<TypeRef>],
+        expected: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
         let returned = self.returned.as_ref()?;
+        let bound = self.bound_by(types, results);
         let completed = match expected {
-            Some(expected) => complete(types, &self.free, returned, &self.bindings, expected)?,
-            None => self.bindings.clone(),
+            Some(expected) => complete(types, &self.free, returned, &bound, expected)?,
+            None => bound,
         };
         let applied = apply_bindings(returned, &self.with_declared_bounds(completed));
         (!has_variable(&applied)).then_some(applied)
+    }
+
+    fn bound_by(&self, types: &Types, results: &[Option<TypeRef>]) -> Bindings {
+        let returns: Vec<_> = results
+            .iter()
+            .enumerate()
+            .filter_map(|(index, result)| {
+                Some((self.functional_returns(types, index)?, result.as_ref()?))
+            })
+            .collect();
+        let pairs: Vec<_> = returns
+            .iter()
+            .map(|(returned, result)| (returned, *result))
+            .collect();
+        bind_results(types, &self.free, &self.bindings, &pairs)
+    }
+
+    fn functional_returns(&self, types: &Types, index: usize) -> Option<TypeRef> {
+        functional_method(types, self.parameter(index)?)?.returns
     }
 
     fn with_declared_bounds(&self, mut bindings: Bindings) -> Bindings {

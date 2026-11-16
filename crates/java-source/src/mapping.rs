@@ -65,6 +65,7 @@ struct MethodMapper<'a> {
     parameters: HashMap<&'a str, TypeRef>,
     locals: HashMap<String, Option<TypeRef>>,
     lambda_parameters: HashMap<String, TypeRef>,
+    yields: Option<Vec<Option<TypeRef>>>,
     returns: Option<TypeRef>,
     steps: Steps,
 }
@@ -94,6 +95,7 @@ impl<'a> MethodMapper<'a> {
                 .collect(),
             locals: HashMap::new(),
             lambda_parameters: HashMap::new(),
+            yields: None,
             returns: method
                 .returns
                 .as_ref()
