@@ -1,6 +1,8 @@
 # Law of Demeter
 
-Java kodunda Law of Demeter ihlallerini bulan bir araç. Kaynak kodu derlenmiş sınıflarla birlikte okur ve kuralı çiğneyen her çağrıyı nedeniyle raporlar.
+Kaynak kodda Law of Demeter ihlallerini bulan bir araç. Kodu tip bilgisiyle birlikte okur ve kuralı çiğneyen her çağrıyı nedeniyle raporlar.
+
+Şu anda Java'yı destekliyor: Java kaynağını derlenmiş sınıflarla birlikte okur. Python, Rust gibi diller ileride eklenecek.
 
 ## Neden Law of Demeter?
 
