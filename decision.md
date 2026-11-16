@@ -47,7 +47,7 @@
 | [Generic olmayan çağrının dönüş tipini adapter bulsun: üst tiplerde ve kök tipte arama, argüman sayısına göre metot.](README.md#mimari) | Yapıldı |
 | [Generic sınıfın tip argümanlarını adapter yerine koysun: `List<Order>.get()` → `Order`.](README.md#mimari) | Yapıldı |
 | [Aşırı yükleme seçimini adapter yapsın: argüman tiplerine göre doğru metot.](README.md#mimari) | Yapıldı |
-| [Değişken sayıda argümanı adapter çözsün: `Stream.of(a, b)`, `String.format("%s %s", a, b)`.](README.md#mimari) | Yapılmadı |
+| [Değişken sayıda argümanı adapter çözsün: `Stream.of(a, b)`, `String.format("%s %s", a, b)`.](README.md#mimari) | Yapıldı |
 | [Generic metodun tip değişkenini adapter çıkarsın: argümandan, beklenen tipten ve sınırından (`<T extends Shape>`).](README.md#mimari) | Yapılmadı |
 | [Lambda parametresinin tipini adapter bulsun: fonksiyonel arayüzün tek soyut metodundan; hedef tip atamadan, dönüşten ya da kurucu parametresinden.](README.md#mimari) | Yapılmadı |
 | [Metot referansının tipini adapter çözsün: `Order::getCustomer`, `this::handle`, kurucu referansı.](README.md#mimari) | Yapılmadı |
