@@ -2423,3 +2423,90 @@ fn method_reference_9_a_reference_on_a_type_that_cannot_be_resolved_is_unresolve
         )
     );
 }
+
+fn factories_catalog(owners: &[&str]) -> Types {
+    let customer = || MethodShape::new("customer").as_static();
+    owners.iter().fold(shop_with_objects(), |types, owner| {
+        types.with_shape(class(owner).with_method(customer().returning(TypeRef::class("Customer"))))
+    })
+}
+
+#[test]
+fn on_demand_static_methods_1_the_result_of_an_imported_static_call_is_a_friend() {
+    let snippet = "void audit() {\n    customer().getWallet().withdraw(1);\n}";
+
+    let verdicts = verdicts_in_c(
+        "import static shop.Orders.*;",
+        "",
+        snippet,
+        "audit",
+        &factories_catalog(&["shop.Orders"]),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "customer",
+                3,
+                Reason::static_type(TypeRef::class("shop.Orders"))
+            ),
+            Verdict::allowed("getWallet", 3, Reason::static_result("customer")),
+            Verdict::violation("withdraw", 3, Reason::return_of("getWallet")),
+        ]
+    );
+}
+
+#[test]
+fn on_demand_static_methods_2_a_name_two_imports_declare_is_not_a_static_call() {
+    let snippet = "void audit() {\n    customer().getWallet().withdraw(1);\n}";
+
+    let verdicts = verdicts_in_c(
+        "import static shop.Colors.*; import static shop.Orders.*;",
+        "",
+        snippet,
+        "audit",
+        &factories_catalog(&["shop.Colors", "shop.Orders"]),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("customer", 3, Reason::This),
+            Verdict::violation(
+                "getWallet",
+                3,
+                Reason::unresolved_type(None, Reason::return_of("customer"))
+            ),
+            Verdict::violation(
+                "withdraw",
+                3,
+                Reason::unresolved_type(None, Reason::return_of("getWallet"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn on_demand_static_methods_3_an_enclosing_class_method_is_a_call_on_the_own_object() {
+    let members = "Customer customer() { return null; }\nclass Inner {";
+    let snippet = "void audit() {\n    customer().getWallet();\n}\n}";
+
+    let verdicts = verdicts_of(
+        &in_c("", members, snippet),
+        "C$Inner",
+        "audit",
+        &shop_with_objects().with_shape(
+            class("C")
+                .with_method(MethodShape::new("customer").returning(TypeRef::class("Customer"))),
+        ),
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("customer", 4, Reason::This),
+            Verdict::violation("getWallet", 4, Reason::return_of("customer")),
+        ]
+    );
+}
