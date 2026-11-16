@@ -1,4 +1,4 @@
-İhlaller (33):
+İhlaller (34):
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  getPosting()  İhlal: getEntry() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/ledger/Reconciler.java:5  shop.ledger.Reconciler.settle  settle()  İhlal: getPosting() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/BillingService.java:15  shop.service.BillingService.charge  getWallet()  İhlal: customer lambda parametresi: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
@@ -31,9 +31,10 @@ src/main/java/shop/service/PaymentService.java:18  shop.service.PaymentService.p
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  rename()  İhlal: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  length()  İhlal: getOutline() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getWallet()  İhlal: Customer::getWallet metot referansı: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
+src/main/java/shop/service/ReportingService.java:53  shop.service.ReportingService.renameBuyers  rename()  İhlal: buyer döngü değişkeni: getCustomer() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getTotal()  İhlal: getOrder() çağrısının döndürdüğü nesne f'nin arkadaşı değil
 
-Uygun çağrılar (122):
+Uygun çağrılar (127):
 src/main/java/shop/domain/Cart.java:15  shop.domain.Cart.add  add()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Cart.java:19  shop.domain.Cart.clear  clear()  Uygun: lines sınıfın alanı
 src/main/java/shop/domain/Event.java:15  shop.domain.Event.acknowledge  close()  Uygun: receipt sınıfın alanı
@@ -148,6 +149,11 @@ src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  map()  Uygun: wallets f'ye argüman olarak verildi
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  println()  Uygun: out statik sabiti f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  forEach()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.renameBuyers  stream()  Uygun: orders f'ye argüman olarak verildi
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.renameBuyers  getCustomer()  Uygun: Order::getCustomer metot referansı: orders f'ye argüman olarak verildi
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.renameBuyers  groupingBy()  Uygun: java.util.stream.Collectors tipi üzerinde statik çağrı
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.renameBuyers  collect()  Uygun: orders f'ye argüman olarak verildi
+src/main/java/shop/service/ReportingService.java:52  shop.service.ReportingService.renameBuyers  keySet()  Uygun: orders f'ye argüman olarak verildi
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getOrder()  Uygun: event f'ye argüman olarak verildi
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  log()  Uygun: f'nin kendi nesnesi
 src/main/java/shop/service/ShippingService.java:20  shop.service.ShippingService.cityOf  getAddress()  Uygun: request f'ye argüman olarak verildi
@@ -162,21 +168,21 @@ src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: dav
 
 Özet:
   Dosya: 43
-  Metot: 126
-  Çağrı: 155 (uygun 122, ihlal 33, belirsiz 0)
+  Metot: 127
+  Çağrı: 161 (uygun 127, ihlal 34, belirsiz 0)
   Hibrit sınıf: 1
   Kaynak hatası: 0
   Tip okuma hatası: 0
 
 İhlal nedenleri:
-  32  Döndürülen nesne f'nin arkadaşı değil
+  33  Döndürülen nesne f'nin arkadaşı değil
   1  Döndürülen koleksiyon değiştiriliyor
 
 Uygun nedenleri:
-  38  Argüman
+  42  Argüman
   33  Sınıfın alanı
+  11  Statik çağrı
   11  Statik çağrının sonucu
-  10  Statik çağrı
   7  Metotta oluşturulan nesne
   6  Konteyner
   5  Kendi nesnesi

@@ -47,4 +47,10 @@ public class ReportingService {
     public void printAll(List<Wallet> wallets) {
         wallets.stream().map(Optional::of).forEach(System.out::println);
     }
+
+    public void renameBuyers(List<Order> orders, String prefix) {
+        for (Customer buyer : orders.stream().collect(Collectors.groupingBy(Order::getCustomer)).keySet()) {
+            buyer.rename(prefix);
+        }
+    }
 }
