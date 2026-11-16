@@ -514,7 +514,7 @@ class GuestService {
 2. `.getWallet()`: Serbest. Bu metot, arkadaş olan `guest()` sonucunda çağrılıyor.
 3. `.deposit(amount)`: Kuralı çiğner. `getWallet()`, `Customer`'ın alanını döndürür ve o cüzdan listede yok.
 
-Sonuç: İmport çağrının nereden geldiğini gizler ama kararı değiştirmez; `guest().getWallet().deposit(amount)` ile `order.getCustomer().getWallet().withdraw(amount)` aynı ihlal.
+Sonuç: İmport çağrının nereden geldiğini gizler ama kararı değiştirmez. `guest()` statik çağrı sayılır ve sonucu arkadaştır; o sonucun döndürdüğü cüzdan ise yabancıdır.
 
 </details>
 
