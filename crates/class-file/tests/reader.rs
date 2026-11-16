@@ -79,6 +79,7 @@ fn reads_every_type_of_a_class_directory_by_binary_name() {
             "shop.Order$Tag",
             "shop.OrderLine",
             "shop.Product",
+            "shop.Ranking",
             "shop.Registry",
             "shop.Repository",
             "shop.Status",
@@ -1227,4 +1228,37 @@ fn leaves_out_the_bound_of_an_unbounded_type_parameter() {
     let as_is = method(&registry, "asIs");
 
     assert_eq!(as_is.type_parameter_bound("T"), None);
+}
+
+#[test]
+fn reads_the_bound_of_a_class_type_parameter() {
+    let catalog = shape("shop.Catalog");
+
+    let bound = catalog.type_parameter_bound("T");
+
+    assert_eq!(
+        bound,
+        Some(&TypeRef::generic(
+            "java.lang.Comparable",
+            vec![TypeRef::variable("T")]
+        ))
+    );
+}
+
+#[test]
+fn reads_the_first_bound_of_a_class_type_parameter_with_several_bounds() {
+    let ranking = shape("shop.Ranking");
+
+    let bound = ranking.type_parameter_bound("T");
+
+    assert_eq!(bound, Some(&TypeRef::class("shop.Entity")));
+}
+
+#[test]
+fn leaves_out_the_bound_of_an_unbounded_class_type_parameter() {
+    let registry = shape("shop.Registry");
+
+    let bound = registry.type_parameter_bound("V");
+
+    assert_eq!(bound, None);
 }

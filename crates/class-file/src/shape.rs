@@ -9,7 +9,7 @@ use law_of_demeter_core::domain::type_shape::{
 };
 
 use crate::accessor::{self, Access};
-use crate::signature;
+use crate::signature::{self, TypeParameter};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Scope {
@@ -36,8 +36,13 @@ pub(crate) fn from_bytes(bytes: &[u8], scope: Scope) -> Result<Option<TypeShape>
         superclass,
         interfaces,
     } = hierarchy_of(&class)?;
-    for name in type_parameters {
-        shape = shape.with_type_parameter(&name);
+    for parameter in type_parameters {
+        shape = shape.with_type_parameter(&parameter.name);
+        if let Some(bound) = parameter.bounds.first()
+            && *bound != TypeRef::class("java.lang.Object")
+        {
+            shape = shape.with_type_parameter_bound(&parameter.name, bound.clone());
+        }
     }
     if let Some(superclass) = superclass {
         shape = shape.with_superclass(superclass);
@@ -75,7 +80,7 @@ fn kind_of(class: &ClassFile) -> TypeKind {
 }
 
 struct Hierarchy {
-    type_parameters: Vec<String>,
+    type_parameters: Vec<TypeParameter>,
     superclass: Option<TypeRef>,
     interfaces: Vec<TypeRef>,
 }

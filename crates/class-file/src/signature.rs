@@ -43,7 +43,7 @@ pub(crate) fn method_signature(text: &str) -> Result<MethodSignature, String> {
 }
 
 pub(crate) struct ClassSignature {
-    pub(crate) type_parameters: Vec<String>,
+    pub(crate) type_parameters: Vec<TypeParameter>,
     pub(crate) superclass: TypeRef,
     pub(crate) interfaces: Vec<TypeRef>,
 }
@@ -57,10 +57,7 @@ pub(crate) fn class_signature(text: &str) -> Result<ClassSignature, String> {
         interfaces.push(parser.type_ref()?);
     }
     Ok(ClassSignature {
-        type_parameters: type_parameters
-            .into_iter()
-            .map(|parameter| parameter.name)
-            .collect(),
+        type_parameters,
         superclass,
         interfaces,
     })
