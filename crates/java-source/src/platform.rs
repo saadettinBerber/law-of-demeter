@@ -1,5 +1,7 @@
 use law_of_demeter_core::domain::classification::{Classification, Platform};
 
+pub(crate) const CONSTRUCTOR_NAME: &str = "<init>";
+
 const VALUE_NAMESPACES: [&str; 1] = ["java.time."];
 
 const VALUES: [&str; 18] = [
@@ -122,7 +124,7 @@ pub fn java_platform() -> Platform {
         .with_object_method("canEqual", 1)
         .with_equality_method("equals", 1)
         .with_equality_method("hashCode", 0)
-        .with_constructor_name("<init>")
+        .with_constructor_name(CONSTRUCTOR_NAME)
         .with_builder_method("toBuilder")
         .with_nested_type_separator("$");
     MUTATOR_WORDS

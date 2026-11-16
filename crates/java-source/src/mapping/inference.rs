@@ -42,7 +42,13 @@ pub(super) fn instantiate(
         .iter()
         .map(|parameter| apply_bindings(parameter, &bindings))
         .collect();
-    (!instantiated.iter().any(has_variable)).then_some((instantiated, bindings))
+    let settled = instantiated
+        .iter()
+        .zip(arguments)
+        .all(|(parameter, argument)| {
+            matches!(argument, ArgumentType::Lambda(_)) || !has_variable(parameter)
+        });
+    settled.then_some((instantiated, bindings))
 }
 
 pub(super) fn complete(

@@ -89,27 +89,31 @@ impl MethodMapper<'_> {
             }
             (None, _) => Expression::This,
         };
+        let invocation = self.invocation_of(call);
         let mut mapped = Call::new(receiver, &call.name, call.line);
-        for argument in &call.arguments {
-            mapped = mapped.with(self.argument(argument));
+        for (index, argument) in call.arguments.iter().enumerate() {
+            let target = invocation.as_ref().and_then(|found| found.parameter(index));
+            mapped = mapped.with(self.argument(argument, target));
         }
-        match self.returned_by(call, expected) {
+        match invocation.and_then(|found| found.returned(self.types, expected)) {
             Some(returned) => Expression::return_of(mapped.returning(returned)),
             None => Expression::return_of(mapped),
         }
     }
 
     fn creation(&mut self, created: &model::New) -> Expression {
+        let invocation = self.constructor_of(created);
         let mut creation = Creation::new(self.type_ref_or_object(&created.created));
-        for argument in &created.arguments {
-            creation = creation.with(self.argument(argument));
+        for (index, argument) in created.arguments.iter().enumerate() {
+            let target = invocation.as_ref().and_then(|found| found.parameter(index));
+            creation = creation.with(self.argument(argument, target));
         }
         Expression::created(creation)
     }
 
-    fn argument(&mut self, argument: &model::Expression) -> Argument {
+    fn argument(&mut self, argument: &model::Expression, target: Option<&TypeRef>) -> Argument {
         match argument {
-            model::Expression::Lambda(lambda) => Argument::Lambda(self.lambda(lambda, None)),
+            model::Expression::Lambda(lambda) => Argument::Lambda(self.lambda(lambda, target)),
             model::Expression::MethodReference { target, name, line } => Argument::MethodReference(
                 MethodReference::new(self.expression(target), name, *line),
             ),

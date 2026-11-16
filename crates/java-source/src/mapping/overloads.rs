@@ -5,11 +5,13 @@ use crate::LiteralType;
 
 use super::conversions::{boxed, unboxed, widens};
 use super::inference::{Bindings, apply_bindings, instantiate};
+use super::lambdas::functional_method;
 use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure};
 
 pub(super) enum ArgumentType {
     Null,
     Typed(TypeRef),
+    Lambda(usize),
 }
 
 impl ArgumentType {
@@ -28,7 +30,11 @@ impl ArgumentType {
 }
 
 pub(super) enum Selection {
-    Chosen { index: usize, bindings: Bindings },
+    Chosen {
+        index: usize,
+        bindings: Bindings,
+        parameters: Vec<TypeRef>,
+    },
     Unresolvable,
     Undecided,
 }
@@ -42,6 +48,7 @@ pub(super) struct Signature {
 struct Applicant {
     index: usize,
     bindings: Bindings,
+    parameters: Vec<TypeRef>,
 }
 
 impl Signature {
@@ -130,7 +137,11 @@ fn applicable(
             .zip(arguments)
             .all(|(parameter, argument)| accepts(types, parameter, argument, phase));
         if fits {
-            applicants.push(Applicant { index, bindings });
+            applicants.push(Applicant {
+                index,
+                bindings,
+                parameters,
+            });
         }
     }
     Some(applicants)
@@ -139,6 +150,8 @@ fn applicable(
 fn accepts(types: &Types, parameter: &TypeRef, argument: &ArgumentType, phase: Phase) -> bool {
     match argument {
         ArgumentType::Null => !matches!(parameter, TypeRef::Primitive(_)),
+        ArgumentType::Lambda(arity) => functional_method(types, parameter)
+            .is_some_and(|functional| functional.parameters.len() == *arity),
         ArgumentType::Typed(argument) => {
             substitutable(types, argument, parameter)
                 || (phase != Phase::Strict && converts_by_boxing(types, argument, parameter))
@@ -166,6 +179,7 @@ fn most_specific(
         [only] => Selection::Chosen {
             index: only.index,
             bindings: only.bindings.clone(),
+            parameters: only.parameters.clone(),
         },
         _ => Selection::Unresolvable,
     }

@@ -1,32 +1,62 @@
 use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeRef, TypeShape};
 
+use crate::platform::CONSTRUCTOR_NAME;
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
 use super::inference::{Bindings, apply_bindings, complete};
-use super::lineage::{Ancestor, has_variable, lineage, substitute};
+use super::lineage::{Ancestor, class_name, has_variable, lineage, substitute};
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
     pub(super) fn returned_by(
-        &self,
+        &mut self,
         call: &model::Call,
         expected: Option<&TypeRef>,
     ) -> Option<TypeRef> {
-        let receiver = self.receiver_type(call)?;
-        let arguments: Vec<_> = call
-            .arguments
-            .iter()
-            .map(|argument| self.argument_type(argument))
-            .collect();
-        declared_return(self.types, &receiver, &call.name, &arguments, expected)
+        self.invocation_of(call)?.returned(self.types, expected)
     }
 
-    fn argument_type(&self, argument: &model::Expression) -> Option<ArgumentType> {
+    pub(super) fn invocation_of(&mut self, call: &model::Call) -> Option<Invocation> {
+        let receiver = self.receiver_type(call)?;
+        let arguments = self.argument_types(&call.arguments);
+        invoked(
+            self.types,
+            lineage(self.types, &receiver),
+            &call.name,
+            &arguments,
+        )
+    }
+
+    pub(super) fn constructor_of(&mut self, created: &model::New) -> Option<Invocation> {
+        let receiver = self.type_ref(&created.created)?;
+        let arguments = self.argument_types(&created.arguments);
+        let mut own = lineage(self.types, &receiver);
+        own.truncate(1);
+        let is_the_class = own
+            .first()
+            .is_some_and(|ancestor| Some(ancestor.shape.name()) == class_name(&receiver));
+        if !is_the_class {
+            return None;
+        }
+        invoked(self.types, own, CONSTRUCTOR_NAME, &arguments)
+    }
+
+    fn argument_types(&mut self, arguments: &[model::Expression]) -> Vec<Option<ArgumentType>> {
+        arguments
+            .iter()
+            .map(|argument| self.argument_type(argument))
+            .collect()
+    }
+
+    fn argument_type(&mut self, argument: &model::Expression) -> Option<ArgumentType> {
         match argument {
             model::Expression::Literal(literal) => Some(ArgumentType::of_literal(*literal)),
+            model::Expression::Lambda(lambda) => {
+                Some(ArgumentType::Lambda(lambda.parameters.len()))
+            }
             other => self
                 .type_of(other)
                 .filter(|type_ref| is_known(self.types, type_ref))
@@ -34,7 +64,7 @@ impl MethodMapper<'_> {
         }
     }
 
-    fn receiver_type(&self, call: &model::Call) -> Option<TypeRef> {
+    fn receiver_type(&mut self, call: &model::Call) -> Option<TypeRef> {
         match (&call.receiver, &call.implicit_target) {
             (Some(receiver), _) => self.type_of(receiver),
             (None, Some(ImplicitTarget::StaticImport { owner })) => Some(named_type(owner)),
@@ -45,7 +75,7 @@ impl MethodMapper<'_> {
         }
     }
 
-    fn type_of(&self, expression: &model::Expression) -> Option<TypeRef> {
+    fn type_of(&mut self, expression: &model::Expression) -> Option<TypeRef> {
         match expression {
             model::Expression::This => Some(TypeRef::class(&self.class.name)),
             model::Expression::Parameter(name) => Some(self.parameter_type(name)),
@@ -62,27 +92,65 @@ impl MethodMapper<'_> {
     }
 }
 
-fn declared_return(
+pub(super) struct Invocation {
+    parameters: Vec<TypeRef>,
+    bindings: Bindings,
+    returned: Option<TypeRef>,
+    free: Vec<String>,
+    bounds: Bindings,
+}
+
+impl Invocation {
+    pub(super) fn parameter(&self, index: usize) -> Option<&TypeRef> {
+        self.parameters.get(index)
+    }
+
+    pub(super) fn returned(&self, types: &Types, expected: Option<&TypeRef>) -> Option<TypeRef> {
+        let returned = self.returned.as_ref()?;
+        let completed = match expected {
+            Some(expected) => complete(types, &self.free, returned, &self.bindings, expected)?,
+            None => self.bindings.clone(),
+        };
+        let applied = apply_bindings(returned, &self.with_declared_bounds(completed));
+        (!has_variable(&applied)).then_some(applied)
+    }
+
+    fn with_declared_bounds(&self, mut bindings: Bindings) -> Bindings {
+        for (name, bound) in &self.bounds {
+            bindings
+                .entry(name.clone())
+                .or_insert_with(|| bound.clone());
+        }
+        bindings
+    }
+}
+
+fn invoked(
     types: &Types,
-    receiver: &TypeRef,
+    ancestors: Vec<Ancestor>,
     method: &str,
     arguments: &[Option<ArgumentType>],
-    expected: Option<&TypeRef>,
-) -> Option<TypeRef> {
-    let ancestors = lineage(types, receiver);
+) -> Option<Invocation> {
     let candidates = candidates(&ancestors, method, arguments.len());
     if candidates.is_empty() {
         return None;
     }
     let signatures: Vec<_> = candidates.iter().map(Candidate::signature).collect();
-    let returned = match select(types, &signatures, arguments) {
-        Selection::Chosen { index, bindings } => {
-            candidates[index].returned_under(types, &bindings, expected)
-        }
-        Selection::Undecided => agreed_return(&candidates),
+    match select(types, &signatures, arguments) {
+        Selection::Chosen {
+            index,
+            bindings,
+            parameters,
+        } => Some(candidates[index].invocation(bindings, parameters)),
+        Selection::Undecided => Some(Invocation {
+            parameters: Vec::new(),
+            bindings: Bindings::new(),
+            returned: agreed_return(&candidates),
+            free: Vec::new(),
+            bounds: Bindings::new(),
+        }),
         Selection::Unresolvable => None,
-    };
-    returned.filter(|returned| !has_variable(returned))
+    }
 }
 
 struct Candidate<'a> {
@@ -107,35 +175,27 @@ impl Candidate<'_> {
         }
     }
 
-    fn returned_under(
-        &self,
-        types: &Types,
-        bindings: &Bindings,
-        expected: Option<&TypeRef>,
-    ) -> Option<TypeRef> {
-        let returned = self.returned()?;
-        let completed = match expected {
-            Some(expected) => complete(
-                types,
-                self.method.type_parameters(),
-                &returned,
-                bindings,
-                expected,
-            )?,
-            None => bindings.clone(),
-        };
-        Some(apply_bindings(&returned, &self.declared_bounds(completed)))
+    fn invocation(&self, bindings: Bindings, parameters: Vec<TypeRef>) -> Invocation {
+        Invocation {
+            parameters,
+            bindings,
+            returned: self.returned(),
+            free: self.method.type_parameters().to_vec(),
+            bounds: self.declared_bounds(),
+        }
     }
 
-    fn declared_bounds(&self, mut bindings: Bindings) -> Bindings {
-        for name in self.method.type_parameters() {
-            if let Some(bound) = self.method.type_parameter_bound(name) {
-                bindings
-                    .entry(name.clone())
-                    .or_insert_with(|| bound.clone());
-            }
-        }
-        bindings
+    fn declared_bounds(&self) -> Bindings {
+        self.method
+            .type_parameters()
+            .iter()
+            .filter_map(|name| {
+                Some((
+                    name.clone(),
+                    self.method.type_parameter_bound(name)?.clone(),
+                ))
+            })
+            .collect()
     }
 
     fn returned(&self) -> Option<TypeRef> {

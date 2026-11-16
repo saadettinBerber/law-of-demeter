@@ -17,6 +17,7 @@ use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::Method;
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
+use crate::platform::CONSTRUCTOR_NAME;
 use crate::{Class, DeclaredType, Method as ParsedMethod, ParseError, SourceFile, parse_with};
 
 use steps::Steps;
@@ -102,7 +103,7 @@ impl<'a> MethodMapper<'a> {
 
     fn map(mut self) -> Method {
         let name = if self.method.is_constructor() {
-            "<init>"
+            CONSTRUCTOR_NAME
         } else {
             &self.method.name
         };
