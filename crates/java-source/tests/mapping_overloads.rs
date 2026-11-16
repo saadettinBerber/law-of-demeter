@@ -1,12 +1,12 @@
 mod mapped;
 
 use law_of_demeter_core::domain::classification::Types;
-use law_of_demeter_core::domain::method::{Expression, Method};
+use law_of_demeter_core::domain::method::{Creation, Expression, Method};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 use mapped::{call, class, method_f_in, parameter};
 
 const PARAMETERS: &str =
-    "Order order, Customer customer, Premium premium, Integer boxed, Ghost ghost";
+    "Order order, Customer customer, Premium premium, Integer boxed, Object any, Ghost ghost";
 
 fn shape(name: &str) -> TypeShape {
     TypeShape::new(name, TypeKind::Class)
@@ -97,6 +97,48 @@ fn an_identical_parameter_type_is_chosen() {
     let mapped = mapped_pick("\"text\"", overloads);
 
     assert_eq!(mapped, expected_pick(vec![literal()], Some("Customer")));
+}
+
+#[test]
+fn a_new_object_argument_has_the_type_it_creates() {
+    let overloads = vec![
+        pick("Customer", vec![class("Customer")]),
+        pick("Wallet", vec![class("Wallet")]),
+    ];
+
+    let mapped = mapped_pick("new Premium()", overloads);
+
+    let created = Expression::created(Creation::new(class("Premium")));
+    assert_eq!(mapped, expected_pick(vec![created], Some("Customer")));
+}
+
+#[test]
+fn a_cast_argument_has_the_type_it_casts_to() {
+    let overloads = vec![
+        pick("Customer", vec![class("Customer")]),
+        pick("Wallet", vec![class("Wallet")]),
+    ];
+
+    let mapped = mapped_pick("(Premium) any", overloads);
+
+    let cast = Expression::cast(
+        class("Premium"),
+        parameter("any", class("java.lang.Object")),
+    );
+    assert_eq!(mapped, expected_pick(vec![cast], Some("Customer")));
+}
+
+#[test]
+fn a_cast_to_a_primitive_gives_the_argument_that_type() {
+    let overloads = vec![
+        pick("Customer", vec![int()]),
+        pick("Wallet", vec![class("java.lang.String")]),
+    ];
+
+    let mapped = mapped_pick("(int) boxed", overloads);
+
+    let cast = Expression::cast(int(), boxed());
+    assert_eq!(mapped, expected_pick(vec![cast], Some("Customer")));
 }
 
 #[test]

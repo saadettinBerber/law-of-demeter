@@ -50,6 +50,8 @@ impl MethodMapper<'_> {
             model::Expression::Captured(name) => Some(self.captured_type(name)),
             model::Expression::Type(name) => Some(named_type(name)),
             model::Expression::Call(call) => self.returned_by(call),
+            model::Expression::New(created) => self.type_ref(&created.created),
+            model::Expression::Cast { target, .. } => self.type_ref(target),
             _ => None,
         }
     }

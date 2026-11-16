@@ -1,7 +1,7 @@
 mod mapped;
 
 use law_of_demeter_core::domain::classification::Types;
-use law_of_demeter_core::domain::method::{Expression, Method};
+use law_of_demeter_core::domain::method::{Creation, Expression, Method};
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 use mapped::{call, class, method_f_in, parameter};
 
@@ -175,6 +175,45 @@ fn overloads_of_the_same_arity_that_return_the_same_type_give_the_call_that_type
         f(2).call(
             call(parameter("order", class("Order")), "find", 3)
                 .with(Expression::literal())
+                .returning(class("Customer"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_new_object_receiver_gives_the_call_its_return_type() {
+    let source = "class OrderService {\n void f() {\n  new Order().getCustomer().go();\n }\n}";
+    let types = shop().with_shape(shape("Order").with_method(returning("getCustomer", "Customer")));
+
+    let mapped = method_f_in(source, &types);
+
+    let created = Expression::created(Creation::new(class("Order")));
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(created, "getCustomer", 3)
+                .returning(class("Customer"))
+                .then("go", 3)
+        )
+    );
+}
+
+#[test]
+fn a_cast_receiver_gives_the_call_its_return_type() {
+    let source =
+        "class OrderService {\n void f(Object any) {\n  ((Order) any).getCustomer().go();\n }\n}";
+    let types = shop()
+        .with_shape(shape("java.lang.Object"))
+        .with_shape(shape("Order").with_method(returning("getCustomer", "Customer")));
+
+    let mapped = method_f_in(source, &types);
+
+    let cast = Expression::cast(class("Order"), parameter("any", class("java.lang.Object")));
+    assert_eq!(
+        mapped,
+        f(2).call(
+            call(cast, "getCustomer", 3)
                 .returning(class("Customer"))
                 .then("go", 3)
         )
