@@ -39,6 +39,23 @@ pub(super) fn instantiate(
     (!instantiated.iter().any(has_variable)).then_some((instantiated, bindings))
 }
 
+pub(super) fn expecting(
+    types: &Types,
+    free: &[String],
+    returned: &TypeRef,
+    expected: &TypeRef,
+) -> TypeRef {
+    let mut constraints = Constraints::new();
+    from_target(
+        types,
+        free,
+        returned,
+        &reference(expected),
+        &mut constraints,
+    );
+    bound(returned, &resolve(types, constraints))
+}
+
 pub(super) fn bound(type_ref: &TypeRef, bindings: &Bindings) -> TypeRef {
     substitute(type_ref, &|name| bindings.get(name).cloned())
 }
@@ -61,6 +78,30 @@ fn from_argument(
             let actual = supertype_arguments(types, argument, name);
             for (declared, actual) in arguments.iter().zip(&actual) {
                 from_equal(free, declared, actual, constraints);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn from_target(
+    types: &Types,
+    free: &[String],
+    returned: &TypeRef,
+    expected: &TypeRef,
+    constraints: &mut Constraints,
+) {
+    match (returned, expected) {
+        (TypeRef::Variable(name), _) if free.contains(name) => {
+            constraints.push((name.clone(), expected.clone()));
+        }
+        (TypeRef::Array(element), TypeRef::Array(target)) if !is_primitive(target) => {
+            from_target(types, free, element, target, constraints);
+        }
+        (TypeRef::Class { .. }, TypeRef::Class { name, arguments }) => {
+            let declared = supertype_arguments(types, returned, name);
+            for (declared, target) in declared.iter().zip(arguments) {
+                from_equal(free, declared, target, constraints);
             }
         }
         _ => {}

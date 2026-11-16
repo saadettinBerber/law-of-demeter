@@ -4,20 +4,24 @@ use law_of_demeter_core::domain::type_shape::{MethodShape, TypeRef, TypeShape};
 use crate::{self as model, ImplicitTarget};
 
 use super::MethodMapper;
-use super::inference::{Bindings, bound};
+use super::inference::{Bindings, bound, expecting};
 use super::lineage::{Ancestor, has_variable, lineage, substitute};
 use super::overloads::{ArgumentType, Selection, Signature, is_known, select};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
-    pub(super) fn returned_by(&self, call: &model::Call) -> Option<TypeRef> {
+    pub(super) fn returned_by(
+        &self,
+        call: &model::Call,
+        expected: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
         let receiver = self.receiver_type(call)?;
         let arguments: Vec<_> = call
             .arguments
             .iter()
             .map(|argument| self.argument_type(argument))
             .collect();
-        declared_return(self.types, &receiver, &call.name, &arguments)
+        declared_return(self.types, &receiver, &call.name, &arguments, expected)
     }
 
     fn argument_type(&self, argument: &model::Expression) -> Option<ArgumentType> {
@@ -50,7 +54,7 @@ impl MethodMapper<'_> {
             model::Expression::OuterField { owner, name } => Some(self.field_type(owner, name)),
             model::Expression::Captured(name) => Some(self.captured_type(name)),
             model::Expression::Type(name) => Some(named_type(name)),
-            model::Expression::Call(call) => self.returned_by(call),
+            model::Expression::Call(call) => self.returned_by(call, None),
             model::Expression::New(created) => self.type_ref(&created.created),
             model::Expression::Cast { target, .. } => self.type_ref(target),
             _ => None,
@@ -63,6 +67,7 @@ fn declared_return(
     receiver: &TypeRef,
     method: &str,
     arguments: &[Option<ArgumentType>],
+    expected: Option<&TypeRef>,
 ) -> Option<TypeRef> {
     let ancestors = lineage(types, receiver);
     let candidates = candidates(&ancestors, method, arguments.len());
@@ -71,7 +76,9 @@ fn declared_return(
     }
     let signatures: Vec<_> = candidates.iter().map(Candidate::signature).collect();
     let returned = match select(types, &signatures, arguments) {
-        Selection::Chosen { index, bindings } => candidates[index].returned_under(&bindings),
+        Selection::Chosen { index, bindings } => {
+            candidates[index].returned_under(types, &bindings, expected)
+        }
         Selection::Undecided => agreed_return(&candidates),
         Selection::Unresolvable => None,
     };
@@ -100,8 +107,17 @@ impl Candidate<'_> {
         }
     }
 
-    fn returned_under(&self, bindings: &Bindings) -> Option<TypeRef> {
-        self.returned().map(|returned| bound(&returned, bindings))
+    fn returned_under(
+        &self,
+        types: &Types,
+        bindings: &Bindings,
+        expected: Option<&TypeRef>,
+    ) -> Option<TypeRef> {
+        let returned = bound(&self.returned()?, bindings);
+        Some(match expected {
+            Some(expected) => expecting(types, self.method.type_parameters(), &returned, expected),
+            None => returned,
+        })
     }
 
     fn returned(&self) -> Option<TypeRef> {

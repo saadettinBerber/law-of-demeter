@@ -364,3 +364,73 @@ fn a_nested_generic_call_binds_through_its_return_type() {
     let picked = util_pick(vec![Expression::return_of(wrapped)]).returning(order());
     assert_eq!(mapped, f(3).call(picked.then("go", 4)));
 }
+
+#[test]
+fn a_type_variable_no_argument_binds_stays_unresolved_without_an_expected_type() {
+    let methods = vec![listing(vec![])];
+
+    let mapped = mapped_pick("", methods);
+
+    assert_eq!(mapped, expected_pick(vec![], None));
+}
+
+#[test]
+fn the_declared_type_of_a_local_binds_a_type_variable_no_argument_binds() {
+    let types = util(vec![listing(vec![])]);
+
+    let mapped = mapped_in(&types, "List<Order> orders = Util.pick();");
+
+    let value = Expression::return_of(util_pick(vec![]).returning(list_of(order())));
+    assert_eq!(mapped, f(3).assign("orders", list_of(order()), value));
+}
+
+#[test]
+fn the_return_type_of_the_method_binds_a_type_variable_no_argument_binds() {
+    let types = util(vec![listing(vec![])]);
+    let source = format!(
+        "{IMPORTS} class OrderService {{\n List<Order> items;\n List<Order> f() {{\n  return Util.pick();\n }}\n}}"
+    );
+
+    let mapped = method_f_in(&source, &types);
+
+    let bound = list_of(order());
+    let call = util_pick(vec![]).returning(bound.clone()).expecting(bound);
+    assert_eq!(mapped, f(3).call(call));
+}
+
+#[test]
+fn the_type_of_a_field_binds_a_type_variable_no_argument_binds_when_it_is_assigned() {
+    let types = util(vec![listing(vec![])]);
+
+    let mapped = mapped_in(&types, "items = Util.pick();");
+
+    let bound = list_of(order());
+    let call = util_pick(vec![]).returning(bound.clone()).expecting(bound);
+    assert_eq!(mapped, f(3).call(call));
+}
+
+#[test]
+fn the_declared_type_of_a_local_binds_a_type_variable_when_the_local_is_assigned_again() {
+    let types = util(vec![listing(vec![])]);
+
+    let mapped = mapped_in(&types, "List<Order> orders = null; orders = Util.pick();");
+
+    let bound = list_of(order());
+    let value = Expression::return_of(util_pick(vec![]).returning(bound.clone()));
+    assert_eq!(
+        mapped,
+        f(3).assign("orders", bound.clone(), Expression::literal())
+            .assign("orders", bound, value)
+    );
+}
+
+#[test]
+fn the_expected_type_binds_through_a_supertype_of_the_return_type() {
+    let methods = vec![pick(&["T"], vec![], generic(ARRAY_LIST, &[variable("T")]))];
+
+    let mapped = mapped_in(&util(methods), "List<Order> orders = Util.pick();");
+
+    let bound = generic(ARRAY_LIST, &[order()]);
+    let value = Expression::return_of(util_pick(vec![]).returning(bound));
+    assert_eq!(mapped, f(3).assign("orders", list_of(order()), value));
+}

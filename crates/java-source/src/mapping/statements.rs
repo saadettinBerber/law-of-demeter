@@ -87,8 +87,9 @@ impl MethodMapper<'_> {
     }
 
     fn returned(&mut self, expression: &Expression) {
-        let value = self.expression(expression);
-        let value = match self.returns.clone() {
+        let returns = self.returns.clone();
+        let value = self.expression_expecting(expression, returns.as_ref());
+        let value = match returns {
             Some(type_ref) => expecting(value, type_ref),
             None => value,
         };
@@ -101,7 +102,7 @@ impl MethodMapper<'_> {
         let Some(initializer) = &local.initializer else {
             return;
         };
-        let value = self.expression(initializer);
+        let value = self.expression_expecting(initializer, declared.as_ref());
         self.steps.assign(&local.name, declared, value);
     }
 

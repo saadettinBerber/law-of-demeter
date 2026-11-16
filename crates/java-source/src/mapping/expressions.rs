@@ -40,7 +40,7 @@ impl MethodMapper<'_> {
             model::Expression::FieldAccess { target, name } => {
                 Expression::field_of(self.expression(target), name)
             }
-            model::Expression::Call(call) => self.call(call),
+            model::Expression::Call(call) => self.call(call, None),
             model::Expression::New(created) => self.creation(created),
             model::Expression::Assignment { target, value } => self.assignment(target, value),
             model::Expression::Operation(operands) => {
@@ -71,7 +71,18 @@ impl MethodMapper<'_> {
         }
     }
 
-    fn call(&mut self, call: &model::Call) -> Expression {
+    pub(super) fn expression_expecting(
+        &mut self,
+        expression: &model::Expression,
+        expected: Option<&TypeRef>,
+    ) -> Expression {
+        match expression {
+            model::Expression::Call(call) => self.call(call, expected),
+            other => self.expression(other),
+        }
+    }
+
+    fn call(&mut self, call: &model::Call, expected: Option<&TypeRef>) -> Expression {
         let receiver = match (&call.receiver, &call.implicit_target) {
             (Some(receiver), _) => self.expression(receiver),
             (None, Some(ImplicitTarget::StaticImport { owner })) => {
@@ -83,7 +94,7 @@ impl MethodMapper<'_> {
         for argument in &call.arguments {
             mapped = mapped.with(self.argument(argument));
         }
-        match self.returned_by(call) {
+        match self.returned_by(call, expected) {
             Some(returned) => Expression::return_of(mapped.returning(returned)),
             None => Expression::return_of(mapped),
         }
@@ -112,14 +123,14 @@ impl MethodMapper<'_> {
             let expected = self.field_type_of(target);
             let target = self.expression(target);
             self.steps.evaluate(target);
-            let value = self.expression(value);
+            let value = self.expression_expecting(value, expected.as_ref());
             return match expected {
                 Some(type_ref) => expecting(value, type_ref),
                 None => value,
             };
         };
-        let value = self.expression(value);
         let declared = self.locals.get(name).cloned().flatten();
+        let value = self.expression_expecting(value, declared.as_ref());
         self.steps.assign(name, declared, value);
         Expression::local(name)
     }
