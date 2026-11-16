@@ -396,7 +396,7 @@ private Order(Builder builder) {
 
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
-- **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34), [`Order.java:92-121`](examples/shop/src/main/java/shop/domain/Order.java#L92-L121)
+- **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34)
 
 </details>
 
@@ -531,7 +531,7 @@ boolean compatible(Order order, Version required) {
 
 - **Neden:** `Version`'ın bütün alanları final, setter'ı yok, `equals` ve `hashCode`'u tanımlı; bir değer nesnesi. Bir karşılaştırma metodu taşıması onu nesne yapmaz.
 
-- **Örnek projede:** [`OrderService.java:30`](examples/shop/src/main/java/shop/service/OrderService.java#L30), [`Version.java:6-12`](examples/shop/src/main/java/shop/domain/Version.java#L6-L12)
+- **Örnek projede:** [`OrderService.java:30`](examples/shop/src/main/java/shop/service/OrderService.java#L30)
 
 </details>
 
@@ -548,7 +548,7 @@ class PaymentService extends BaseService {
 
 - **Neden:** `wallet`, `BaseService`'te tanımlı bir alan. C'nin üst sınıfından gelen alan, C'nin kendi alanı gibi arkadaştır.
 
-- **Örnek projede:** [`PaymentService.java:22`](examples/shop/src/main/java/shop/service/PaymentService.java#L22), [`BaseService.java:6`](examples/shop/src/main/java/shop/service/BaseService.java#L6)
+- **Örnek projede:** [`PaymentService.java:22`](examples/shop/src/main/java/shop/service/PaymentService.java#L22)
 
 </details>
 
