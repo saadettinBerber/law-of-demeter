@@ -228,7 +228,17 @@ void charge(int amount) {
 
 - **Not:** Lambda ile yazılsa da sonuç aynı: `map(order -> order.getCustomer())`. Eleman f'nin içinde oluşturulursa arkadaş kalır: `map(order -> new Receipt(order))`. `filter` gibi elemanı değiştirmeyen adımlar akışın durumunu korur: Uygun 5.
 
-- **Örnek projede:** [`BillingService.java:15`](examples/shop/src/main/java/shop/service/BillingService.java#L15), [`BillingService.java:19`](examples/shop/src/main/java/shop/service/BillingService.java#L19)
+```java
+void discountLines(Order order) {
+    new Batch<>(order.getLines(), line -> line.applyDiscount(10));
+}
+```
+
+- **Neden (kurucu):** `Batch(List<T> items, Consumer<T> each)` lambdanın girdisini `items`'ın elemanlarından alır. Elemanları `getLines()` çağrısı verdiği için yabancıdır; lambda yeni oluşturulan `Batch`'i değil, o elemanları alır. `applyDiscount` raporlanır. Aynısı statik çağrıda da geçerlidir: `Batches.each(order.getLines(), line -> ...)`.
+
+- **Not (kurucu):** Lambdanın girdisini başka bir argüman beslemiyorsa lambda, çağrının alıcısına bağlı kalır; kurucuda bu, oluşturulan nesnedir: `new Worker(e -> ...)`. Metot referansı da aynı yoldan beslenir: `new Batch<>(order.getLines(), OrderLine::getId)`. Kurucu ya da metot belirlenemezse bağ kurulmaz.
+
+- **Örnek projede:** [`BillingService.java:15`](examples/shop/src/main/java/shop/service/BillingService.java#L15), [`BillingService.java:19`](examples/shop/src/main/java/shop/service/BillingService.java#L19), [`ReportingService.java:71`](examples/shop/src/main/java/shop/service/ReportingService.java#L71)
 
 </details>
 
