@@ -276,3 +276,16 @@ fn an_argument_of_unknown_type_leaves_disagreeing_variable_arity_overloads_unres
 
     assert_eq!(mapped, expected_pick(vec![ghost(), ghost()], None));
 }
+
+#[test]
+fn a_fixed_array_parameter_does_not_take_separate_arguments() {
+    let overloads = vec![
+        fixed_pick("Wallet", vec![array_of("Order")]),
+        pick("Customer", vec![array_of("java.lang.Object")]),
+    ];
+
+    let mapped = mapped_pick("order", overloads);
+
+    let order = parameter("order", class("Order"));
+    assert_eq!(mapped, expected_pick(vec![order], Some("Customer")));
+}
