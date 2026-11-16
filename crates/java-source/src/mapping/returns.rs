@@ -348,7 +348,7 @@ impl Candidate<'_> {
 
     fn returned(&self) -> Option<TypeRef> {
         let returned = self.method.returns()?;
-        if self.ancestor.erased && mentions_generics(returned) {
+        if self.ancestor.erased && !self.method.is_static() && mentions_generics(returned) {
             return None;
         }
         Some(self.specialize(returned))

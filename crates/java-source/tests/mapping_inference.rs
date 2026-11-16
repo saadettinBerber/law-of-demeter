@@ -543,3 +543,17 @@ fn the_expected_type_binds_a_type_variable_that_is_the_whole_return_type() {
     let value = Expression::return_of(util_pick(vec![literal()]).returning(class("Customer")));
     assert_eq!(mapped, f(3).assign("chosen", class("Customer"), value));
 }
+
+#[test]
+fn a_static_method_of_a_generic_class_keeps_its_generic_return_type() {
+    let util = shape("Util")
+        .with_type_parameter("E")
+        .with_method(listing(vec![variable("T")]));
+
+    let mapped = mapped_in(&world().with_shape(util), "Util.pick(order).go();");
+
+    assert_eq!(
+        mapped,
+        expected_pick(vec![an_order()], Some(list_of(order())))
+    );
+}
