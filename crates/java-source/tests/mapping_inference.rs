@@ -532,3 +532,14 @@ fn a_declared_bound_that_mentions_its_own_type_variable_leaves_the_call_unresolv
 
     assert_eq!(mapped, expected_pick(vec![], None));
 }
+
+#[test]
+fn the_expected_type_binds_a_type_variable_that_is_the_whole_return_type() {
+    let key = class("java.lang.String");
+    let types = util(vec![pick(&["T"], vec![key], variable("T"))]);
+
+    let mapped = mapped_in(&types, "Customer chosen = Util.pick(\"customer\");");
+
+    let value = Expression::return_of(util_pick(vec![literal()]).returning(class("Customer")));
+    assert_eq!(mapped, f(3).assign("chosen", class("Customer"), value));
+}
