@@ -55,7 +55,7 @@
 | [Veri akışı bağlarını adapter versin: hangi lambda parametresi alıcının elemanlarıyla besleniyor, lambda sonucu dönüşe akıyor mu; domain arkadaş ya da yabancı durumunu bu bağlar boyunca taşısın.](README.md#mimari) | Yapıldı |
 | [Tip çıkarımını domain'den sil: `invocation.rs`, `functional.rs`, aşırı yükleme ve generic bağlama; domain testleri çözülmüş tiplerle sadeleşsin.](README.md#mimari) | Yapıldı |
 | [Domain'in hiçbir dili bilmediğini kural olarak yaz: AGENTS.md ve README mimari bölümü.](AGENTS.md#mimari) | Yapıldı |
-| [Haritanın değer ve girdi bağlarını adapter versin: `toMap` değerleri, `entrySet()`, `getKey()` ve `values()` durumu doğru kaynaktan alsın.](README.md#mimari) | Yapılmadı |
+| [Haritanın değer ve girdi bağlarını adapter versin: `toMap` değerleri, `entrySet()`, `getKey()` ve `values()` durumu doğru kaynaktan alsın.](README.md#mimari) | Yapıldı |
 | [Kurucuya verilen lambda ve metot referansının besleyen bağını adapter versin: `new Worker(e -> ...)`.](README.md#mimari) | Yapılmadı |
 | [Yıldızlı statik importla gelen alıcısız çağrının dönüş tipini adapter bulsun: `import static shop.Orders.*;` sonrası `create()`.](README.md#mimari) | Yapılmadı |
 | [Ham generic alıcıda generic dönüşü silinmiş tiple çöz: ham `List` üzerinde `get(0)` → `Object`.](README.md#mimari) | Yapılmadı |
