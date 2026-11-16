@@ -328,7 +328,7 @@ fn a_static_field_of_a_type_is_a_friend() {
 
     assert_eq!(
         verdicts,
-        [Verdict::allowed("name", 2, Reason::static_result("PAID"))]
+        [Verdict::allowed("name", 2, Reason::static_field("PAID"))]
     );
 }
 

@@ -146,7 +146,7 @@ impl Expression {
             Self::FieldOf { target, name } => {
                 let judged = target.judge(context);
                 let standing = if matches!(**target, Self::StaticType(_)) {
-                    Standing::Friend(Reason::static_result(name))
+                    Standing::Friend(Reason::static_field(name))
                 } else {
                     Standing::Stranger(Reason::field_of(name))
                 };

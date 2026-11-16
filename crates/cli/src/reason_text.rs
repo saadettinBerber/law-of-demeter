@@ -66,6 +66,7 @@ pub fn describe(reason: &Reason) -> String {
         Reason::StaticResult(call) => {
             format!("{call}() statik çağrısının döndürdüğü nesne f'nin arkadaşı")
         }
+        Reason::StaticField(name) => format!("{name} statik sabiti f'nin arkadaşı"),
         Reason::FactoryResult(call) => {
             format!("{call}() factory çağrısının döndürdüğü nesne f'nin arkadaşı")
         }
@@ -104,6 +105,7 @@ pub fn category(reason: &Reason) -> &'static str {
         Reason::Library(_) => "Kütüphane tipi",
         Reason::Fluent(_) => "Akıcı çağrı",
         Reason::StaticResult(_) => "Statik çağrının sonucu",
+        Reason::StaticField(_) => "Statik sabit",
         Reason::FactoryResult(_) => "Factory'nin sonucu",
         Reason::QueryResult(_) => "Depo sorgusunun sonucu",
     }

@@ -281,6 +281,6 @@ fn a_bound_reference_on_a_static_field_is_allowed_as_the_call_on_it_would_be() {
 
     assert_eq!(
         verdicts[1],
-        Verdict::allowed("println", 3, Reason::static_result("out"))
+        Verdict::allowed("println", 3, Reason::static_field("out"))
     );
 }

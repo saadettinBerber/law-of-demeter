@@ -133,7 +133,7 @@ src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:32  shop.service.ReportingService.byWallet  collect()  Uygun: customers sınıfın alanı
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  get()  Uygun: shapes f'ye argüman olarak verildi
 src/main/java/shop/service/ReportingService.java:36  shop.service.ReportingService.area  getOutline()  Uygun: shapes f'ye argüman olarak verildi
-src/main/java/shop/service/ReportingService.java:40  shop.service.ReportingService.paidName  name()  Uygun: PAID() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:40  shop.service.ReportingService.paidName  name()  Uygun: PAID statik sabiti f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  stream()  Uygun: java.util.Arrays tipi üzerinde statik çağrı
 src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  getCustomer()  Uygun: Order::getCustomer metot referansı: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingService.walletsOf  map()  Uygun: stream() statik çağrısının döndürdüğü nesne f'nin arkadaşı
@@ -143,7 +143,7 @@ src/main/java/shop/service/ReportingService.java:44  shop.service.ReportingServi
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  stream()  Uygun: wallets f'ye argüman olarak verildi
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  of()  Uygun: java.util.Optional tipi üzerinde statik çağrı
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  map()  Uygun: wallets f'ye argüman olarak verildi
-src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  println()  Uygun: out() statik çağrısının döndürdüğü nesne f'nin arkadaşı
+src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  println()  Uygun: out statik sabiti f'nin arkadaşı
 src/main/java/shop/service/ReportingService.java:48  shop.service.ReportingService.printAll  forEach()  Uygun: of() statik çağrısının döndürdüğü nesne f'nin arkadaşı
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  getOrder()  Uygun: event f'ye argüman olarak verildi
 src/main/java/shop/service/ShippingService.java:16  shop.service.ShippingService.onShipped  log()  Uygun: f'nin kendi nesnesi
@@ -172,7 +172,7 @@ src/main/java/shop/domain/Account.java  shop.domain.Account  Hibrit sınıf: dav
 Uygun nedenleri:
   37  Argüman
   33  Sınıfın alanı
-  13  Statik çağrının sonucu
+  11  Statik çağrının sonucu
   10  Statik çağrı
   7  Metotta oluşturulan nesne
   6  Konteyner
@@ -181,4 +181,5 @@ Uygun nedenleri:
   2  Depo sorgusunun sonucu
   2  Değer
   2  Kütüphane tipi
+  2  Statik sabit
   1  Factory'nin sonucu

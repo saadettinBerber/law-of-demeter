@@ -220,6 +220,7 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
         allowed(9, Reason::static_result("builder")),
         allowed(10, Reason::factory_result("create")),
         allowed(11, Reason::query_result("findById")),
+        allowed(12, Reason::static_field("PAID")),
     ]);
 
     assert_eq!(
@@ -236,6 +237,7 @@ fn the_reasons_that_make_a_receiver_a_friend_read_in_turkish() {
             "builder() statik çağrısının döndürdüğü nesne f'nin arkadaşı",
             "create() factory çağrısının döndürdüğü nesne f'nin arkadaşı",
             "findById() depo sorgusunun döndürdüğü nesne f'nin arkadaşı",
+            "PAID statik sabiti f'nin arkadaşı",
         ]
     );
 }
@@ -502,6 +504,7 @@ fn every_kind_of_allowed_call_has_a_reason_group_in_the_summary() {
         allowed(12, Reason::static_result("builder")),
         allowed(13, Reason::factory_result("create")),
         allowed(14, Reason::query_result("findById")),
+        allowed(15, Reason::static_field("PAID")),
     ]);
 
     let text = render(&report, true);
@@ -519,6 +522,7 @@ fn every_kind_of_allowed_call_has_a_reason_group_in_the_summary() {
             "  1  Konteyner",
             "  1  Metotta oluşturulan nesne",
             "  1  Sabit değer",
+            "  1  Statik sabit",
             "  1  Statik çağrı",
             "  1  Statik çağrının sonucu",
             "  1  Veri yapısı",

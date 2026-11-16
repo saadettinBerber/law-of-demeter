@@ -12,6 +12,7 @@ pub enum Reason {
     UnassignedLocal(String),
     UnresolvedName(String),
     StaticResult(String),
+    StaticField(String),
     FactoryResult(String),
     QueryResult(String),
     Fluent(TypeRef),
@@ -116,6 +117,10 @@ impl Reason {
 
     pub fn static_result(call: &str) -> Self {
         Self::StaticResult(call.to_owned())
+    }
+
+    pub fn static_field(name: &str) -> Self {
+        Self::StaticField(name.to_owned())
     }
 
     pub fn factory_result(call: &str) -> Self {

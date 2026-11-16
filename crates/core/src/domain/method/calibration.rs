@@ -469,7 +469,7 @@ fn a_bare_name_that_a_candidate_declares_as_a_static_field_is_a_friend() {
 
     assert_eq!(
         verdicts,
-        [Verdict::allowed("name", 2, Reason::static_result("PAID"))]
+        [Verdict::allowed("name", 2, Reason::static_field("PAID"))]
     );
 }
 
@@ -484,14 +484,14 @@ fn the_first_candidate_that_declares_the_static_field_decides_its_type() {
     assert_eq!(
         from_first,
         [
-            Verdict::allowed("getOwner", 2, Reason::static_result("LIMIT")),
+            Verdict::allowed("getOwner", 2, Reason::static_field("LIMIT")),
             Verdict::violation("rename", 2, Reason::return_of("getOwner")),
         ]
     );
     assert_eq!(
         from_second,
         [
-            Verdict::allowed("getOwner", 2, Reason::static_result("LIMIT")),
+            Verdict::allowed("getOwner", 2, Reason::static_field("LIMIT")),
             Verdict::violation(
                 "rename",
                 2,
@@ -513,7 +513,7 @@ fn a_candidate_that_does_not_declare_the_name_is_skipped() {
 
     assert_eq!(
         verdicts,
-        [Verdict::allowed("name", 2, Reason::static_result("PAID"))]
+        [Verdict::allowed("name", 2, Reason::static_field("PAID"))]
     );
 }
 

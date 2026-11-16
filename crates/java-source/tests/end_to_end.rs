@@ -1338,7 +1338,7 @@ fn on_demand_static_names_1_a_constant_of_the_imported_type_is_a_friend() {
 
     assert_eq!(
         verdicts,
-        [Verdict::allowed("name", 3, Reason::static_result("PAID"))]
+        [Verdict::allowed("name", 3, Reason::static_field("PAID"))]
     );
 }
 
@@ -1357,7 +1357,7 @@ fn on_demand_static_names_2_the_first_import_that_declares_the_constant_decides_
     assert_eq!(
         verdicts,
         [
-            Verdict::allowed("getOwner", 3, Reason::static_result("LIMIT")),
+            Verdict::allowed("getOwner", 3, Reason::static_field("LIMIT")),
             Verdict::violation("rename", 3, Reason::return_of("getOwner")),
         ]
     );
