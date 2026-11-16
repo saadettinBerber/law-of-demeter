@@ -262,9 +262,20 @@ void rename(List<Order> orders, String prefix) {
 
 - **Neden:** Harita anahtarlarını sınıflandırıcı üretir; burada `Order::getCustomer`, yani anahtarlar `getCustomer()` çağrısından gelen yabancılar. f, `order.getCustomer().rename(prefix)` ile aynı yere uzanıyor; gruplama bunu gizlemez. `rename` raporlanır.
 
-- **Not:** Haritanın değerleri akışın elemanlarından gelir ve elemanların durumunu korur: `grouped.get(customer).get(0).getStatus()` arkadaş olan siparişle konuşur. Anahtarın durumu yalnızca anahtarları veren çağrıdan okunur (`keySet()`); haritanın kendisi ve değerleri değişmez.
+```java
+void ship(List<Order> orders) {
+    for (Map.Entry<Customer, Order> entry : orders.stream().collect(Collectors.toMap(Order::getCustomer, order -> order)).entrySet()) {
+        entry.getKey().getWallet();
+        entry.getValue().ship();
+    }
+}
+```
 
-- **Örnek projede:** [`ReportingService.java:53`](examples/shop/src/main/java/shop/service/ReportingService.java#L53)
+- **Neden (girdiler):** `toMap(keyMapper, valueMapper)` anahtarları anahtar eşleyicinin, değerleri değer eşleyicinin sonucundan alır. `getKey()` anahtarların durumunu okur: `Order::getCustomer` yabancı verdiği için `getWallet` raporlanır. `getValue()` değerlerin durumunu okur: `order -> order` elemanı olduğu gibi verdiği için `ship` arkadaşla konuşur, raporlanmaz. Değer eşleyici `Order::getCustomer` olursa `getValue()` ve `values()` yabancı verir; örnek projedeki `renameByOrder` bu yüzden `values()` ile gelen müşteriyi raporlar.
+
+- **Not:** Haritanın değerleri akışın elemanlarından gelir ve elemanların durumunu korur: `grouped.get(customer).get(0).getStatus()` arkadaş olan siparişle konuşur. Anahtarın durumu yalnızca anahtarları veren çağrıdan okunur (`keySet()`, `getKey()`), değerin durumu yalnızca değerleri veren çağrıdan (`values()`, `getValue()`, `get`); `entrySet()` ve onu süren çağrılar (`stream()` gibi) girdilerin ikisini de taşır. Haritanın kendisi değişmez.
+
+- **Örnek projede:** [`ReportingService.java:53`](examples/shop/src/main/java/shop/service/ReportingService.java#L53), [`ReportingService.java:59`](examples/shop/src/main/java/shop/service/ReportingService.java#L59), [`ReportingService.java:65-66`](examples/shop/src/main/java/shop/service/ReportingService.java#L65-L66)
 
 </details>
 
