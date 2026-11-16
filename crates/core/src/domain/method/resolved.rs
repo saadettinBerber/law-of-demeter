@@ -2,8 +2,6 @@ use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
-const CONSUMER: &str = "java.util.function.Consumer";
-const FUNCTION: &str = "java.util.function.Function";
 const STREAM: &str = "java.util.stream.Stream";
 const LIST: &str = "java.util.List";
 const OBJECT: &str = "java.lang.Object";
@@ -79,10 +77,40 @@ fn a_call_takes_its_resolved_return_type_when_its_shape_declares_none() {
 
 fn renaming_the_customer_of(order: &str) -> Call {
     Call::new(
-        Expression::return_of(Call::new(Expression::local(order), "getCustomer", 3)),
+        Expression::return_of(
+            Call::new(Expression::local(order), "getCustomer", 3)
+                .returning(TypeRef::class("Customer")),
+        ),
         "rename",
         3,
     )
+}
+
+#[test]
+fn a_lambda_parameter_classifies_its_calls_by_the_source_declared_type_over_the_resolved_one() {
+    let customer = Expression::return_of(
+        Call::new(Expression::parameter("order", order()), "getCustomer", 2)
+            .returning(TypeRef::class("Customer")),
+    );
+    let register = Method::new("Dispatcher", "register", 1).call(
+        Call::new(customer, "onEach", 2).with(
+            Lambda::new(&["total"])
+                .declaring("total", TypeRef::class(BIG_DECIMAL))
+                .resolving("total", order())
+                .call(Call::new(Expression::local("total"), "signum", 3)),
+        ),
+    );
+
+    let verdicts = register.verdicts(&shop());
+
+    assert_eq!(
+        verdicts[1],
+        Verdict::allowed(
+            "signum",
+            3,
+            Reason::classified(Classification::Value, TypeRef::class(BIG_DECIMAL))
+        )
+    );
 }
 
 #[test]
@@ -141,114 +169,33 @@ fn a_lambda_parameter_keeps_its_source_declared_type_over_the_resolved_one() {
     );
 }
 
-#[test]
-fn a_lambda_argument_takes_its_resolved_parameter_type_over_the_functional_interface() {
-    let consumer = TypeRef::generic(CONSUMER, vec![TypeRef::class("Customer")]);
-    let types = shop()
-        .with_shape(
-            TypeShape::new(CONSUMER, TypeKind::Interface)
-                .with_type_parameter("T")
-                .with_method(
-                    MethodShape::new("accept")
-                        .with_parameters(vec![TypeRef::variable("T")])
-                        .as_abstract(),
-                ),
-        )
-        .with_shape(
-            class("Notifier")
-                .with_method(MethodShape::new("onEach").with_parameters(vec![consumer])),
-        );
-    let register = Method::new("Dispatcher", "register", 1).call(
-        Call::new(
-            Expression::field("notifier", TypeRef::class("Notifier")),
-            "onEach",
-            2,
-        )
-        .with(
-            Lambda::new(&["order"])
-                .resolving("order", order())
-                .call(renaming_the_customer_of("order")),
-        ),
-    );
-
-    let verdicts = register.verdicts(&types);
-
-    assert_eq!(
-        verdicts[1],
-        Verdict::violation("rename", 3, Reason::return_of("getCustomer"))
-    );
-}
-
 fn generic(name: &str, arguments: &[TypeRef]) -> TypeRef {
     TypeRef::generic(name, arguments.to_vec())
 }
 
-fn streaming() -> Types {
-    let element = TypeRef::variable("T");
-    let result = TypeRef::variable("R");
-    shop()
-        .with_shape(
-            TypeShape::new(STREAM, TypeKind::Interface)
-                .with_type_parameter("T")
-                .with_method(
-                    MethodShape::new("map")
-                        .with_type_parameter("R")
-                        .with_parameters(vec![generic(
-                            FUNCTION,
-                            &[element.clone(), result.clone()],
-                        )])
-                        .returning(generic(STREAM, std::slice::from_ref(&result))),
-                )
-                .with_method(
-                    MethodShape::new("forEach")
-                        .with_parameters(vec![generic(CONSUMER, std::slice::from_ref(&element))]),
-                ),
-        )
-        .with_shape(
-            TypeShape::new(FUNCTION, TypeKind::Interface)
-                .with_type_parameter("T")
-                .with_type_parameter("R")
-                .with_method(
-                    MethodShape::new("apply")
-                        .with_parameters(vec![element.clone()])
-                        .returning(result)
-                        .as_abstract(),
-                ),
-        )
-        .with_shape(
-            TypeShape::new(CONSUMER, TypeKind::Interface)
-                .with_type_parameter("T")
-                .with_method(
-                    MethodShape::new("accept")
-                        .with_parameters(vec![element])
-                        .as_abstract(),
-                ),
-        )
-        .with_shape(
-            TypeShape::new(LIST, TypeKind::Interface)
-                .with_type_parameter("E")
-                .with_method(
-                    MethodShape::new("stream")
-                        .returning(generic(STREAM, &[TypeRef::variable("E")])),
-                ),
-        )
-}
-
 #[test]
-fn a_method_reference_takes_its_resolved_result_type_over_the_one_its_shape_declares() {
+fn a_lambda_takes_its_resolved_parameter_type_after_a_stream_mapped_by_a_method_reference() {
     let total = MethodReference::new(Expression::static_type(order()), "getTotal", 2)
-        .returning(TypeRef::class(BIG_DECIMAL));
+        .taking(1)
+        .returning(TypeRef::class(BIG_DECIMAL))
+        .fed_by_elements();
     let orders = Expression::parameter("orders", generic(LIST, &[order()]));
-    let sign = Lambda::new(&["total"]).call(Call::new(Expression::local("total"), "signum", 3));
+    let sign = Lambda::new(&["total"])
+        .resolving("total", TypeRef::class(BIG_DECIMAL))
+        .fed_by_receiver("total")
+        .call(Call::new(Expression::local("total"), "signum", 3));
     let charge = Method::new("Billing", "charge", 1).call(
         Call::new(orders, "stream", 2)
+            .returning(generic(STREAM, &[order()]))
             .then("map", 2)
             .with(total)
+            .returning(generic(STREAM, &[TypeRef::class(BIG_DECIMAL)]))
+            .returning_from(&[0])
             .then("forEach", 3)
             .with(sign),
     );
 
-    let verdicts = charge.verdicts(&streaming());
+    let verdicts = charge.verdicts(&shop());
 
     assert_eq!(
         verdicts[3],

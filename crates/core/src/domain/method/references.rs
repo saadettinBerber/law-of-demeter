@@ -1,3 +1,4 @@
+use super::nested::{mapped_customers, orders_stream};
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::{Classification, Types, sample_types};
 use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
@@ -135,19 +136,6 @@ fn streams() -> Types {
         )
 }
 
-fn mapped_customers() -> Call {
-    orders_stream().then("map", 2).with(MethodReference::new(
-        Expression::static_type(order()),
-        "getCustomer",
-        2,
-    ))
-}
-
-fn orders_stream() -> Call {
-    let orders = Expression::parameter("orders", generic(LIST, &[order()]));
-    Call::new(orders, "stream", 2)
-}
-
 #[test]
 fn a_reference_to_a_static_method_is_allowed_as_the_static_call_it_stands_for() {
     let charge = Method::new("Billing", "charge", 1).call(orders_stream().then("map", 2).with(
@@ -241,9 +229,10 @@ fn an_unbound_reference_is_judged_as_the_call_on_the_element_that_feeds_it() {
 
 #[test]
 fn an_unbound_reference_on_elements_a_stranger_returned_is_a_violation() {
-    let charge = Method::new("Billing", "charge", 1).call(mapped_customers().then("map", 3).with(
-        MethodReference::new(Expression::static_type(customer()), "getWallet", 3),
-    ));
+    let charge =
+        Method::new("Billing", "charge", 1).call(mapped_customers().then("map", 3).with(
+            MethodReference::new(Expression::static_type(customer()), "getWallet", 3).taking(1),
+        ));
 
     let verdicts = charge.verdicts(&streams());
 
@@ -270,6 +259,7 @@ fn an_unbound_reference_nested_in_a_collector_takes_the_standing_of_the_stream_c
                 )
                 .with(
                     MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
+                        .taking(1)
                         .resolving(customer())
                         .fed_by_elements(),
                 )
@@ -405,11 +395,9 @@ fn a_bound_reference_on_a_field_is_allowed_as_the_call_on_the_field_would_be() {
 
 #[test]
 fn a_bound_reference_on_what_a_stranger_returned_is_a_violation() {
-    let returned_by_the_order = Expression::return_of(Call::new(
-        Expression::parameter("order", order()),
-        "getCustomer",
-        3,
-    ));
+    let returned_by_the_order = Expression::return_of(
+        Call::new(Expression::parameter("order", order()), "getCustomer", 3).returning(customer()),
+    );
     let print = forwarding_to(returned_by_the_order, "rename");
 
     let verdicts = print.verdicts(&streams());

@@ -1,7 +1,7 @@
 use super::nested::{
     collecting, collector, collectors_call, collectors_static, customer, generic, interface,
     list_of, mapped_customers, order, orders_collected_by, orders_stream, stranger_customers,
-    stream_of, variable, wildcard,
+    stream_of, wildcard,
 };
 use std::sync::mpsc;
 use std::thread;
@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use super::{Call, Expression, Lambda, Method, MethodReference, Reason, Verdict};
 use crate::domain::classification::Types;
-use crate::domain::type_shape::{MethodShape, TypeRef};
+use crate::domain::type_shape::TypeRef;
 
 fn wallet_of_each() -> Expression {
     Expression::return_of(Call::new(Expression::local("each"), "getWallet", 3))
@@ -93,11 +93,9 @@ fn a_method_reference_linked_to_the_receiver_keeps_its_own_feed_though_its_type_
 fn customers_of_the_orders() -> Lambda {
     Lambda::new(&["each"])
         .resolving("each", order())
-        .yielding(Expression::return_of(Call::new(
-            Expression::local("each"),
-            "getCustomer",
-            2,
-        )))
+        .yielding(Expression::return_of(
+            Call::new(Expression::local("each"), "getCustomer", 2).returning(customer()),
+        ))
 }
 
 fn wallet_of_the_first_customer_in(customers: Call) -> Method {
@@ -107,8 +105,10 @@ fn wallet_of_the_first_customer_in(customers: Call) -> Method {
             .with(Expression::return_of(collectors_call("toList").returning(
                 collector(customer(), wildcard(), list_of(customer())),
             )))
+            .returning(list_of(customer()))
             .then("get", 2)
             .with(Expression::literal())
+            .returning(customer())
             .then("getWallet", 3),
     )
 }
@@ -118,6 +118,7 @@ fn a_result_the_link_keeps_out_of_the_return_leaves_the_standing_of_the_receiver
     let customers = orders_stream()
         .then("map", 2)
         .with(customers_of_the_orders())
+        .returning(stream_of(customer()))
         .returning_from(&[]);
 
     let verdicts = wallet_of_the_first_customer_in(customers).verdicts(&collecting());
@@ -169,12 +170,8 @@ fn a_nested_call_with_a_resolved_return_is_judged_once_among_the_elements_of_the
 }
 
 fn keyed() -> Types {
-    let keys = generic("java.util.Set", &[variable("K")]);
     collecting()
-        .with_shape(
-            interface("java.util.Map", &["K", "V"])
-                .with_method(MethodShape::new("keySet").returning(keys)),
-        )
+        .with_shape(interface("java.util.Map", &["K", "V"]))
         .with_shape(interface("java.util.Set", &["E"]))
 }
 
@@ -184,11 +181,7 @@ fn orders_by_customer() -> TypeRef {
 
 fn grouping_by_customer() -> Call {
     collectors_call("groupingBy")
-        .with(MethodReference::new(
-            Expression::static_type(order()),
-            "getCustomer",
-            2,
-        ))
+        .with(MethodReference::new(Expression::static_type(order()), "getCustomer", 2).taking(1))
         .returning(orders_by_customer())
         .returning_from(&[])
 }
@@ -197,6 +190,10 @@ fn withdrawing_from_each_of(customers: Call) -> Method {
     Method::new("Billing", "charge", 1)
         .for_each("customer", Expression::return_of(customers))
         .call(Call::new(Expression::local("customer"), "getWallet", 3))
+}
+
+fn customers_set() -> TypeRef {
+    generic("java.util.Set", &[customer()])
 }
 
 fn wallet_of_a_stranger_loop_variable() -> Verdict {
@@ -212,6 +209,7 @@ fn a_call_reading_the_keys_takes_the_standing_the_link_gave_them() {
     let keys = grouping_by_customer()
         .keyed_by(0)
         .then("keySet", 2)
+        .returning(customers_set())
         .yielding_keys();
 
     let verdicts = withdrawing_from_each_of(keys).verdicts(&keyed());
@@ -221,7 +219,10 @@ fn a_call_reading_the_keys_takes_the_standing_the_link_gave_them() {
 
 #[test]
 fn a_call_that_does_not_read_the_keys_keeps_the_standing_of_its_receiver() {
-    let keys = grouping_by_customer().keyed_by(0).then("keySet", 2);
+    let keys = grouping_by_customer()
+        .keyed_by(0)
+        .then("keySet", 2)
+        .returning(customers_set());
 
     let verdicts = withdrawing_from_each_of(keys).verdicts(&keyed());
 
@@ -241,8 +242,12 @@ fn a_call_passes_on_the_keys_of_the_argument_the_link_names() {
         .returning(orders_by_customer())
         .keyed_by(0);
 
-    let verdicts =
-        withdrawing_from_each_of(grouped.then("keySet", 2).yielding_keys()).verdicts(&keyed());
+    let keys = grouped
+        .then("keySet", 2)
+        .returning(customers_set())
+        .yielding_keys();
+
+    let verdicts = withdrawing_from_each_of(keys).verdicts(&keyed());
 
     assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
 }
@@ -250,6 +255,7 @@ fn a_call_passes_on_the_keys_of_the_argument_the_link_names() {
 #[test]
 fn a_method_reference_takes_its_resolved_input_type_when_its_functional_parameter_is_open() {
     let wallet = MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
+        .taking(1)
         .fed_by_elements()
         .resolving(customer());
     let grouping = collectors_call("groupingBy")

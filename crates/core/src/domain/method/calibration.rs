@@ -121,7 +121,9 @@ fn the_value_unwrapped_from_a_repository_result_is_a_friend() {
                 "id",
                 TypeRef::class("java.lang.String"),
             ))
+            .returning(generic("java.util.Optional", &[TypeRef::class("Cart")]))
             .then(unwrap, 2)
+            .returning(TypeRef::class("Cart"))
             .then("checkout", 2),
         )
     };
@@ -178,8 +180,10 @@ fn an_element_taken_from_a_returned_container_stays_a_stranger() {
             "getLines",
             2,
         )
+        .returning(lines.clone())
         .then("get", 2)
         .with(Expression::literal())
+        .returning(TypeRef::class("OrderLine"))
         .then("applyDiscount", 2),
     );
 
@@ -210,8 +214,11 @@ fn values_iterators_and_their_next_elements_of_a_container_field_are_friends() {
     );
     let check_out_all = Method::new("Shop", "checkOutFirst", 1).call(
         Call::new(Expression::field("carts", carts), "values", 2)
+            .returning(generic("java.util.Collection", &[TypeRef::class("Cart")]))
             .then("iterator", 2)
+            .returning(generic("java.util.Iterator", &[TypeRef::class("Cart")]))
             .then("next", 2)
+            .returning(TypeRef::class("Cart"))
             .then("checkout", 2),
     );
 
@@ -277,6 +284,7 @@ fn a_call_on_a_library_object_returned_by_a_field_is_allowed() {
             "writeLock",
             2,
         )
+        .returning(TypeRef::class(WRITE_LOCK))
         .then("lock", 2),
     );
 
@@ -293,8 +301,11 @@ fn a_call_on_a_library_object_returned_by_a_field_is_allowed() {
 
 #[test]
 fn the_name_read_from_the_class_of_this_is_allowed_as_a_value() {
-    let describe = Method::new("Shop", "describe", 1)
-        .call(Call::new(Expression::This, "getClass", 2).then("getName", 2));
+    let describe = Method::new("Shop", "describe", 1).call(
+        Call::new(Expression::This, "getClass", 2)
+            .returning(TypeRef::class("java.lang.Class"))
+            .then("getName", 2),
+    );
 
     let verdicts = describe.verdicts(&libraries());
 
@@ -319,6 +330,7 @@ fn a_call_on_a_project_object_returned_by_a_parameter_stays_a_violation() {
             "getCustomer",
             2,
         )
+        .returning(TypeRef::class("Customer"))
         .then("getWallet", 2),
     );
 
@@ -335,8 +347,11 @@ fn a_call_on_a_project_object_returned_by_a_parameter_stays_a_violation() {
 
 #[test]
 fn a_call_on_a_type_missing_from_the_catalog_stays_unresolved() {
-    let guard = Method::new("Shop", "guard", 1)
-        .call(Call::new(Expression::This, "getStamp", 2).then("validate", 2));
+    let guard = Method::new("Shop", "guard", 1).call(
+        Call::new(Expression::This, "getStamp", 2)
+            .returning(TypeRef::class(STAMP))
+            .then("validate", 2),
+    );
 
     let verdicts = guard.verdicts(&libraries());
 
@@ -362,6 +377,7 @@ fn library_knowledge_stays_off_when_the_catalog_knows_no_project_types() {
             "writeLock",
             2,
         )
+        .returning(TypeRef::class(WRITE_LOCK))
         .then("lock", 2),
     );
 
@@ -387,8 +403,11 @@ fn inheritance() -> Types {
 
 #[test]
 fn a_bare_name_of_a_field_declared_in_a_superclass_is_a_friend() {
-    let audit = Method::new("Child", "audit", 1)
-        .call(Call::new(Expression::unresolved("wallet"), "getOwner", 2).then("rename", 2));
+    let audit = Method::new("Child", "audit", 1).call(
+        Call::new(Expression::unresolved("wallet"), "getOwner", 2)
+            .returning(TypeRef::class("Customer"))
+            .then("rename", 2),
+    );
 
     let verdicts = audit.verdicts(&inheritance());
 
@@ -455,9 +474,13 @@ fn among(name: &str, candidates: &[&str]) -> Expression {
     )
 }
 
-fn limit_owner_renamed(candidates: &[&str]) -> Method {
-    Method::new("Billing", "audit", 1)
-        .call(Call::new(among("LIMIT", candidates), "getOwner", 2).then("rename", 2))
+fn limit_owner_renamed(candidates: &[&str], owner: Option<TypeRef>) -> Method {
+    let get_owner = Call::new(among("LIMIT", candidates), "getOwner", 2);
+    let get_owner = match owner {
+        Some(owner) => get_owner.returning(owner),
+        None => get_owner,
+    };
+    Method::new("Billing", "audit", 1).call(get_owner.then("rename", 2))
 }
 
 #[test]
@@ -475,8 +498,8 @@ fn a_bare_name_that_a_candidate_declares_as_a_static_field_is_a_friend() {
 
 #[test]
 fn the_first_candidate_that_declares_the_static_field_decides_its_type() {
-    let first = limit_owner_renamed(&["Limits", "Thresholds"]);
-    let second = limit_owner_renamed(&["Thresholds", "Limits"]);
+    let first = limit_owner_renamed(&["Limits", "Thresholds"], Some(TypeRef::class("Customer")));
+    let second = limit_owner_renamed(&["Thresholds", "Limits"], None);
 
     let from_first = first.verdicts(&constants());
     let from_second = second.verdicts(&constants());
@@ -519,7 +542,7 @@ fn a_candidate_that_does_not_declare_the_name_is_skipped() {
 
 #[test]
 fn a_static_field_a_candidate_inherits_counts() {
-    let audit = limit_owner_renamed(&["SubLimits"]);
+    let audit = limit_owner_renamed(&["SubLimits"], Some(TypeRef::class("Customer")));
 
     let verdicts = audit.verdicts(&constants());
 

@@ -174,7 +174,7 @@ pub(super) fn collecting() -> Types {
 
 pub(super) fn orders_stream() -> Call {
     let orders = Expression::parameter("orders", list_of(order()));
-    Call::new(orders, "stream", 2)
+    Call::new(orders, "stream", 2).returning(stream_of(order()))
 }
 
 pub(super) fn orders_collected_by(collector: Call) -> Call {
@@ -188,11 +188,11 @@ pub(super) fn collectors_call(name: &str) -> Call {
 }
 
 pub(super) fn mapped_customers() -> Call {
-    orders_stream().then("map", 2).with(MethodReference::new(
-        Expression::static_type(order()),
-        "getCustomer",
-        2,
-    ))
+    orders_stream()
+        .then("map", 2)
+        .with(MethodReference::new(Expression::static_type(order()), "getCustomer", 2).taking(1))
+        .returning(stream_of(customer()))
+        .returning_from(&[0])
 }
 
 fn getting_the_customers_of_the_orders() -> Verdict {
@@ -219,9 +219,12 @@ fn a_collector_with_a_resolved_return_types_the_elements_of_the_stream_collectin
             .with(Expression::return_of(
                 collectors_call("toList").returning(listing(customer())),
             ))
+            .returning(list_of(customer()))
             .then("get", 2)
             .with(Expression::literal())
+            .returning(customer())
             .then("getWallet", 3)
+            .returning(TypeRef::class("Wallet"))
             .then("withdraw", 3),
     );
 
@@ -254,9 +257,12 @@ fn a_collector_with_a_resolved_return_types_the_elements_of_the_stream_collectin
 fn collecting_a_stream_into_a_list_keeps_the_elements_typed() {
     let ship = Method::new("Billing", "ship", 1).call(
         orders_collected_by(collectors_call("toList").returning(listing(order())))
+            .returning(list_of(order()))
             .then("get", 2)
             .with(Expression::literal())
+            .returning(order())
             .then("getCustomer", 3)
+            .returning(customer())
             .then("rename", 3),
     );
 
@@ -272,17 +278,29 @@ fn listing(element: TypeRef) -> TypeRef {
     collector(element.clone(), wildcard(), list_of(element))
 }
 
+fn orders_by_status() -> TypeRef {
+    generic(MAP, &[status(), list_of(order())])
+}
+
+fn the_first_order_of_a_status(orders: Call) -> Call {
+    orders
+        .returning(orders_by_status())
+        .then("get", 2)
+        .with(Expression::parameter("status", status()))
+        .returning(list_of(order()))
+        .then("get", 2)
+        .with(Expression::literal())
+        .returning(order())
+}
+
 fn grouping_by_status(downstream: Option<Call>) -> Call {
     let grouping = collectors_call("groupingBy")
         .with(
             MethodReference::new(Expression::static_type(order()), "getStatus", 2)
+                .taking(1)
                 .fed_by_elements(),
         )
-        .returning(collector(
-            order(),
-            wildcard(),
-            generic(MAP, &[status(), list_of(order())]),
-        ));
+        .returning(collector(order(), wildcard(), orders_by_status()));
     match downstream {
         Some(call) => grouping.with(Expression::return_of(call)),
         None => grouping,
@@ -292,12 +310,9 @@ fn grouping_by_status(downstream: Option<Call>) -> Call {
 #[test]
 fn collecting_a_stream_by_a_method_reference_types_the_groups() {
     let ship = Method::new("Billing", "ship", 1).call(
-        orders_collected_by(grouping_by_status(None))
-            .then("get", 2)
-            .with(Expression::parameter("status", status()))
-            .then("get", 2)
-            .with(Expression::literal())
+        the_first_order_of_a_status(orders_collected_by(grouping_by_status(None)))
             .then("getCustomer", 3)
+            .returning(customer())
             .then("rename", 3),
     );
 
@@ -324,17 +339,25 @@ fn collecting_a_stream_by_a_method_reference_types_the_groups() {
 
 #[test]
 fn a_collector_wrapping_another_gets_its_result_from_its_finisher() {
-    let first = Lambda::new(&["list"]).yielding(Expression::return_of(
-        Call::new(Expression::local("list"), "get", 3).with(Expression::literal()),
-    ));
+    let first = Lambda::new(&["list"])
+        .resolving("list", list_of(order()))
+        .yielding(Expression::return_of(
+            Call::new(Expression::local("list"), "get", 3)
+                .with(Expression::literal())
+                .returning(order()),
+        ));
     let wrapping = collectors_call("collectingAndThen")
         .with(Expression::return_of(
             collectors_call("toList").returning(listing(order())),
         ))
-        .with(first);
+        .with(first)
+        .returning(collector(order(), wildcard(), order()))
+        .returning_from(&[1]);
     let ship = Method::new("Billing", "ship", 1).call(
         orders_collected_by(wrapping)
+            .returning(order())
             .then("getCustomer", 4)
+            .returning(customer())
             .then("rename", 4),
     );
 
@@ -351,13 +374,13 @@ fn a_collector_wrapping_another_gets_its_result_from_its_finisher() {
 }
 
 fn grouping_by_the_result_of(call: Call, elements: TypeRef, key: TypeRef) -> Call {
-    let groups = generic(MAP, &[key, list_of(elements.clone())]);
+    let groups = generic(MAP, &[key.clone(), list_of(elements.clone())]);
     collectors_call("groupingBy")
         .with(
             Lambda::new(&["each"])
                 .resolving("each", elements.clone())
                 .fed_by_elements("each")
-                .yielding(Expression::return_of(call)),
+                .yielding(Expression::return_of(call.returning(key.clone()))),
         )
         .returning(collector(elements, wildcard(), groups))
 }
@@ -443,14 +466,11 @@ fn a_lambda_in_a_nested_call_that_receives_something_else_keeps_its_own_feed() {
 #[test]
 fn collectors_nested_two_levels_deep_type_the_groups() {
     let ship = Method::new("Billing", "ship", 1).call(
-        orders_collected_by(grouping_by_status(Some(
+        the_first_order_of_a_status(orders_collected_by(grouping_by_status(Some(
             collectors_call("toList").returning(listing(order())),
-        )))
-        .then("get", 2)
-        .with(Expression::parameter("status", status()))
-        .then("get", 2)
-        .with(Expression::literal())
+        ))))
         .then("getCustomer", 3)
+        .returning(customer())
         .then("rename", 3),
     );
 
