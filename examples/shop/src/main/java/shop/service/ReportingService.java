@@ -66,4 +66,8 @@ public class ReportingService {
             entry.getValue().ship();
         }
     }
+
+    public void discountLines(Order order) {
+        new Batch<>(order.getLines(), line -> line.applyDiscount(10));
+    }
 }
