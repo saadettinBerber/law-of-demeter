@@ -82,6 +82,8 @@ mod compound;
 #[cfg(test)]
 mod inference;
 #[cfg(test)]
+mod links;
+#[cfg(test)]
 mod nested;
 #[cfg(test)]
 mod references;

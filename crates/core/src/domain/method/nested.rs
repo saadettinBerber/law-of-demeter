@@ -29,11 +29,11 @@ fn variable(name: &str) -> TypeRef {
     TypeRef::variable(name)
 }
 
-fn order() -> TypeRef {
+pub(super) fn order() -> TypeRef {
     TypeRef::class("Order")
 }
 
-fn customer() -> TypeRef {
+pub(super) fn customer() -> TypeRef {
     TypeRef::class("Customer")
 }
 
@@ -61,7 +61,7 @@ fn function(argument: TypeRef, result: TypeRef) -> TypeRef {
     generic(FUNCTION, &[argument, result])
 }
 
-fn collecting() -> Types {
+pub(super) fn collecting() -> Types {
     let collectors = class(COLLECTORS)
         .with_method(
             MethodShape::new("toList")
@@ -177,13 +177,13 @@ fn orders_stream() -> Call {
     Call::new(orders, "stream", 2)
 }
 
-fn orders_collected_by(collector: Call) -> Call {
+pub(super) fn orders_collected_by(collector: Call) -> Call {
     orders_stream()
         .then("collect", 2)
         .with(Expression::return_of(collector))
 }
 
-fn collectors_call(name: &str) -> Call {
+pub(super) fn collectors_call(name: &str) -> Call {
     Call::new(Expression::static_type(TypeRef::class(COLLECTORS)), name, 2)
 }
 
@@ -207,7 +207,7 @@ fn stranger_customers() -> Reason {
     Reason::return_of("getCustomer")
 }
 
-fn collectors_static() -> Reason {
+pub(super) fn collectors_static() -> Reason {
     Reason::static_type(TypeRef::class(COLLECTORS))
 }
 

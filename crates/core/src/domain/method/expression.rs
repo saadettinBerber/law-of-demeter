@@ -179,7 +179,27 @@ impl Expression {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Feed {
+    Elements,
+    Receiver,
+}
+
 fn element_feed<'a>(
+    types: &Types,
+    outer: &'a Subject,
+    feed: &'a Subject,
+    declared: Option<&TypeRef>,
+    linked: Option<Feed>,
+) -> &'a Subject {
+    match linked {
+        Some(Feed::Elements) => outer,
+        Some(Feed::Receiver) => feed,
+        None => element_feed_by_type(types, outer, feed, declared),
+    }
+}
+
+fn element_feed_by_type<'a>(
     types: &Types,
     outer: &'a Subject,
     feed: &'a Subject,
@@ -370,6 +390,7 @@ pub struct MethodReference {
     line: usize,
     expected: Option<TypeRef>,
     resolved: Option<TypeRef>,
+    feed: Option<Feed>,
 }
 
 impl MethodReference {
@@ -380,6 +401,7 @@ impl MethodReference {
             line,
             expected: None,
             resolved: None,
+            feed: None,
         }
     }
 
@@ -390,6 +412,16 @@ impl MethodReference {
 
     pub fn expecting(mut self, type_ref: TypeRef) -> Self {
         self.expected = Some(type_ref);
+        self
+    }
+
+    pub fn fed_by_elements(mut self) -> Self {
+        self.feed = Some(Feed::Elements);
+        self
+    }
+
+    pub fn fed_by_receiver(mut self) -> Self {
+        self.feed = Some(Feed::Receiver);
         self
     }
 
@@ -468,7 +500,7 @@ impl MethodReference {
         functional: Option<&FunctionalMethod>,
     ) -> Subject {
         let known = functional.and_then(|functional| functional.parameters.first());
-        element_feed(types, outer, feed, known)
+        element_feed(types, outer, feed, known, self.feed)
             .element(types, |reason| reason)
             .declared_as(known)
     }
@@ -515,6 +547,7 @@ pub struct Lambda {
     expected: Option<TypeRef>,
     declared: Vec<(String, TypeRef)>,
     resolved: Vec<(String, TypeRef)>,
+    feeds: Vec<(String, Feed)>,
 }
 
 impl Lambda {
@@ -526,6 +559,7 @@ impl Lambda {
             expected: None,
             declared: Vec::new(),
             resolved: Vec::new(),
+            feeds: Vec::new(),
         }
     }
 
@@ -541,6 +575,16 @@ impl Lambda {
 
     pub fn expecting(mut self, type_ref: TypeRef) -> Self {
         self.expected = Some(type_ref);
+        self
+    }
+
+    pub fn fed_by_elements(mut self, parameter: &str) -> Self {
+        self.feeds.push((parameter.to_owned(), Feed::Elements));
+        self
+    }
+
+    pub fn fed_by_receiver(mut self, parameter: &str) -> Self {
+        self.feeds.push((parameter.to_owned(), Feed::Receiver));
         self
     }
 
@@ -587,7 +631,12 @@ impl Lambda {
         let mut inner = context.clone();
         for (index, parameter) in self.parameters.iter().enumerate() {
             let known = self.given_type(parameter).or(declared.get(index));
-            let source = element_feed(context.types, outer, feed, known);
+            let linked = self
+                .feeds
+                .iter()
+                .find(|(name, _)| name == parameter)
+                .map(|(_, linked)| *linked);
+            let source = element_feed(context.types, outer, feed, known, linked);
             let subject = source.element(context.types, |feed| {
                 Reason::lambda_parameter(parameter, feed)
             });
