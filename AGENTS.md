@@ -28,6 +28,22 @@ Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README
 
 - Tip şekli (`TypeShape`), `.class` okuyucu ile domain arasındaki sözleşmedir. Değiştirmen gerekirse yalnızca ekleme yap.
 
+- **Domain hiçbir dili bilmez:** Domain'e (`crates/core/src/domain`) dile özgü hiçbir şey girmez; dil adı da yazılmaz.
+
+  - Aşırı yükleme, generic çıkarım, değişken sayıda argüman, lambda ve metot referansı tipleri ile veri akışı bağlarını dilin adapter'ı (`crates/java-source`) çözer.
+
+  - Adapter sonuçları köprü alanlarıyla verir: `Call::returning`, `returning_from`, `keyed_by`, `yielding_keys`; `Lambda` ve `MethodReference` üzerinde `resolving`, `declaring`, `taking`, `fed_by_*`, `expecting`.
+
+  - Dile ait değerler adapter'ın kurduğu `Platform`'dan (`java_platform()`) gelir.
+
+  - Domain'in bir bilgiye ihtiyacı olursa köprü alanı ekle (yalnızca ekleme) ve alanı adapter doldursun.
+
+  - Yeni dil, yeni bir adapter crate'idir: kendi kaynak okuyucusu, tip çözümlemesi ve platformu olur; domain değişmez.
+
+  - Domain testlerindeki örnek platform (`sample_platform.rs`) yalnızca testler için bir dili modeller; Java'ya benzeyen örnek adlar orada kalabilir.
+
+  - `crates/core/tests/domain_language.rs` domain üretim kodunda `java` geçmediğini denetler.
+
 ## Kapsam
 
 ---
