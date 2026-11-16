@@ -60,12 +60,16 @@ impl Subject {
     }
 
     pub(super) fn element(&self, types: &Types, wrap: impl FnOnce(Reason) -> Reason) -> Self {
-        Self::new(
-            self.standing.clone().through(wrap),
-            self.type_ref
-                .as_ref()
-                .and_then(|type_ref| types.element_type_of(type_ref)),
-        )
+        Self {
+            keys: self.keys.clone(),
+            values: self.values.clone(),
+            ..Self::new(
+                self.standing.clone().through(wrap),
+                self.type_ref
+                    .as_ref()
+                    .and_then(|type_ref| types.element_type_of(type_ref)),
+            )
+        }
     }
 }
 

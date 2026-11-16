@@ -19,6 +19,7 @@ pub struct Call {
     reads_keys: bool,
     valued_by: Option<usize>,
     reads_values: bool,
+    keeps_entries: bool,
 }
 
 impl Call {
@@ -34,6 +35,7 @@ impl Call {
             reads_keys: false,
             valued_by: None,
             reads_values: false,
+            keeps_entries: false,
         }
     }
 
@@ -64,6 +66,11 @@ impl Call {
 
     pub fn yielding_values(mut self) -> Self {
         self.reads_values = true;
+        self
+    }
+
+    pub fn keeping_entries(mut self) -> Self {
+        self.keeps_entries = true;
         self
     }
 
@@ -128,9 +135,10 @@ impl Call {
                 matches!(self.receiver, Expression::StaticType(_)),
             )
         });
+        let kept = |standing: &Option<Standing>| standing.clone().filter(|_| self.keeps_entries);
         let subject = Subject {
-            keys: judged.keys,
-            values: judged.values,
+            keys: judged.keys.or(kept(&receiver.subject.keys)),
+            values: judged.values.or(kept(&receiver.subject.values)),
             ..Subject::new(standing, type_ref)
         };
         Judged { verdicts, subject }

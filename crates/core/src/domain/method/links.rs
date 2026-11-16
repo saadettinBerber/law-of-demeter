@@ -311,6 +311,73 @@ fn a_call_passes_on_the_values_of_the_argument_the_link_names() {
     assert_eq!(verdicts.last(), Some(&wallet_of_a_stranger_loop_variable()));
 }
 
+fn customers_to_orders() -> Call {
+    let each = Lambda::new(&["each"])
+        .fed_by_receiver("each")
+        .yielding(Expression::local("each"));
+    collectors_call("toMap")
+        .with(MethodReference::new(Expression::static_type(order()), "getCustomer", 2).taking(1))
+        .with(each)
+        .returning(generic("java.util.Map", &[customer(), order()]))
+        .returning_from(&[1])
+        .keyed_by(0)
+        .valued_by(1)
+}
+
+fn entry() -> TypeRef {
+    generic("java.util.Map$Entry", &[customer(), order()])
+}
+
+fn withdrawing_through(entry_part: Call) -> Method {
+    let entries = customers_to_orders()
+        .then("entrySet", 2)
+        .returning(generic("java.util.Set", &[entry()]))
+        .keeping_entries();
+    Method::new("Billing", "charge", 1)
+        .for_each("entry", Expression::return_of(entries))
+        .call(Call::new(Expression::return_of(entry_part), "getWallet", 4))
+}
+
+fn key_of_the_entry() -> Call {
+    Call::new(Expression::local("entry"), "getKey", 3)
+        .returning(customer())
+        .yielding_keys()
+}
+
+fn value_of_the_entry() -> Call {
+    Call::new(Expression::local("entry"), "getValue", 3)
+        .returning(order())
+        .yielding_values()
+}
+
+#[test]
+fn the_key_of_an_entry_takes_the_standing_the_link_gave_the_keys() {
+    let verdicts = withdrawing_through(key_of_the_entry()).verdicts(&keyed());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::violation(
+            "getWallet",
+            4,
+            Reason::return_of("getCustomer")
+        ))
+    );
+}
+
+#[test]
+fn the_value_of_an_entry_takes_the_standing_the_link_gave_the_values() {
+    let verdicts = withdrawing_through(value_of_the_entry()).verdicts(&keyed());
+
+    assert_eq!(
+        verdicts.last(),
+        Some(&Verdict::allowed(
+            "getWallet",
+            4,
+            Reason::lambda_parameter("each", collectors_static())
+        ))
+    );
+}
+
 #[test]
 fn a_method_reference_takes_its_resolved_input_type_when_its_functional_parameter_is_open() {
     let wallet = MethodReference::new(Expression::static_type(customer()), "getWallet", 3)
