@@ -7,6 +7,7 @@ mod types;
 use std::collections::HashMap;
 use std::path::Path;
 
+use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::Method;
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
@@ -21,12 +22,10 @@ pub struct MappedFile {
     pub methods: Vec<Method>,
 }
 
-pub fn map_source(
-    path: &Path,
-    source: &str,
-    type_exists: &dyn Fn(&str) -> bool,
-) -> Result<MappedFile, ParseError> {
-    let file = parse_with(&path.to_string_lossy(), source, type_exists)?;
+pub fn map_source(path: &Path, source: &str, types: &Types) -> Result<MappedFile, ParseError> {
+    let file = parse_with(&path.to_string_lossy(), source, &|name| {
+        types.shape(name).is_some()
+    })?;
     Ok(map_file(&file))
 }
 

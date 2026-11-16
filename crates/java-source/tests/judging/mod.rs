@@ -4,6 +4,7 @@ use std::path::Path;
 
 use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::Verdict;
+use law_of_demeter_core::domain::type_shape::{TypeKind, TypeShape};
 use law_of_demeter_java_source::{java_platform, map_source};
 
 const JDK_TYPES: &[&str] = &[
@@ -19,10 +20,7 @@ const JDK_TYPES: &[&str] = &[
 ];
 
 pub fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> Vec<Verdict> {
-    let mapped = map_source(Path::new("C.java"), source, &|name| {
-        JDK_TYPES.contains(&name) || types.shape(name).is_some()
-    })
-    .unwrap();
+    let mapped = map_source(Path::new("C.java"), source, &catalog_of(types)).unwrap();
     let found: Vec<_> = mapped
         .methods
         .iter()
@@ -49,4 +47,13 @@ pub fn verdicts_in_c(
         method,
         types,
     )
+}
+
+fn catalog_of(types: &Types) -> Types {
+    JDK_TYPES
+        .iter()
+        .filter(|name| types.shape(name).is_none())
+        .fold(types.clone(), |catalog, name| {
+            catalog.with_shape(TypeShape::new(name, TypeKind::Class))
+        })
 }

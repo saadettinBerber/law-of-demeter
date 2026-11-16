@@ -2,8 +2,9 @@
 
 use std::path::Path;
 
+use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::{Call, Expression, Method};
-use law_of_demeter_core::domain::type_shape::TypeRef;
+use law_of_demeter_core::domain::type_shape::{TypeKind, TypeRef, TypeShape};
 use law_of_demeter_java_source::map_source;
 
 pub const KNOWN_TYPES: &[&str] = &[
@@ -26,11 +27,19 @@ pub const KNOWN_TYPES: &[&str] = &[
 ];
 
 pub fn mapped_methods(source: &str) -> Vec<Method> {
-    map_source(Path::new("OrderService.java"), source, &|name| {
-        KNOWN_TYPES.contains(&name)
+    mapped_methods_in(source, &known_types())
+}
+
+pub fn mapped_methods_in(source: &str, types: &Types) -> Vec<Method> {
+    map_source(Path::new("OrderService.java"), source, types)
+        .unwrap()
+        .methods
+}
+
+fn known_types() -> Types {
+    KNOWN_TYPES.iter().fold(Types::new(), |types, name| {
+        types.with_shape(TypeShape::new(name, TypeKind::Class))
     })
-    .unwrap()
-    .methods
 }
 
 pub fn method_f(source: &str) -> Method {

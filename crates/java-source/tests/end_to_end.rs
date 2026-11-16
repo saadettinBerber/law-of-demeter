@@ -34,10 +34,7 @@ fn getter(name: &str, field: &str, returns: &str) -> MethodShape {
 }
 
 fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> Vec<Verdict> {
-    let mapped = map_source(Path::new("OrderService.java"), source, &|name| {
-        JDK_TYPES.contains(&name) || types.shape(name).is_some()
-    })
-    .unwrap();
+    let mapped = map_source(Path::new("OrderService.java"), source, &catalog_of(types)).unwrap();
     let found: Vec<_> = mapped
         .methods
         .iter()
@@ -49,6 +46,15 @@ fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> V
         .into_iter()
         .flat_map(|candidate| candidate.verdicts(&types))
         .collect()
+}
+
+fn catalog_of(types: &Types) -> Types {
+    JDK_TYPES
+        .iter()
+        .filter(|name| types.shape(name).is_none())
+        .fold(types.clone(), |catalog, name| {
+            catalog.with_shape(TypeShape::new(name, TypeKind::Class))
+        })
 }
 
 fn in_c(imports: &str, members: &str, snippet: &str) -> String {
@@ -212,7 +218,7 @@ fn violation_4_changing_a_collection_a_getter_returned() {
 #[test]
 fn violation_5_a_hybrid_class_maps_with_its_calls_judged_and_its_name_listed() {
     let source = "@Getter\n@Setter\nclass Account {\n    private int balance;\n\n    void withdraw(int amount) {\n        if (amount > balance) {\n            throw new IllegalStateException(\"Insufficient balance\");\n        }\n        balance -= amount;\n    }\n}";
-    let mapped = map_source(Path::new("Account.java"), source, &|_| false).unwrap();
+    let mapped = map_source(Path::new("Account.java"), source, &Types::new()).unwrap();
 
     let verdicts = verdicts_of(source, "Account", "withdraw", &Types::new());
 

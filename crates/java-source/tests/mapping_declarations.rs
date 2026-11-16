@@ -1,10 +1,11 @@
 use std::path::Path;
 
+use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::Method;
 use law_of_demeter_java_source::{MappedFile, map_source};
 
 fn map(source: &str) -> MappedFile {
-    map_source(Path::new("A.java"), source, &|_| false).unwrap()
+    map_source(Path::new("A.java"), source, &Types::new()).unwrap()
 }
 
 #[test]
@@ -78,7 +79,7 @@ fn a_syntax_error_is_reported_with_the_given_path_and_line() {
     let error = map_source(
         Path::new("shop/Broken.java"),
         "class A {\n void f() {\n  int x = ;\n }\n}",
-        &|_| false,
+        &Types::new(),
     )
     .unwrap_err();
 

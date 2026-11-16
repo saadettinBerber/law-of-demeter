@@ -9,7 +9,7 @@ use law_of_demeter_java_source::map_source;
 
 fn main() -> ExitCode {
     let mapper = |path: &Path, source: &str, types: &Types| {
-        map_source(path, source, &|name| types.shape(name).is_some())
+        map_source(path, source, types)
             .map(|file| Declarations {
                 classes: file.classes,
                 methods: file.methods,
