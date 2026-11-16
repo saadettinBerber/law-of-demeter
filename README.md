@@ -8,8 +8,8 @@ Kaynak kodda Law of Demeter ihlallerini bulur. Kodu tip bilgisiyle okur ve kural
 
 Araç, kod yazan her ajana sınır koymak için yazıldı: yapay zekâ ajanlarına, süper zekâya (Super Intelligence) ve insanlara. Ajan kod yazarken aracı çalıştırır, ihlalleri rapordan görür ve düzeltir.
 
-- **Çıkış kodu sınırı çizer:** İhlal ya da hibrit sınıf varsa araç 1 ile çıkar. Ajan bu sonucu başarısız bir test gibi ele alır.
-- **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir; ajan neyi neden düzelteceğini bilir.
+- **Çıkış kodu sınırı çizer:** İhlal ya da hibrit sınıf varsa araç 1 ile çıkar; ajan bunu başarısız test gibi ele alır.
+- **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir.
 
 Ayrıntılar [Kullanım](#kullanım) bölümünde.
 
@@ -19,7 +19,7 @@ Bir metot başka nesnelerin içine uzandıkça daha çok şeye bağımlı olur. 
 
 - **Değişiklik yerinde kalır:** İç yapı değişince yalnızca nesneyi doğrudan kullananlar etkilenir.
 - **Kapsülleme korunur:** Nesne verisini vermez, işi kendisi yapar; kontroller verinin sahibinde kalır.
-- **Test kolaylaşır:** Metot yalnızca arkadaşlarını kullandığı için testte sahte nesne döndüren sahte nesneler kurmak gerekmez.
+- **Test kolaylaşır:** Metot yalnızca arkadaşlarını kullanır; testte sahte nesne döndüren sahte nesneler gerekmez.
 - **Kod kolay okunur:** Metodu anlamak için uzaktaki sınıfların iç yapısını bilmek gerekmez.
 
 Zincirleri gözle ayırmak zordur, çünkü her zincir ihlal değildir: veri yapısında, akıcı zincirde ya da Java koleksiyonlarında zincir serbesttir. Araç bu ayrımı derlenmiş sınıflardan okuduğu tip bilgisiyle yapar.
@@ -38,7 +38,7 @@ C bir sınıf, f de C'deki bir metot. f yalnızca şu nesnelerin metotlarını �
 
 f, bu nesnelerin döndürdüğü nesnelerin metotlarını çağırmaz. Kısaca: arkadaşlarınla konuş, yabancılarla konuşma.
 
-Örneklerde C `OrderService` sınıfı, f de `pay` metodu.
+Örneklerde C `OrderService`, f `pay`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -87,7 +87,7 @@ Kural nesneler içindir. Nesne verisini gizleyip davranışını açar; veri yap
 <details>
 <summary><strong>Hibrit sınıf</strong></summary>
 
-Hem verisini açan hem davranış taşıyan sınıfa hibrit denir. Örneklerde C `PaymentService` sınıfı, f de `pay` metodu.
+Hem verisini açan hem davranış taşıyan sınıfa hibrit denir. Örneklerde C `PaymentService`, f `pay`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -159,7 +159,7 @@ Sonuç: `Account` bakiyesini gizliyor. Kontrol tek yerde, verinin sahibinde kal�
 <details>
 <summary><strong>Veri yapısında zincirle okumak</strong></summary>
 
-Veri yapısında zincirle okumak kuralı çiğnemez, çünkü gizlenecek bir iç yapı yoktur. Aynı zincir davranış taşıyan nesnelerden geçerse çiğner. Örneklerde C `Connector` sınıfı, f de `portOf` metodu.
+Veri yapısında zincirle okumak kuralı çiğnemez, çünkü gizlenecek bir iç yapı yoktur. Aynı zincir davranış taşıyan nesnelerden geçerse çiğner. Örneklerde C `Connector`, f `portOf`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -236,7 +236,7 @@ Akış, lambda ya da metot referansı yabancıyla konuşmayı gizlemez. Araç el
 <details>
 <summary><strong>Akışın yabancıdan ürettiği elemanla konuşmak</strong></summary>
 
-Örneklerde C `BillingService` sınıfı, f de `charge` metodu.
+Örneklerde C `BillingService`, f `charge`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -286,7 +286,7 @@ Sonuç: Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
 <details>
 <summary><strong>Yabancıyla metot referansıyla konuşmak</strong></summary>
 
-Örneklerde C `BalanceService` sınıfı, f de `balances` metodu.
+Örneklerde C `BalanceService`, f `balances`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -337,7 +337,7 @@ Sonuç: Bakiyeyi nasıl bulacağını `Order` biliyor; `BalanceService` müşter
 <details>
 <summary><strong>Gruplanan anahtarla konuşmak</strong></summary>
 
-Örneklerde C `CustomerService` sınıfı, f de `activate` metodu.
+Örneklerde C `CustomerService`, f `activate`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -382,7 +382,7 @@ Sonuç: Müşteriyi etkinleştirmeyi `Order` yapıyor; `CustomerService` müşte
 <details>
 <summary><strong>Haritanın değerleriyle ve girdileriyle konuşmak</strong></summary>
 
-Örneklerde C `ReportingService` sınıfı, f'ler `activateByOrder` ve `rewardBuyers` metotları.
+Örneklerde C `ReportingService`, f'ler `activateByOrder` ve `rewardBuyers`.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -445,7 +445,7 @@ Sonuç: `Order` müşteriye ve cüzdana ulaşıyor; `ReportingService` haritaya 
 <details>
 <summary><strong>Kuruculara verilen lambdayla konuşmak</strong></summary>
 
-Örneklerde C `DiscountService` sınıfı, f de `discountLines` metodu. `Batch`'in kurucusu `List<T>` ile `Consumer<T>` alır ve lambdayı listenin elemanlarına uygular.
+Örneklerde C `DiscountService`, f `discountLines`. `Batch`'in kurucusu `List<T>` ile `Consumer<T>` alır ve lambdayı listenin elemanlarına uygular.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -461,7 +461,7 @@ class DiscountService {
 1. `order.getLines()`: Serbest. `order`, f'ye argüman olarak verildi.
 2. `line.applyDiscount(10)`: Kuralı çiğner. Lambdanın girdisi listenin elemanları; onları `getLines()` verdiği için yabancı. Lambda yeni oluşturulan `Batch`'i değil, o elemanları alır.
 
-Sonuç: İndirim kuralı `Order`'ın dışına, `DiscountService`'e dağılıyor; `order.getLines().forEach(line -> line.applyDiscount(10))` ile aynı ihlal.
+Sonuç: İndirim kuralı `Order`'ın dışına, `DiscountService`'e dağılıyor; `order.getLines().forEach(line -> line.applyDiscount(10))` ile aynı.
 
 </details>
 
@@ -487,7 +487,7 @@ Sonuç: İndirimi satırlara nasıl uygulayacağını `Order` biliyor.
 <details>
 <summary><strong>Statik importla gelen çağrının sonucuyla konuşmak</strong></summary>
 
-Örneklerde C `GuestService` sınıfı, f de `deposit` metodu. `guest()`, `Defaults` sınıfının statik metodu.
+Örneklerde C `GuestService`, f `deposit`. `guest()`, `Defaults` sınıfının statik metodu.
 
 <details>
 <summary><strong>Uygun değil</strong></summary>
@@ -556,11 +556,11 @@ law-of-demeter --source src/main/java --classpath "$(cat classpath.txt):target/c
 - **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
 - **`-h`, `--help`:** Kullanımı gösterir.
 
-Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir ama çıkış kodunu değiştirmez.
+Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir, çıkış kodunu değiştirmez.
 
 ### Örnek
 
-Kural bölümündeki `OrderService`, Veri yapıları bölümündeki hibrit `Account` ve `PaymentService`, bir de `Order`, `Customer`, `Wallet` ve `Money` sınıfları `src/shop` altında olsun. Proje `javac` ile derlenir ve araçtan geçirilir:
+`src/shop` altında Kural bölümündeki `OrderService`, Veri yapıları bölümündeki hibrit `Account` ve `PaymentService` ile `Order`, `Customer`, `Wallet` ve `Money` olsun. Proje `javac` ile derlenir ve araçtan geçirilir:
 
 ```bash
 javac -d out $(find src -name '*.java')
@@ -593,11 +593,11 @@ src/shop/Account.java  shop.Account  Hibrit sınıf: davranış: withdraw; sette
   2  Döndürülen nesne f'nin arkadaşı değil
 ```
 
-Her ihlal satırı dosyayı ve satırı, sınıfı ve metodu, çağrıyı ve nedeni gösterir. İhlal ya da hibrit sınıf olduğu için araç 1 ile çıkar.
+Her satır dosyayı, satırı, sınıfı, metodu, çağrıyı ve nedeni gösterir; ihlal ve hibrit sınıf olduğu için araç 1 ile çıkar.
 
 </details>
 
-Daha büyük örnek, repodaki `examples/shop` projesidir; raporu `--show-allowed` ile üretilmiş [beklenen raporda](examples/shop/expected-report.txt) durur. Örnek projeleri Maven ile derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
+Daha büyük örnek `examples/shop` projesidir; raporu `--show-allowed` ile üretilmiş [beklenen raporda](examples/shop/expected-report.txt) durur. Projeleri derleyip araçtan geçirmek için (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
 
 ## Mimari
 
@@ -606,7 +606,7 @@ Daha büyük örnek, repodaki `examples/shop` projesidir; raporu `--show-allowed
 
 Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de durur. Domain hiçbir dili bilmez; Java'yı, dosyaları ve ayrıştırıcıyı yalnızca adapter'lar bilir.
 
-![law-of-demeter mimarisi: ortada Domain, çevresinde port'larıyla Application; solda CLI, sağda Java ayrıştırıcı, .class okuyucu ve metin raporu. Oklar içe yönelir.](assets/architecture.svg)
+![Mimari şeması: ortada Domain, çevresinde port'larıyla Application; solda CLI, sağda Java ayrıştırıcı, .class okuyucu ve metin raporu; oklar içe yönelir.](assets/architecture.svg)
 
 | Katman | Sorumluluk |
 |---|---|
@@ -636,7 +636,7 @@ class OrderService {
 }
 ```
 
-1. **Kaynak okuyucu:** `withdraw`, `getWallet()`'ın dönüşünde çağrılıyor. `getWallet()`, `getCustomer()`'ın dönüşünde; `getCustomer()` da `order` parametresinde çağrılıyor.
+1. **Kaynak okuyucu:** `withdraw`, `getWallet()`'ın dönüşünde; `getWallet()`, `getCustomer()`'ın dönüşünde; `getCustomer()` da `order` parametresinde çağrılıyor.
 2. **Tip kataloğu:** `Wallet`'ın `withdraw` davranışı var.
 3. **Domain:** `Wallet` bir nesne ve f'nin arkadaşı değil. Kural çiğneniyor.
 4. **Rapor çıkışı:** Bulgu `OrderService.java` dosyasının 3. satırı için yazılır.
