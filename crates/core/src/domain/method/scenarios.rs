@@ -393,33 +393,6 @@ fn shop_with_objects() -> Types {
 }
 
 #[test]
-fn reaching_through_the_object_a_getter_returned_is_a_violation() {
-    let pay = Method::new("OrderService", "pay", 1).call(
-        Call::new(
-            Expression::parameter("order", TypeRef::class("Order")),
-            "getCustomer",
-            2,
-        )
-        .returning(TypeRef::class("Customer"))
-        .then("getWallet", 2)
-        .returning(TypeRef::class("Wallet"))
-        .then("withdraw", 2)
-        .with(Expression::parameter("amount", TypeRef::primitive("int"))),
-    );
-
-    let verdicts = pay.verdicts(&shop_with_objects());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
-            Verdict::violation("getWallet", 2, Reason::return_of("getCustomer")),
-            Verdict::violation("withdraw", 2, Reason::return_of("getWallet")),
-        ]
-    );
-}
-
-#[test]
 fn splitting_the_chain_into_a_local_changes_nothing() {
     let pay = Method::new("OrderService", "pay", 1)
         .assign(
@@ -592,22 +565,6 @@ fn talking_to_the_object_a_holder_getter_returned_is_a_violation() {
 }
 
 #[test]
-fn reading_a_value_from_a_parameter_is_allowed() {
-    let can_ship = Method::new("Shipping", "canShip", 1).call(Call::new(
-        Expression::parameter("order", TypeRef::class("Order")),
-        "getStatus",
-        2,
-    ));
-
-    let verdicts = can_ship.verdicts(&sample_types());
-
-    assert_eq!(
-        verdicts,
-        [Verdict::allowed("getStatus", 2, Reason::parameter("order"))]
-    );
-}
-
-#[test]
 fn passing_a_stranger_on_to_another_method_is_allowed() {
     let types = sample_types().with_shape(class("Order").with_method(getter(
         "getCustomer",
@@ -634,30 +591,6 @@ fn passing_a_stranger_on_to_another_method_is_allowed() {
         [
             Verdict::allowed("getCustomer", 2, Reason::parameter("order")),
             Verdict::allowed("send", 2, Reason::field("notifier")),
-        ]
-    );
-}
-
-#[test]
-fn calling_own_fields_and_own_methods_is_allowed() {
-    let pay = Method::new("PaymentService", "pay", 1)
-        .call(
-            Call::new(
-                Expression::field("wallet", TypeRef::class("Wallet")),
-                "withdraw",
-                2,
-            )
-            .with(Expression::parameter("amount", TypeRef::primitive("int"))),
-        )
-        .call(Call::new(Expression::This, "audit", 3));
-
-    let verdicts = pay.verdicts(&sample_types());
-
-    assert_eq!(
-        verdicts,
-        [
-            Verdict::allowed("withdraw", 2, Reason::field("wallet")),
-            Verdict::allowed("audit", 3, Reason::This),
         ]
     );
 }

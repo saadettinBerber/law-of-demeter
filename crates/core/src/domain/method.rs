@@ -92,6 +92,8 @@ mod references;
 #[cfg(test)]
 mod resolved;
 #[cfg(test)]
+mod rule;
+#[cfg(test)]
 mod scenarios;
 #[cfg(test)]
 mod stream_standing;

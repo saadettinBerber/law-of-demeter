@@ -114,26 +114,6 @@ fn calling_a_method_on_a_lambda_parameter_fed_by_an_own_field_is_allowed() {
 }
 
 #[test]
-fn calling_a_method_on_an_object_created_in_the_method_is_allowed() {
-    let greeting = Method::new("OrderService", "pay", 1).call(Call::new(
-        Expression::created(Creation::new(TypeRef::class("StringBuilder"))),
-        "append",
-        1,
-    ));
-
-    let verdicts = greeting.verdicts(&sample_types());
-
-    assert_eq!(
-        verdicts,
-        [Verdict::allowed(
-            "append",
-            1,
-            Reason::created(TypeRef::class("StringBuilder"))
-        )]
-    );
-}
-
-#[test]
 fn calls_inside_constructor_arguments_are_judged() {
     let print = Method::new("OrderService", "pay", 1).call(Call::new(
         Expression::created(
