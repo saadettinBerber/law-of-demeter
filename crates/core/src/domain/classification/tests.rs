@@ -1,7 +1,66 @@
 use super::{
-    Classification, HybridClass, Types, element_type, is_factory_method, is_repository_query,
+    Classification, HybridClass, KnownTypes, Types, is_factory_method, is_repository_query,
 };
 use crate::domain::type_shape::{FieldShape, MethodShape, TypeKind, TypeRef, TypeShape};
+
+#[test]
+fn a_type_the_language_knows_as_a_value_is_a_value() {
+    let types =
+        Types::new().with_known(KnownTypes::new().with_type("Money", Classification::Value));
+
+    let classification = types.classify(&TypeRef::class("Money"));
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn a_type_in_a_namespace_the_language_knows_takes_the_namespace_classification() {
+    let types = Types::new()
+        .with_known(KnownTypes::new().with_namespace("money.", Classification::Container));
+
+    let classification = types.classify(&TypeRef::class("money.Purse"));
+
+    assert_eq!(classification, Classification::Container);
+}
+
+#[test]
+fn what_the_language_knows_about_a_type_wins_over_its_shape() {
+    let money = TypeShape::new("Money", TypeKind::Class)
+        .with_method(MethodShape::new("add").with_parameters(vec![TypeRef::class("Money")]));
+    let types = Types::new()
+        .with_shape(money)
+        .with_known(KnownTypes::new().with_type("Money", Classification::Value));
+
+    let classification = types.classify(&TypeRef::class("Money"));
+
+    assert_eq!(classification, Classification::Value);
+}
+
+#[test]
+fn a_supertype_the_language_marks_behaviorless_leaves_the_class_to_its_own_members() {
+    let point = TypeShape::new("Point", TypeKind::Class)
+        .with_superclass(TypeRef::class("Base"))
+        .with_method(MethodShape::new("getX").returning(int()).reading("x"));
+    let types = Types::new()
+        .with_shape(point)
+        .with_known(KnownTypes::new().with_behaviorless_supertype("Base"));
+
+    let classification = types.classify(&TypeRef::class("Point"));
+
+    assert_eq!(classification, Classification::DataStructure);
+}
+
+#[test]
+fn the_element_of_a_type_the_language_knows_as_a_container_is_its_last_type_argument() {
+    let order = TypeRef::class("Order");
+    let types = Types::new()
+        .with_known(KnownTypes::new().with_type("Purse", Classification::Container))
+        .with_shape(TypeShape::new("Purse", TypeKind::Class).with_type_parameter("E"));
+
+    let element = types.element_type_of(&TypeRef::generic("Purse", vec![order.clone()]));
+
+    assert_eq!(element, Some(order));
+}
 
 #[test]
 fn a_record_is_a_data_structure() {
@@ -514,9 +573,24 @@ fn a_method_that_cannot_be_found_is_not_fluent() {
     assert_eq!(fluent, (false, false));
 }
 
+fn known_as(classification: Classification, names: &[&str]) -> KnownTypes {
+    names.iter().fold(KnownTypes::new(), |known, name| {
+        known.with_type(name, classification)
+    })
+}
+
+fn containers(names: &[&str]) -> Types {
+    Types::new().with_known(known_as(Classification::Container, names))
+}
+
 #[test]
 fn the_element_of_a_collection_stream_or_optional_is_its_type_argument() {
     let order = TypeRef::class("Order");
+    let types = containers(&[
+        "java.util.List",
+        "java.util.stream.Stream",
+        "java.util.Optional",
+    ]);
     let containers = [
         TypeRef::generic("java.util.List", vec![order.clone()]),
         TypeRef::generic("java.util.stream.Stream", vec![order.clone()]),
@@ -524,34 +598,40 @@ fn the_element_of_a_collection_stream_or_optional_is_its_type_argument() {
         TypeRef::array(order.clone()),
     ];
 
-    let elements: Vec<_> = containers.iter().map(element_type).collect();
+    let elements: Vec<_> = containers
+        .iter()
+        .map(|container| types.element_type(container))
+        .collect();
 
     assert_eq!(elements, vec![Some(&order); containers.len()]);
 }
 
 #[test]
 fn the_element_of_a_map_is_its_value_type() {
+    let types = containers(&["java.util.Map"]);
     let map = TypeRef::generic("java.util.Map", vec![string(), TypeRef::class("Order")]);
 
-    let element = element_type(&map);
+    let element = types.element_type(&map);
 
     assert_eq!(element, Some(&TypeRef::class("Order")));
 }
 
 #[test]
 fn a_container_without_type_arguments_has_no_known_element() {
+    let types = containers(&["java.util.List"]);
     let raw = TypeRef::class("java.util.List");
 
-    let element = element_type(&raw);
+    let element = types.element_type(&raw);
 
     assert_eq!(element, None);
 }
 
 #[test]
 fn a_generic_type_that_is_not_a_container_has_no_element() {
+    let types = containers(&["java.util.List"]);
     let page = TypeRef::generic("Page", vec![TypeRef::class("Order")]);
 
-    let element = element_type(&page);
+    let element = types.element_type(&page);
 
     assert_eq!(element, None);
 }

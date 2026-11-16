@@ -1,8 +1,10 @@
 mod functional;
 mod invocation;
 mod jdk;
+mod known;
 mod naming;
 
+pub use known::KnownTypes;
 pub use naming::{is_factory_method, is_repository_query};
 
 use std::collections::{HashMap, HashSet};
@@ -26,11 +28,17 @@ pub enum Classification {
 pub struct Types {
     shapes: HashMap<String, TypeShape>,
     project_types: HashSet<String>,
+    known: KnownTypes,
 }
 
 impl Types {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_known(mut self, known: KnownTypes) -> Self {
+        self.known = known;
+        self
     }
 
     pub fn with_shape(mut self, shape: TypeShape) -> Self {
@@ -223,9 +231,26 @@ impl Types {
     pub fn element_type_of(&self, type_ref: &TypeRef) -> Option<TypeRef> {
         let container = self.ancestors(type_ref).into_iter().find(|ancestor| {
             matches!(ancestor, TypeRef::Array(_))
-                || class_name(ancestor).and_then(jdk::classify) == Some(Classification::Container)
+                || class_name(ancestor).and_then(|name| self.known_classification(name))
+                    == Some(Classification::Container)
         })?;
-        element_type(&container).cloned()
+        self.element_type(&container).cloned()
+    }
+
+    pub fn element_type<'t>(&self, type_ref: &'t TypeRef) -> Option<&'t TypeRef> {
+        match type_ref {
+            TypeRef::Array(element) => Some(element),
+            TypeRef::Class { name, arguments }
+                if self.known_classification(name) == Some(Classification::Container) =>
+            {
+                arguments.last()
+            }
+            TypeRef::Class { .. } | TypeRef::Primitive(_) | TypeRef::Variable(_) => None,
+        }
+    }
+
+    fn known_classification(&self, name: &str) -> Option<Classification> {
+        self.known.classify(name).or_else(|| jdk::classify(name))
     }
 
     pub(crate) fn declares_static(&self, owner: &TypeRef, method: &str) -> bool {
@@ -266,7 +291,7 @@ impl Types {
     }
 
     fn classify_named(&self, name: &str) -> Classification {
-        jdk::classify(name).unwrap_or_else(|| {
+        self.known_classification(name).unwrap_or_else(|| {
             self.shapes
                 .get(name)
                 .map_or(Classification::Unknown, |shape| self.classify_shape(shape))
@@ -292,7 +317,7 @@ impl Types {
             let Some(name) = current.superclass().and_then(class_name) else {
                 continue;
             };
-            if jdk::is_behaviorless(name) {
+            if self.known.is_behaviorless(name) || jdk::is_behaviorless(name) {
                 continue;
             }
             match self.shape(name) {
@@ -301,7 +326,7 @@ impl Types {
                         chain.push(superclass);
                     }
                 }
-                None => complete &= jdk::classify(name).is_some(),
+                None => complete &= self.known_classification(name).is_some(),
             }
         }
         let mut methods: Vec<&MethodShape> = Vec::new();
@@ -351,7 +376,7 @@ impl Types {
             .iter()
             .skip(1)
             .filter_map(class_name)
-            .filter_map(jdk::classify)
+            .filter_map(|name| self.known_classification(name))
             .find(|classification| {
                 matches!(
                     classification,
@@ -431,18 +456,6 @@ impl Members<'_> {
                     && method.is_public()
                     && !method.is_static()
             })
-    }
-}
-
-pub fn element_type(type_ref: &TypeRef) -> Option<&TypeRef> {
-    match type_ref {
-        TypeRef::Array(element) => Some(element),
-        TypeRef::Class { name, arguments }
-            if jdk::classify(name) == Some(Classification::Container) =>
-        {
-            arguments.last()
-        }
-        TypeRef::Class { .. } | TypeRef::Primitive(_) | TypeRef::Variable(_) => None,
     }
 }
 
