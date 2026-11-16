@@ -25,6 +25,10 @@ impl MethodMapper<'_> {
         }
     }
 
+    pub(super) fn reference_arity(&self, functional: Option<&TypeRef>) -> Option<usize> {
+        Some(functional_method(self.types, functional?)?.parameters.len())
+    }
+
     pub(super) fn reference_input(
         &self,
         target: &model::Expression,

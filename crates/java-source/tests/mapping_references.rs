@@ -163,7 +163,7 @@ fn streamed() -> Expression {
 
 fn mapping(reference: MethodReference, returned: Option<TypeRef>) -> Method {
     let map = call(streamed(), "map", 3)
-        .with(reference.fed_by_receiver())
+        .with(reference.taking(1).fed_by_receiver())
         .returning_from(&[0]);
     match returned {
         Some(returned) => f(2).call(map.returning(returned)),
@@ -222,7 +222,7 @@ fn a_reference_on_a_parameter_binds_the_result_with_the_return_of_its_type() {
     let customers = parameter("customers", generic("List", &[customer()]));
     let stream = call(customers, "stream", 3).returning(stream_of(customer()));
     let map = call(Expression::return_of(stream), "map", 3)
-        .with(reference.fed_by_receiver())
+        .with(reference.taking(1).fed_by_receiver())
         .returning(stream_of(wallet()))
         .returning_from(&[0]);
     assert_eq!(mapped, f(2).call(map));
@@ -304,6 +304,7 @@ fn the_result_of_a_reference_types_the_next_call_of_the_chain() {
     let first = through(order(), "getCustomer")
         .returning(customer())
         .resolving(order())
+        .taking(1)
         .fed_by_receiver();
     let first_map = call(streamed(), "map", 3)
         .with(first)
@@ -312,6 +313,7 @@ fn the_result_of_a_reference_types_the_next_call_of_the_chain() {
     let second = through(customer(), "getWallet")
         .returning(wallet())
         .resolving(customer())
+        .taking(1)
         .fed_by_receiver();
     let second_map = call(Expression::return_of(first_map), "map", 3)
         .with(second)
@@ -336,6 +338,7 @@ fn the_type_arguments_of_the_owner_come_from_the_receiver_the_stream_feeds() {
     let reference = through(class("Optional"), "get")
         .returning(order())
         .resolving(maybe_order.clone())
+        .taking(1)
         .fed_by_receiver();
     let map = call(Expression::return_of(stream), "map", 3)
         .with(reference)
@@ -351,6 +354,7 @@ fn a_reference_only_fits_the_overload_that_takes_a_functional_interface() {
     let reference = through(order(), "getCustomer")
         .returning(customer())
         .resolving(order())
+        .taking(1)
         .fed_by_receiver();
     let take = call(parameter("taker", class("Taker")), "take", 3)
         .with(reference)

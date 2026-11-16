@@ -152,6 +152,7 @@ fn customer_reference() -> MethodReference {
     MethodReference::new(Expression::static_type(order()), "getCustomer", 4)
         .returning(customer())
         .resolving(order())
+        .taking(1)
         .fed_by_elements()
 }
 

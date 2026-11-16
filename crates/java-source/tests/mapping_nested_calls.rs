@@ -254,6 +254,7 @@ fn a_method_reference_inside_a_nested_call_binds_the_group_key() {
     let classifier = through(customer(), "getWallet")
         .returning(wallet())
         .resolving(customer())
+        .taking(1)
         .fed_by_receiver();
     let grouping = collectors_call("groupingBy")
         .with(classifier)
@@ -293,6 +294,7 @@ fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
     let total = through(order(), "getTotal")
         .returning(money())
         .resolving(order())
+        .taking(1)
         .fed_by_receiver();
     let mapping = collectors_call("mapping")
         .with(total)
@@ -302,6 +304,7 @@ fn collectors_nested_two_levels_deep_bind_each_result_into_the_one_above() {
     let customer_of = through(order(), "getCustomer")
         .returning(customer())
         .resolving(order())
+        .taking(1)
         .fed_by_receiver();
     let grouping = collectors_call("groupingBy")
         .with(customer_of)

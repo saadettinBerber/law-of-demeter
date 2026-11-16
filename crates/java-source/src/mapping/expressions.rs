@@ -231,6 +231,10 @@ impl MethodMapper<'_> {
                 let result = self.reference_result(referenced, name, target);
                 let reference = MethodReference::new(self.expression(referenced), name, *line);
                 let reference = links.on_reference(reference);
+                let reference = match self.reference_arity(target) {
+                    Some(arity) => reference.taking(arity),
+                    None => reference,
+                };
                 let reference = match self.reference_input(referenced, name, target) {
                     Some(input) => reference.resolving(input),
                     None => reference,
