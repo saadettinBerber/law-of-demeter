@@ -36,6 +36,7 @@
 | Uygun değil | 10. Akışın yabancıdan ürettiği elemanla konuşmak | Raporlanır | ✅ |
 | Uygun değil | 11. Yabancıyla metot referansıyla konuşmak | Raporlanır | ✅ |
 | Uygun değil | 12. Gruplanan anahtarla konuşmak | Raporlanır | ✅ |
+| Uygun değil | 13. Yıldızlı statik importla gelen çağrının sonucuyla konuşmak | Raporlanır | ✅ |
 | Uygun | 1. Parametreden değer okumak | Raporlanmaz | ✅ |
 | Uygun | 2. Bir değer üzerinde işlem yapmak | Raporlanmaz | ✅ |
 | Uygun | 3. Veri yapısında zincirle okumak | Raporlanmaz | ✅ |
@@ -51,25 +52,6 @@
 | Uygun | 13. Üst sınıftan gelen alanla konuşmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ✅ |
-
-<details>
-<summary><strong>13. Yıldızlı statik importla gelen çağrının sonucuyla konuşmak</strong></summary>
-
-```java
-import static shop.domain.Defaults.*;
-
-void deposit(int amount) {
-    guest().getWallet().deposit(amount);
-}
-```
-
-- **Neden:** `guest()` C'nin kendi metodu değil; `Defaults` tipinden yıldızlı statik importla gelir. Statik çağrının sonucu arkadaştır, bu yüzden `getWallet` uygundur. `getWallet()` ise `Customer`'ın alanını döndürür ve o `Wallet` f'nin arkadaşı değil. `deposit` raporlanır.
-
-- **Not:** Çağrının hangi tipe ait olduğunu, adı ve argüman sayısıyla eşleşen statik metodu bildiren tek import'un tipi belirler. İki import aynı adı ve argüman sayısını bildirirse Java derleyicisi de belirsizlik hatası verir; araç çağrıyı çözmez ve alıcıyı kendi nesnesi sayar. Çevreleyen sınıfın metodu çağrılırsa alıcı yine kendi nesnesidir; yalnızca dönüş tipi bulunur.
-
-- **Örnek projede:** [`GuestService.java:7`](examples/shop/src/main/java/shop/service/GuestService.java#L7)
-
-</details>
 
 ## Uygun değil
 
@@ -305,6 +287,25 @@ void ship(List<Order> orders) {
 - **Not:** Haritanın değerleri akışın elemanlarından gelir ve elemanların durumunu korur: `grouped.get(customer).get(0).getStatus()` arkadaş olan siparişle konuşur. Anahtarın durumu yalnızca anahtarları veren çağrıdan okunur (`keySet()`, `getKey()`), değerin durumu yalnızca değerleri veren çağrıdan (`values()`, `getValue()`, `get`); `entrySet()` ve onu süren çağrılar (`stream()` gibi) girdilerin ikisini de taşır. Haritanın kendisi değişmez.
 
 - **Örnek projede:** [`ReportingService.java:53`](examples/shop/src/main/java/shop/service/ReportingService.java#L53), [`ReportingService.java:59`](examples/shop/src/main/java/shop/service/ReportingService.java#L59), [`ReportingService.java:65-66`](examples/shop/src/main/java/shop/service/ReportingService.java#L65-L66)
+
+</details>
+
+<details>
+<summary><strong>13. Yıldızlı statik importla gelen çağrının sonucuyla konuşmak</strong></summary>
+
+```java
+import static shop.domain.Defaults.*;
+
+void deposit(int amount) {
+    guest().getWallet().deposit(amount);
+}
+```
+
+- **Neden:** `guest()` C'nin kendi metodu değil; `Defaults` tipinden yıldızlı statik importla gelir. Statik çağrının sonucu arkadaştır, bu yüzden `getWallet` uygundur. `getWallet()` ise `Customer`'ın alanını döndürür ve o `Wallet` f'nin arkadaşı değil. `deposit` raporlanır.
+
+- **Not:** Çağrının hangi tipe ait olduğunu, adı ve argüman sayısıyla eşleşen statik metodu bildiren tek import'un tipi belirler. İki import aynı adı ve argüman sayısını bildirirse Java derleyicisi de belirsizlik hatası verir; araç çağrıyı çözmez ve alıcıyı kendi nesnesi sayar. Çevreleyen sınıfın metodu çağrılırsa alıcı yine kendi nesnesidir; yalnızca dönüş tipi bulunur.
+
+- **Örnek projede:** [`GuestService.java:7`](examples/shop/src/main/java/shop/service/GuestService.java#L7)
 
 </details>
 
