@@ -645,3 +645,102 @@ fn an_on_demand_imported_constant_takes_its_type_from_the_first_type_declaring_i
         )
     );
 }
+
+#[test]
+fn a_plain_return_type_is_kept_and_an_array_of_a_type_variable_is_substituted() {
+    let source = "class OrderService {\n void f(Order<String> order) {\n  order.getCustomer().go();\n  order.getIds().go();\n  order.getItems().go();\n }\n}";
+    let order = shape("Order")
+        .with_type_parameter("T")
+        .with_method(returning("getCustomer", "Customer"))
+        .with_method(
+            MethodShape::new("getIds").returning(TypeRef::array(TypeRef::primitive("int"))),
+        )
+        .with_method(
+            MethodShape::new("getItems").returning(TypeRef::array(TypeRef::variable("T"))),
+        );
+    let types = shop().with_shape(order);
+
+    let mapped = method_f_in(source, &types);
+
+    let order = parameter(
+        "order",
+        TypeRef::generic("Order", vec![class("java.lang.String")]),
+    );
+    let customer = call(order.clone(), "getCustomer", 3).returning(class("Customer"));
+    let ids = call(order.clone(), "getIds", 4).returning(TypeRef::array(TypeRef::primitive("int")));
+    let items = call(order, "getItems", 5).returning(TypeRef::array(class("java.lang.String")));
+    assert_eq!(
+        mapped,
+        f(2).call(customer.then("go", 3))
+            .call(ids.then("go", 4))
+            .call(items.then("go", 5))
+    );
+}
+
+#[test]
+fn the_value_type_of_a_map_and_the_element_of_an_optional_are_substituted() {
+    let source = "import java.util.Map;\nimport java.util.Optional;\nclass OrderService {\n void f(Map<String, Order> orders, Optional<Order> maybe) {\n  orders.get(\"a\").go();\n  maybe.orElseThrow().go();\n }\n}";
+    let types = shop()
+        .with_shape(
+            shape("java.util.Map")
+                .with_type_parameter("K")
+                .with_type_parameter("V")
+                .with_method(
+                    MethodShape::new("get")
+                        .with_parameters(vec![class("java.lang.Object")])
+                        .returning(TypeRef::variable("V")),
+                ),
+        )
+        .with_shape(
+            shape("java.util.Optional")
+                .with_type_parameter("T")
+                .with_method(MethodShape::new("orElseThrow").returning(TypeRef::variable("T"))),
+        )
+        .with_shape(shape("java.lang.Object"))
+        .with_shape(shape("Order"));
+
+    let mapped = method_f_in(source, &types);
+
+    let orders = parameter(
+        "orders",
+        TypeRef::generic(
+            "java.util.Map",
+            vec![class("java.lang.String"), class("Order")],
+        ),
+    );
+    let maybe = parameter(
+        "maybe",
+        TypeRef::generic("java.util.Optional", vec![class("Order")]),
+    );
+    let get = call(orders, "get", 5)
+        .with(Expression::literal())
+        .returning(class("Order"));
+    let else_throw = call(maybe, "orElseThrow", 6).returning(class("Order"));
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4)
+            .call(get.then("go", 5))
+            .call(else_throw.then("go", 6))
+    );
+}
+
+#[test]
+fn a_method_the_receiver_does_not_declare_leaves_the_call_unresolved() {
+    let source = "import java.util.List;\nclass OrderService {\n void f(List<Order> orders, Order[] array) {\n  orders.missing().go();\n  array.get(0).go();\n }\n}";
+    let types = shop().with_shape(list_shape());
+
+    let mapped = method_f_in(source, &types);
+
+    let orders = parameter("orders", list_of("Order"));
+    let array = parameter("array", TypeRef::array(class("Order")));
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 3)
+            .call(call(orders, "missing", 4).then("go", 4))
+            .call(
+                call(array, "get", 5)
+                    .with(Expression::literal())
+                    .then("go", 5)
+            )
+    );
+}
