@@ -18,15 +18,15 @@ impl<'a> CheckProject<'a> {
             errors,
             platform,
         } = self.types.read();
-        let shapes = shapes
+        let types = shapes
             .into_iter()
             .fold(Types::new().with_platform(platform), Types::with_shape);
-        let files = self.sources.read(&|name| shapes.shape(name).is_some());
+        let files = self.sources.read(&types);
         let declared = files
             .iter()
             .flatten()
             .flat_map(|file| file.classes().iter().cloned());
-        let catalog = shapes.with_project_types(declared);
+        let catalog = types.with_project_types(declared);
         let mut report = Report {
             type_errors: errors,
             ..Report::default()

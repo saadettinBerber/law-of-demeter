@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 
 use law_of_demeter_core::application::{ReadError, SourceFile, SourceReader};
+use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::Method;
+use law_of_demeter_core::domain::type_shape::{TypeKind, TypeShape};
 use tempfile::TempDir;
 
 use super::{Declarations, Mapper, SourceFiles};
@@ -14,23 +16,23 @@ fn write(root: &TempDir, name: &str, text: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn every_file_is_read_and_handed_to_the_mapper_with_the_type_predicate() {
+fn every_file_is_read_and_handed_to_the_mapper_with_the_type_catalog() {
     let root = TempDir::new().expect("temp dir");
     let order = write(&root, "Order.java", "class Order {}");
     let wallet = write(&root, "Wallet.java", "class Wallet {}");
-    let mapper: &Mapper = &|path, text, type_exists| {
+    let mapper: &Mapper = &|path, text, types| {
         let class = path
             .file_stem()
             .map(|stem| stem.to_string_lossy().into_owned())
             .unwrap_or_default();
         Ok(Declarations {
-            classes: vec![format!("{class}:{text}:{}", type_exists("Known"))],
+            classes: vec![format!("{class}:{text}:{}", types.shape("Known").is_some())],
             methods: vec![Method::new(&class, "pay", 1)],
         })
     };
     let sources = SourceFiles::new(vec![order.clone(), wallet.clone()], mapper);
 
-    let files = sources.read(&|name| name == "Known");
+    let files = sources.read(&Types::new().with_shape(TypeShape::new("Known", TypeKind::Class)));
 
     assert_eq!(
         files,
@@ -67,7 +69,7 @@ fn a_file_that_cannot_be_read_and_a_file_the_mapper_rejects_are_reported_in_plac
     };
     let sources = SourceFiles::new(vec![missing.clone(), broken.clone(), good.clone()], mapper);
 
-    let files = sources.read(&|_| false);
+    let files = sources.read(&Types::new());
 
     assert_eq!(
         (
@@ -100,7 +102,7 @@ fn errors_found_while_walking_are_yielded_before_the_files() {
     let sources =
         SourceFiles::new(vec![good.clone()], mapper).with_errors(vec![walk_error.clone()]);
 
-    let files = sources.read(&|_| false);
+    let files = sources.read(&Types::new());
 
     assert_eq!(
         files,

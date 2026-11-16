@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use law_of_demeter_core::application::ReadError;
+use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::{Call, Expression, Method};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 use tempfile::TempDir;
@@ -121,19 +122,15 @@ fn violating_method() -> Method {
         .call(Call::new(Expression::local("line"), "applyDiscount", 5))
 }
 
-fn mapper_by_text(
-    path: &Path,
-    text: &str,
-    type_exists: &dyn Fn(&str) -> bool,
-) -> Result<Declarations, ReadError> {
+fn mapper_by_text(path: &Path, text: &str, types: &Types) -> Result<Declarations, ReadError> {
     match text {
         "probe" => Err(ReadError::new(
             path,
             &format!(
                 "jdk={} classpath={} unknown={}",
-                type_exists("sample.util.Box"),
-                type_exists("shop.Order"),
-                type_exists("app.Missing")
+                types.shape("sample.util.Box").is_some(),
+                types.shape("shop.Order").is_some(),
+                types.shape("app.Missing").is_some()
             ),
         )),
         "broken" => Err(ReadError::at_line(path, 1, "beklenmeyen simge")),

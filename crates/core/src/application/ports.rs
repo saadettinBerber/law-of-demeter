@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::domain::classification::Platform;
+use crate::domain::classification::{Platform, Types};
 use crate::domain::method::Method;
 use crate::domain::type_shape::TypeShape;
 
@@ -70,7 +70,7 @@ impl SourceFile {
 }
 
 pub trait SourceReader {
-    fn read(&self, type_exists: &dyn Fn(&str) -> bool) -> Vec<Result<SourceFile, ReadError>>;
+    fn read(&self, types: &Types) -> Vec<Result<SourceFile, ReadError>>;
 }
 
 #[derive(Debug, Default)]

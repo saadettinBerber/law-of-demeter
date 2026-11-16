@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use law_of_demeter_core::application::{ReadError, SourceFile, SourceReader};
+use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::method::Method;
 
 pub struct Declarations {
@@ -9,7 +10,7 @@ pub struct Declarations {
     pub methods: Vec<Method>,
 }
 
-pub type Mapper = dyn Fn(&Path, &str, &dyn Fn(&str) -> bool) -> Result<Declarations, ReadError>;
+pub type Mapper = dyn Fn(&Path, &str, &Types) -> Result<Declarations, ReadError>;
 
 pub struct SourceFiles<'a> {
     files: Vec<PathBuf>,
@@ -33,25 +34,18 @@ impl<'a> SourceFiles<'a> {
 }
 
 impl SourceReader for SourceFiles<'_> {
-    fn read(&self, type_exists: &dyn Fn(&str) -> bool) -> Vec<Result<SourceFile, ReadError>> {
+    fn read(&self, types: &Types) -> Vec<Result<SourceFile, ReadError>> {
         let errors = self.errors.iter().cloned().map(Err);
-        let files = self
-            .files
-            .iter()
-            .map(|path| self.read_file(path, type_exists));
+        let files = self.files.iter().map(|path| self.read_file(path, types));
         errors.chain(files).collect()
     }
 }
 
 impl SourceFiles<'_> {
-    fn read_file(
-        &self,
-        path: &Path,
-        type_exists: &dyn Fn(&str) -> bool,
-    ) -> Result<SourceFile, ReadError> {
+    fn read_file(&self, path: &Path, types: &Types) -> Result<SourceFile, ReadError> {
         let text =
             fs::read_to_string(path).map_err(|error| ReadError::new(path, &error.to_string()))?;
-        let declarations = (self.mapper)(path, &text, type_exists)?;
+        let declarations = (self.mapper)(path, &text, types)?;
         Ok(SourceFile::new(
             path,
             declarations.classes,

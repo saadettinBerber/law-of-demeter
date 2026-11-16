@@ -12,7 +12,7 @@ use crate::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 struct FakeSources(Vec<Result<SourceFile, ReadError>>);
 
 impl SourceReader for FakeSources {
-    fn read(&self, _type_exists: &dyn Fn(&str) -> bool) -> Vec<Result<SourceFile, ReadError>> {
+    fn read(&self, _types: &Types) -> Vec<Result<SourceFile, ReadError>> {
         self.0.clone()
     }
 }
@@ -46,10 +46,11 @@ impl TypeSource for FakeTypes {
 struct AskingSources(RefCell<Vec<bool>>);
 
 impl SourceReader for AskingSources {
-    fn read(&self, type_exists: &dyn Fn(&str) -> bool) -> Vec<Result<SourceFile, ReadError>> {
-        self.0
-            .borrow_mut()
-            .extend([type_exists("Order"), type_exists("Missing")]);
+    fn read(&self, types: &Types) -> Vec<Result<SourceFile, ReadError>> {
+        self.0.borrow_mut().extend([
+            types.shape("Order").is_some(),
+            types.shape("Missing").is_some(),
+        ]);
         Vec::new()
     }
 }
@@ -157,6 +158,30 @@ fn the_source_reader_is_told_which_types_the_catalog_knows() {
     CheckProject::new(&sources, &shop_types()).execute();
 
     assert_eq!(*sources.0.borrow(), [true, false]);
+}
+
+struct ClassifyingSources(RefCell<Vec<Classification>>);
+
+impl SourceReader for ClassifyingSources {
+    fn read(&self, types: &Types) -> Vec<Result<SourceFile, ReadError>> {
+        self.0
+            .borrow_mut()
+            .push(types.classify(&TypeRef::class("Money")));
+        Vec::new()
+    }
+}
+
+#[test]
+fn the_source_reader_is_given_what_the_platform_knows() {
+    let sources = ClassifyingSources(RefCell::new(Vec::new()));
+    let types = FakeTypes {
+        platform: Platform::new().with_type("Money", Classification::Value),
+        ..shop_types()
+    };
+
+    CheckProject::new(&sources, &types).execute();
+
+    assert_eq!(*sources.0.borrow(), [Classification::Value]);
 }
 
 #[test]
