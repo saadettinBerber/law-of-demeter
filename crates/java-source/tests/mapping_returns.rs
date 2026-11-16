@@ -821,3 +821,133 @@ fn a_method_type_variable_no_argument_binds_stays_open_in_the_return_type() {
         )
     );
 }
+
+fn static_factory(owner: &str, parameters: Vec<TypeRef>) -> TypeShape {
+    shape(owner).with_method(
+        returning("create", "Customer")
+            .as_static()
+            .with_parameters(parameters),
+    )
+}
+
+const ON_DEMAND_IMPORTS: &str = "import static shop.Colors.*;\nimport static shop.Orders.*;\nclass OrderService {\n void f() {\n  create().getWallet().go();\n }\n}";
+
+#[test]
+fn an_on_demand_imported_method_is_called_on_the_type_declaring_it() {
+    let types = shop()
+        .with_shape(shape("shop.Colors"))
+        .with_shape(static_factory("shop.Orders", vec![]));
+
+    let mapped = method_f_in(ON_DEMAND_IMPORTS, &types);
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4).call(
+            call(Expression::static_type(class("shop.Orders")), "create", 5)
+                .returning(class("Customer"))
+                .then("getWallet", 5)
+                .returning(class("Wallet"))
+                .then("go", 5)
+        )
+    );
+}
+
+#[test]
+fn an_on_demand_imported_method_is_found_by_its_arity() {
+    let types = shop()
+        .with_shape(static_factory(
+            "shop.Colors",
+            vec![TypeRef::primitive("int")],
+        ))
+        .with_shape(static_factory("shop.Orders", vec![]));
+
+    let mapped = method_f_in(ON_DEMAND_IMPORTS, &types);
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4).call(
+            call(Expression::static_type(class("shop.Orders")), "create", 5)
+                .returning(class("Customer"))
+                .then("getWallet", 5)
+                .returning(class("Wallet"))
+                .then("go", 5)
+        )
+    );
+}
+
+#[test]
+fn an_on_demand_imported_method_declared_by_two_types_stays_unresolved() {
+    let types = shop()
+        .with_shape(static_factory("shop.Colors", vec![]))
+        .with_shape(static_factory("shop.Orders", vec![]));
+
+    let mapped = method_f_in(ON_DEMAND_IMPORTS, &types);
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4).call(
+            call(Expression::This, "create", 5)
+                .then("getWallet", 5)
+                .then("go", 5)
+        )
+    );
+}
+
+#[test]
+fn an_on_demand_imported_instance_method_is_not_a_static_import() {
+    let colors = shape("shop.Colors").with_method(returning("create", "Customer"));
+    let types = shop().with_shape(colors).with_shape(shape("shop.Orders"));
+
+    let mapped = method_f_in(ON_DEMAND_IMPORTS, &types);
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 4).call(
+            call(Expression::This, "create", 5)
+                .then("getWallet", 5)
+                .then("go", 5)
+        )
+    );
+}
+
+#[test]
+fn an_enclosing_class_method_gives_the_call_its_return_type() {
+    let source = "class OrderService {\n Customer customer() { return null; }\n class Inner {\n  void f() {\n   customer().getWallet().go();\n  }\n }\n}";
+    let types =
+        shop().with_shape(shape("OrderService").with_method(returning("customer", "Customer")));
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService$Inner", "f", 4).call(
+            call(Expression::This, "customer", 5)
+                .returning(class("Customer"))
+                .then("getWallet", 5)
+                .returning(class("Wallet"))
+                .then("go", 5)
+        )
+    );
+}
+
+#[test]
+fn an_inherited_method_hides_an_on_demand_imported_one_of_the_same_name() {
+    let source = "import static shop.Orders.*;\nclass OrderService extends Base {\n void f() {\n  create().getWallet().go();\n }\n}";
+    let types = shop()
+        .with_shape(static_factory("shop.Orders", vec![]))
+        .with_shape(shape("Base").with_method(returning("create", "Customer")))
+        .with_shape(shape("OrderService").with_superclass(class("Base")));
+
+    let mapped = method_f_in(source, &types);
+
+    assert_eq!(
+        mapped,
+        Method::new("OrderService", "f", 3).call(
+            call(Expression::This, "create", 4)
+                .returning(class("Customer"))
+                .then("getWallet", 4)
+                .returning(class("Wallet"))
+                .then("go", 4)
+        )
+    );
+}

@@ -2,7 +2,7 @@ use law_of_demeter_core::domain::method::{Argument, Call, Creation, Expression, 
 
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
-use crate::{self as model, ImplicitTarget};
+use crate::{self as model};
 
 use super::MethodMapper;
 use super::links::{ArgumentLinks, Declared, Flow, Yield};
@@ -108,12 +108,11 @@ impl MethodMapper<'_> {
         expected: Option<&TypeRef>,
         inherited: &[String],
     ) -> Call {
-        let receiver = match (&call.receiver, &call.implicit_target) {
-            (Some(receiver), _) => self.expression(receiver),
-            (None, Some(ImplicitTarget::StaticImport { owner })) => {
-                Expression::static_type(named_type(owner))
-            }
-            (None, _) => Expression::This,
+        let receiver = match &call.receiver {
+            Some(receiver) => self.expression(receiver),
+            None => self
+                .static_owner(call)
+                .map_or(Expression::This, Expression::static_type),
         };
         let resolved = self.resolve(call, expected);
         let declared = resolved

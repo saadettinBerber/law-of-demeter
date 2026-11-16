@@ -2,7 +2,7 @@ use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::type_shape::{MethodShape, TypeRef, TypeShape};
 
 use crate::platform::CONSTRUCTOR_NAME;
-use crate::{self as model, ImplicitTarget};
+use crate::{self as model, ImplicitTarget, TypeName};
 
 use super::MethodMapper;
 use super::inference::{Bindings, apply_bindings, bind_results, complete};
@@ -129,12 +129,41 @@ impl MethodMapper<'_> {
     fn receiver_type(&mut self, call: &model::Call) -> Option<TypeRef> {
         match (&call.receiver, &call.implicit_target) {
             (Some(receiver), _) => self.type_of(receiver),
-            (None, Some(ImplicitTarget::StaticImport { owner })) => Some(named_type(owner)),
-            (None, Some(ImplicitTarget::OwnMethod) | None) => {
-                Some(TypeRef::class(&self.class.name))
-            }
-            (None, Some(_)) => None,
+            (None, Some(ImplicitTarget::OuterMethod { owner })) => Some(TypeRef::class(owner)),
+            (None, Some(ImplicitTarget::OwnMethod) | None) => Some(self.own_type()),
+            (None, Some(_)) => self.static_owner(call).or_else(|| Some(self.own_type())),
         }
+    }
+
+    pub(super) fn static_owner(&self, call: &model::Call) -> Option<TypeRef> {
+        match &call.implicit_target {
+            Some(ImplicitTarget::StaticImport { owner }) => Some(named_type(owner)),
+            Some(ImplicitTarget::OnDemandStaticImport { candidates })
+                if !self.declares(&self.own_type(), call, Dispatch::Any) =>
+            {
+                self.on_demand_owner(candidates, call)
+            }
+            _ => None,
+        }
+    }
+
+    fn own_type(&self) -> TypeRef {
+        TypeRef::class(&self.class.name)
+    }
+
+    fn on_demand_owner(&self, candidates: &[TypeName], call: &model::Call) -> Option<TypeRef> {
+        let mut owners = candidates
+            .iter()
+            .map(named_type)
+            .filter(|owner| self.declares(owner, call, Dispatch::Static));
+        let owner = owners.next()?;
+        owners.next().is_none().then_some(owner)
+    }
+
+    fn declares(&self, owner: &TypeRef, call: &model::Call, dispatch: Dispatch) -> bool {
+        let ancestors = lineage(self.types, owner);
+        let declared = candidates(&ancestors, (&call.name, dispatch), call.arguments.len());
+        !declared.is_empty()
     }
 
     pub(super) fn type_of(&mut self, expression: &model::Expression) -> Option<TypeRef> {
