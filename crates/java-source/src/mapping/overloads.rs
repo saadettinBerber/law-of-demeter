@@ -4,9 +4,7 @@ use law_of_demeter_core::domain::type_shape::TypeRef;
 use crate::LiteralType;
 
 use super::conversions::{boxed, unboxed, widens};
-use super::lineage::{OBJECT, class_name, closure, has_variable};
-
-const ARRAY_SUPERTYPES: [&str; 3] = [OBJECT, "java.lang.Cloneable", "java.io.Serializable"];
+use super::lineage::{ARRAY_SUPERTYPES, OBJECT, class_name, closure, has_variable};
 
 pub(super) enum ArgumentType {
     Null,

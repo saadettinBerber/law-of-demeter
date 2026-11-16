@@ -4,6 +4,8 @@ use law_of_demeter_core::domain::classification::Types;
 use law_of_demeter_core::domain::type_shape::{TypeRef, TypeShape};
 
 pub(super) const OBJECT: &str = "java.lang.Object";
+pub(super) const ARRAY_SUPERTYPES: [&str; 3] =
+    [OBJECT, "java.lang.Cloneable", "java.io.Serializable"];
 
 pub(super) fn lineage<'t>(types: &'t Types, receiver: &TypeRef) -> Vec<Ancestor<'t>> {
     let supertypes = closure(types, receiver);
