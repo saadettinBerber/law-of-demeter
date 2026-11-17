@@ -161,3 +161,19 @@ fn a_private_helper_returning_its_parameter_keeps_the_stranger_it_was_given() {
         ]
     );
 }
+
+#[test]
+fn a_private_helper_called_on_another_instance_stays_a_stranger() {
+    let types = shop_finding_carts_with(vec![finding_a_cart("pickCart").as_private()]);
+    let snippet = "void checkOut(C other, String id) {\n    other.pickCart(id).checkout();\n}\nprivate Cart pickCart(String id) {\n    return carts.get(id);\n}";
+
+    let verdicts = verdicts_in_c(MAP_IMPORT, CART_FIELDS, snippet, "checkOut", &types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("pickCart", 3, Reason::parameter("other")),
+            Verdict::violation("checkout", 3, Reason::return_of("pickCart")),
+        ]
+    );
+}
