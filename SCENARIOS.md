@@ -207,11 +207,15 @@ void checkout(Session session) {
 void discount(String id, int rate) {
     findLine(id).applyDiscount(rate);
 }
+
+protected OrderLine findLine(String id) {
+    return lines.get(id);
+}
 ```
 
 - **Neden:** `findLine` C'nin kendi metodu; onu çağırmak serbest. Döndürdüğü `OrderLine` ise C'nin alanı da f'nin argümanı da değil. f satıra doğrudan uzanıyor.
 
-- **Not:** Kural metodun gövdesine bakmaz; döndürülen nesne bir alandan gelse de yabancı sayılır. Adı `find` ile başlasa da depo sorgusu sayılmaz, çünkü depo sorgusunun alıcısı bir alan ya da parametre olmalı: Uygun 9.
+- **Not:** `findLine` `private` değil; alt sınıf onu ezip başka bir nesne döndürebilir. Bu yüzden kural gövdesine bakmaz; döndürülen nesne bir alandan gelse de yabancı sayılır. `private` yardımcı için: Uygun 14. Adı `find` ile başlasa da depo sorgusu sayılmaz, çünkü depo sorgusunun alıcısı bir alan ya da parametre olmalı: Uygun 9.
 
 - **Örnek projede:** [`DiscountService.java:15`](examples/shop/src/main/java/shop/service/DiscountService.java#L15)
 
