@@ -507,3 +507,44 @@ fn only_the_selected_files_and_methods_are_counted() {
         }
     );
 }
+
+fn account_sources() -> FakeSources {
+    FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/Account.java"),
+        vec!["Account".to_owned()],
+        Vec::new(),
+    ))])
+}
+
+#[test]
+fn a_selected_hybrid_class_is_reported() {
+    let types = FakeTypes::new(vec![account_shape()]);
+
+    let report = CheckProject::new(&account_sources(), &types)
+        .with_selection(Selection::Only(vec![Target::class("Account")]))
+        .execute();
+
+    assert_eq!(report.counts().hybrid_classes, 1);
+}
+
+#[test]
+fn a_hybrid_class_outside_the_selection_is_not_reported() {
+    let types = FakeTypes::new(vec![account_shape()]);
+
+    let report = CheckProject::new(&account_sources(), &types)
+        .with_selection(Selection::Only(vec![Target::class("OrderService")]))
+        .execute();
+
+    assert_eq!(report.hybrid_classes(), []);
+}
+
+#[test]
+fn selecting_a_method_does_not_report_its_hybrid_class() {
+    let types = FakeTypes::new(vec![account_shape()]);
+
+    let report = CheckProject::new(&account_sources(), &types)
+        .with_selection(Selection::Only(vec![Target::method("Account", "withdraw")]))
+        .execute();
+
+    assert_eq!(report.hybrid_classes(), []);
+}

@@ -63,7 +63,11 @@ fn judge(file: &SourceFile, catalog: &Types, selection: &Selection, report: &mut
         .filter(|method| selection.selects(method))
         .collect();
     report.methods += methods.len();
-    for class in file.classes() {
+    for class in file
+        .classes()
+        .iter()
+        .filter(|class| selection.selects_class(class))
+    {
         if let Some(hybrid) = catalog.hybrid_class(class) {
             report
                 .hybrid_classes

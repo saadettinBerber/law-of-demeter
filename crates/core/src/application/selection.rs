@@ -15,6 +15,15 @@ impl Selection {
         }
     }
 
+    pub(super) fn selects_class(&self, class: &str) -> bool {
+        match self {
+            Self::Everything => true,
+            Self::Only(targets) => targets
+                .iter()
+                .any(|target| target.method.is_none() && target.names(class)),
+        }
+    }
+
     pub(super) fn covers(&self, classes: &[String]) -> bool {
         match self {
             Self::Everything => true,
