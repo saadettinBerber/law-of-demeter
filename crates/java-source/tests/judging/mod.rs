@@ -30,7 +30,7 @@ pub fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) 
     assert!(!found.is_empty(), "{class_name}.{method} was not mapped");
     found
         .into_iter()
-        .flat_map(|candidate| candidate.verdicts(&types))
+        .flat_map(|candidate| candidate.verdicts_among(&types, &mapped.methods))
         .collect()
 }
 

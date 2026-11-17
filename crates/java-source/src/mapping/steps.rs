@@ -18,6 +18,7 @@ enum Operation {
         iterable: Expression,
     },
     Evaluate(Expression),
+    GiveBack(Expression),
 }
 
 impl Steps {
@@ -44,6 +45,10 @@ impl Steps {
         }
     }
 
+    pub(super) fn give_back(&mut self, value: Expression) {
+        self.operations.push(Operation::GiveBack(value));
+    }
+
     pub(super) fn into_method(self, method: Method) -> Method {
         self.operations
             .into_iter()
@@ -61,6 +66,7 @@ impl Steps {
                 } => method.assign_var(&local, value),
                 Operation::ForEach { variable, iterable } => method.for_each(&variable, iterable),
                 Operation::Evaluate(value) => method.evaluate(value),
+                Operation::GiveBack(value) => method.give_back(value),
             })
     }
 
@@ -80,7 +86,7 @@ impl Steps {
                     value,
                 } => lambda.assign_var(&local, value),
                 Operation::ForEach { variable, iterable } => lambda.for_each(&variable, iterable),
-                Operation::Evaluate(value) => lambda.evaluate(value),
+                Operation::Evaluate(value) | Operation::GiveBack(value) => lambda.evaluate(value),
             })
     }
 }

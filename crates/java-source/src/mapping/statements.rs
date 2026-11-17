@@ -94,7 +94,11 @@ impl MethodMapper<'_> {
             Some(type_ref) => expecting(value, type_ref),
             None => value,
         };
-        self.steps.evaluate(value);
+        if self.method.is_private {
+            self.steps.give_back(value);
+        } else {
+            self.steps.evaluate(value);
+        }
     }
 
     fn local(&mut self, local: &LocalVariable) {

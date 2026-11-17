@@ -59,6 +59,7 @@ pub struct Method {
     pub name: String,
     pub line: usize,
     pub is_static: bool,
+    pub is_private: bool,
     pub type_parameters: Vec<TypeParameter>,
     pub parameters: Vec<Parameter>,
     pub returns: Option<DeclaredType>,

@@ -127,9 +127,29 @@ impl MethodMapper<'_> {
             let links = self.argument_links(declared.as_ref(), index, argument, inherited);
             mapped = mapped.with(self.argument(argument, target, &links));
         }
+        let mapped = match self.own_helper(call) {
+            Some(line) => mapped.running_helper_at(line),
+            None => mapped,
+        };
         match declared {
             Some(declared) => self.linked(mapped, call, &declared),
             None => mapped,
+        }
+    }
+
+    fn own_helper(&self, call: &model::Call) -> Option<usize> {
+        if !matches!(
+            call.receiver.as_deref(),
+            None | Some(model::Expression::This)
+        ) {
+            return None;
+        }
+        let mut same = self.class.methods.iter().filter(|method| {
+            method.name == call.name && method.parameters.len() == call.arguments.len()
+        });
+        match (same.next(), same.next()) {
+            (Some(only), None) if only.is_private => Some(only.line),
+            _ => None,
         }
     }
 

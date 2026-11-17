@@ -23,6 +23,7 @@ fn expected(
         name: name.to_owned(),
         line,
         is_static: false,
+        is_private: false,
         type_parameters: Vec::new(),
         parameters: parameters
             .into_iter()
