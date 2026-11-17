@@ -548,3 +548,50 @@ fn selecting_a_method_does_not_report_its_hybrid_class() {
 
     assert_eq!(report.hybrid_classes(), []);
 }
+
+fn types_nesting_with(separator: &str) -> FakeTypes {
+    FakeTypes {
+        platform: Platform::new().with_nested_type_separator(separator),
+        ..shop_types()
+    }
+}
+
+fn total_method(class: &str) -> Method {
+    Method::new(class, "total", 30).call(Call::new(
+        Expression::parameter("order", TypeRef::class("Order")),
+        "getCustomer",
+        31,
+    ))
+}
+
+#[test]
+fn the_classes_nested_in_a_selected_class_are_selected_too() {
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/Order.java"),
+        vec!["Order".to_owned(), "Order::Line".to_owned()],
+        vec![total_method("Order::Line")],
+    ))]);
+
+    let report = CheckProject::new(&sources, &types_nesting_with("::"))
+        .with_selection(Selection::Only(vec![Target::class("Order")]))
+        .execute();
+
+    let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
+    assert_eq!(judged, ["Order::Line"]);
+}
+
+#[test]
+fn selecting_a_method_leaves_out_the_same_named_method_of_a_nested_class() {
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/Order.java"),
+        vec!["Order".to_owned(), "Order::Line".to_owned()],
+        vec![total_method("Order"), total_method("Order::Line")],
+    ))]);
+
+    let report = CheckProject::new(&sources, &types_nesting_with("::"))
+        .with_selection(Selection::Only(vec![Target::method("Order", "total")]))
+        .execute();
+
+    let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
+    assert_eq!(judged, ["Order"]);
+}

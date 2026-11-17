@@ -54,19 +54,19 @@ impl<'a> CheckProject<'a> {
 }
 
 fn judge(file: &SourceFile, catalog: &Types, selection: &Selection, report: &mut Report) {
-    if selection.covers(file.classes()) {
+    if selection.covers(file.classes(), catalog) {
         report.files += 1;
     }
     let methods: Vec<&Method> = file
         .methods()
         .iter()
-        .filter(|method| selection.selects(method))
+        .filter(|method| selection.selects(method, catalog))
         .collect();
     report.methods += methods.len();
     for class in file
         .classes()
         .iter()
-        .filter(|class| selection.selects_class(class))
+        .filter(|class| selection.selects_class(class, catalog))
     {
         if let Some(hybrid) = catalog.hybrid_class(class) {
             report

@@ -53,6 +53,10 @@ impl Types {
         self.project_types.contains(name)
     }
 
+    pub(crate) fn is_part_of(&self, name: &str, class: &str) -> bool {
+        name == class || self.platform.is_nested_in(name, class)
+    }
+
     fn overloads(&self, type_name: &str, method: &str, argument_count: usize) -> Vec<&MethodShape> {
         self.overloads_on(&TypeRef::class(type_name), method, argument_count)
             .map(|(_, overloads)| overloads)

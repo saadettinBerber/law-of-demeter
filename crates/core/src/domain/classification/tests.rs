@@ -1840,3 +1840,24 @@ fn a_can_equal_with_other_parameters_is_behavior() {
 
     assert_eq!(classification, Classification::Object);
 }
+
+#[test]
+fn a_class_is_part_of_itself() {
+    let types = Types::new();
+
+    assert!(types.is_part_of("Order", "Order"));
+}
+
+#[test]
+fn a_type_nested_in_a_class_is_part_of_it() {
+    let types = Types::new().with_platform(Platform::new().with_nested_type_separator("::"));
+
+    assert!(types.is_part_of("Order::Line::Note", "Order"));
+}
+
+#[test]
+fn a_type_whose_name_only_starts_with_the_class_name_is_not_part_of_it() {
+    let types = Types::new().with_platform(Platform::new().with_nested_type_separator("::"));
+
+    assert!(!types.is_part_of("OrderService", "Order"));
+}
