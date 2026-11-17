@@ -163,6 +163,7 @@ fn the_usage_text_names_every_option() {
         "--jdk-home",
         "--release",
         "--show-allowed",
+        "--only",
         "--help",
     ]
     .into_iter()
