@@ -2,15 +2,25 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::{Mutex, MutexGuard};
 
 const EXPECTED_REPORT: &str = "expected-report.txt";
 const CLASSPATH_FILE: &str = "classpath.txt";
 const NO_VIOLATIONS: &str = "No violations found.";
 const CONTEXT_LINES: usize = 2;
 
+static MAVEN_BUILDS: Mutex<()> = Mutex::new(());
+
+fn one_build_at_a_time() -> MutexGuard<'static, ()> {
+    MAVEN_BUILDS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[test]
 #[ignore = "needs Maven, a JDK and a warm ~/.m2; run with --ignored"]
 fn every_example_project_reports_what_its_expected_report_says() {
+    let _build = one_build_at_a_time();
     let examples = example_directories();
     assert!(
         !examples.is_empty(),
@@ -23,6 +33,56 @@ fn every_example_project_reports_what_its_expected_report_says() {
         .collect();
 
     assert!(failures.is_empty(), "\n{}", failures.join("\n\n"));
+}
+
+#[test]
+#[ignore = "needs Maven, a JDK and a warm ~/.m2; run with --ignored"]
+fn the_selected_code_gets_the_verdicts_the_full_report_gives_it() {
+    let _build = one_build_at_a_time();
+    let warehouse = example_directories()
+        .into_iter()
+        .find(|directory| directory.ends_with("warehouse"))
+        .expect("examples/warehouse exists");
+    build(&warehouse).expect("examples/warehouse builds");
+
+    let full = run_tool(&warehouse, &[]).expect("the full check runs");
+    let selected = run_tool(
+        &warehouse,
+        &[
+            "--only",
+            "warehouse.orders.Order",
+            "--only",
+            "warehouse.orders.PickingService#fits",
+        ],
+    )
+    .expect("the selected check runs");
+
+    let expected: Vec<String> = verdict_lines(&text(&full.stdout))
+        .into_iter()
+        .filter(|line| {
+            let (class, method) = class_and_method(line);
+            class == "warehouse.orders.Order"
+                || class.starts_with("warehouse.orders.Order$")
+                || (class == "warehouse.orders.PickingService" && method == "fits")
+        })
+        .collect();
+    assert_eq!(
+        (verdict_lines(&text(&selected.stdout)), expected.is_empty()),
+        (expected, false)
+    );
+}
+
+fn verdict_lines(report: &str) -> Vec<String> {
+    report
+        .lines()
+        .filter(|line| line.contains("  Violation: ") || line.contains("  Allowed: "))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn class_and_method(line: &str) -> (&str, &str) {
+    let qualified = line.split("  ").nth(1).unwrap_or_default();
+    qualified.rsplit_once('.').unwrap_or((qualified, ""))
 }
 
 fn example_directories() -> Vec<PathBuf> {
@@ -47,7 +107,7 @@ fn check(example: &Path) -> Result<(), String> {
     let expected = fs::read_to_string(example.join(EXPECTED_REPORT))
         .map_err(|error| format!("{name}: cannot read {EXPECTED_REPORT}: {error}"))?;
     build(example).map_err(|error| format!("{name}: {error}"))?;
-    let output = run_tool(example).map_err(|error| format!("{name}: {error}"))?;
+    let output = run_tool(example, &[]).map_err(|error| format!("{name}: {error}"))?;
 
     let problems = problems_with(&expected, &output);
 
@@ -82,10 +142,11 @@ fn build(example: &Path) -> Result<(), String> {
     ))
 }
 
-fn run_tool(example: &Path) -> Result<Output, String> {
+fn run_tool(example: &Path, extra: &[&str]) -> Result<Output, String> {
     Command::new(env!("CARGO_BIN_EXE_law-of-demeter"))
         .current_dir(example)
         .arg("--show-allowed")
+        .args(extra)
         .output()
         .map_err(|error| format!("cannot run the tool: {error}"))
 }
