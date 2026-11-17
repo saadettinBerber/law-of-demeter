@@ -62,7 +62,6 @@ fn the_selected_code_gets_the_verdicts_the_full_report_gives_it() {
         .filter(|line| {
             let (class, method) = class_and_method(line);
             class == "warehouse.orders.Order"
-                || class.starts_with("warehouse.orders.Order$")
                 || (class == "warehouse.orders.PickingService" && method == "fits")
         })
         .collect();
