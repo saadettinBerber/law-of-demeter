@@ -644,3 +644,26 @@ fn targets_that_name_a_declared_class_or_method_are_matched() {
 
     assert_eq!(report.unmatched_targets(), []);
 }
+
+#[test]
+fn a_selection_of_no_targets_judges_every_method() {
+    let sources = FakeSources(vec![
+        Ok(SourceFile::new(
+            Path::new("src/OrderService.java"),
+            vec!["OrderService".to_owned()],
+            vec![pay_method()],
+        )),
+        Ok(SourceFile::new(
+            Path::new("src/Reports.java"),
+            vec!["Reports".to_owned()],
+            vec![report_method()],
+        )),
+    ]);
+
+    let report = CheckProject::new(&sources, &shop_types())
+        .with_selection(Selection::of(Vec::new()))
+        .execute();
+
+    let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
+    assert_eq!(judged, ["OrderService", "OrderService", "Reports"]);
+}

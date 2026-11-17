@@ -17,7 +17,11 @@ impl Selection {
     }
 
     pub fn of(targets: Vec<Target>) -> Self {
-        Self(Choice::Only(targets))
+        if targets.is_empty() {
+            Self::everything()
+        } else {
+            Self(Choice::Only(targets))
+        }
     }
 
     pub(super) fn selects(&self, method: &Method, types: &Types) -> bool {
