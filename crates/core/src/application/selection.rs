@@ -14,6 +14,15 @@ impl Selection {
             Self::Only(targets) => targets.iter().any(|target| target.selects(method)),
         }
     }
+
+    pub(super) fn covers(&self, classes: &[String]) -> bool {
+        match self {
+            Self::Everything => true,
+            Self::Only(targets) => classes
+                .iter()
+                .any(|class| targets.iter().any(|target| target.names(class))),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,8 +46,12 @@ impl Target {
         }
     }
 
+    fn names(&self, class: &str) -> bool {
+        class == self.class
+    }
+
     fn selects(&self, method: &Method) -> bool {
-        method.class_name() == self.class
+        self.names(method.class_name())
             && self
                 .method
                 .as_deref()

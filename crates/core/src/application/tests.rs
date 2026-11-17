@@ -475,3 +475,35 @@ fn a_selected_method_is_judged_with_the_types_every_source_declares() {
         )
     );
 }
+
+#[test]
+fn only_the_selected_files_and_methods_are_counted() {
+    let sources = FakeSources(vec![
+        Ok(SourceFile::new(
+            Path::new("src/OrderService.java"),
+            vec!["OrderService".to_owned()],
+            vec![pay_method(), refund_method()],
+        )),
+        Ok(SourceFile::new(
+            Path::new("src/Reports.java"),
+            vec!["Reports".to_owned()],
+            vec![report_method()],
+        )),
+    ]);
+
+    let counts = CheckProject::new(&sources, &shop_types())
+        .with_selection(Selection::Only(vec![Target::method("OrderService", "pay")]))
+        .execute()
+        .counts();
+
+    assert_eq!(
+        counts,
+        Counts {
+            files: 1,
+            methods: 1,
+            calls: 2,
+            allowed: 2,
+            ..Counts::default()
+        }
+    );
+}

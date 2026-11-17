@@ -2,6 +2,7 @@ use super::ports::{SourceFile, SourceReader, TypeReading, TypeSource};
 use super::report::{Finding, HybridFinding, Report};
 use super::selection::Selection;
 use crate::domain::classification::Types;
+use crate::domain::method::Method;
 
 pub struct CheckProject<'a> {
     sources: &'a dyn SourceReader,
@@ -53,8 +54,15 @@ impl<'a> CheckProject<'a> {
 }
 
 fn judge(file: &SourceFile, catalog: &Types, selection: &Selection, report: &mut Report) {
-    report.files += 1;
-    report.methods += file.methods().len();
+    if selection.covers(file.classes()) {
+        report.files += 1;
+    }
+    let methods: Vec<&Method> = file
+        .methods()
+        .iter()
+        .filter(|method| selection.selects(method))
+        .collect();
+    report.methods += methods.len();
     for class in file.classes() {
         if let Some(hybrid) = catalog.hybrid_class(class) {
             report
@@ -62,11 +70,7 @@ fn judge(file: &SourceFile, catalog: &Types, selection: &Selection, report: &mut
                 .push(HybridFinding::new(file.path(), hybrid));
         }
     }
-    for method in file
-        .methods()
-        .iter()
-        .filter(|method| selection.selects(method))
-    {
+    for method in methods {
         for verdict in method.verdicts(catalog) {
             report.findings.push(Finding::new(
                 file.path(),
