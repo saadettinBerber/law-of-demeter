@@ -44,7 +44,7 @@ fn verdicts_of(source: &str, class_name: &str, method: &str, types: &Types) -> V
     assert!(!found.is_empty(), "{class_name}.{method} was not mapped");
     found
         .into_iter()
-        .flat_map(|candidate| candidate.verdicts(&types))
+        .flat_map(|candidate| candidate.verdicts_among(&types, &mapped.methods))
         .collect()
 }
 
@@ -871,6 +871,35 @@ fn allowed_13_a_field_inherited_from_a_superclass() {
     assert_eq!(
         verdicts,
         [Verdict::allowed("withdraw", 3, Reason::field("wallet"))]
+    );
+}
+
+#[test]
+fn allowed_14_talking_to_the_friend_an_own_private_helper_returned() {
+    let types = containers().with_shape(
+        class("C").with_method(
+            MethodShape::new("existingCart")
+                .with_parameters(vec![TypeRef::class("java.lang.String")])
+                .returning(TypeRef::class("Cart"))
+                .as_private(),
+        ),
+    );
+    let snippet = "void checkoutExisting(String id) {\n    existingCart(id).checkout();\n}\nprivate Cart existingCart(String id) {\n    Cart cart = carts.get(id);\n    if (cart == null) {\n        throw new IllegalStateException(\"no cart \" + id);\n    }\n    return cart;\n}";
+
+    let verdicts = verdicts_in_c(
+        "import java.util.Map;",
+        "Map<String, Cart> carts;",
+        snippet,
+        "checkoutExisting",
+        &types,
+    );
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("existingCart", 3, Reason::This),
+            Verdict::allowed("checkout", 3, Reason::field("carts")),
+        ]
     );
 }
 
