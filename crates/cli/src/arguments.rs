@@ -40,7 +40,8 @@ Options:
       --release <VERSION>   Java release to read (default: the JDK's own release)
       --show-allowed        Also lists the allowed calls with the rule they follow
       --only <TARGET>       Checks only a class (shop.Order) with its nested classes, or a
-                            method (shop.Order#pay); can be given more than once
+                            method (shop.Order#pay); can be given more than once; quote
+                            names that contain $
   -h, --help                Shows this help
 
 The source roots, the classpath and the JDK are written to standard error before
