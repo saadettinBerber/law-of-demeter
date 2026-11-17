@@ -564,7 +564,7 @@ Seçenekler:
 - **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
 - **`--only`:** Yalnızca seçilen sınıfı ya da metodu denetler; birden çok verilebilir. Bütün kaynak kökleri yine okunur, bu yüzden kararlar tam denetimdekiyle aynıdır. Bir sınıfı denetlemek için `--source` daraltılmaz: kaynakta olmayan tipler kütüphane sayılır ve ihlaller gözden kaçar.
   - **Sınıf:** `shop.Order`; iç içe ve anonim sınıfları da seçilir.
-  - **Metot:** `shop.Order#pay`; bütün aşırı yüklemeleri seçilir. Kurucu `<init>`, alan başlangıç değerleri ve başlatıcı bloklar `<instance-init>` ya da `<static-init>` adıyla seçilir. Metodun içinde tanımlanan anonim ya da yerel sınıf kendi adıyla seçilir: `shop.Order$1`.
+  - **Metot:** `shop.Order#pay`; bütün aşırı yüklemeleri seçilir. Kurucu `<init>`, alan başlangıç değerleri ve başlatıcı bloklar `<instance-init>` ya da `<static-init>` adıyla seçilir. Metodun içinde tanımlanan anonim ve yerel sınıflar da seçilir.
   - **Ad:** Raporda göründüğü gibi tam yazılır. `$` içeren ad tırnak içinde verilir: `--only 'shop.Order$Line'`.
   - **Rapor:** Bulgular, özet ve çıkış kodu yalnızca seçimi sayar; okunamayan dosyalar ve tipler bütün proje için listelenir. Hiçbir şeye uymayan seçim 2 ile çıkar.
 - **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
