@@ -12,6 +12,7 @@ fn an_anonymous_class_method_sees_captured_variables_and_outer_members() {
     assert_eq!(
         mapped,
         Method::new("OrderService$1", "run", 6)
+            .declared_within("OrderService", "f")
             .call(call(
                 Expression::return_of(call(
                     Expression::field("order", class("Order")),

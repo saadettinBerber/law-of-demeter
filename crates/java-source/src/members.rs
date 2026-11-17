@@ -5,6 +5,7 @@ use crate::model::{
     Class, ClassKind, ClassOrigin, DeclaredType, Expression, Field, INSTANCE_INITIALIZER, Method,
     New, Parameter, STATIC_INITIALIZER, Statement,
 };
+use crate::platform::CONSTRUCTOR_NAME;
 use crate::reader::Reader;
 use crate::scope::{Binding, Scope};
 use crate::tree::{line_of, members, named_children};
@@ -226,7 +227,16 @@ impl Reader<'_> {
             .map(|parameters| self.parameters(parameters, &scope))
             .unwrap_or_default();
         let body = self.body(node, &parameters, &mut scope);
-        nested.extend(scope.take_nested());
+        let enclosing = if returns.is_none() {
+            CONSTRUCTOR_NAME
+        } else {
+            self.text.of(name)
+        };
+        nested.extend(declared_within(
+            scope.take_nested(),
+            &declaration.name,
+            enclosing,
+        ));
         Some(Method {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
@@ -248,7 +258,11 @@ impl Reader<'_> {
         let mut scope = Scope::for_class(declaration);
         let parameters = self.record_parameters(declaration, &scope);
         let body = self.body(node, &parameters, &mut scope);
-        nested.extend(scope.take_nested());
+        nested.extend(declared_within(
+            scope.take_nested(),
+            &declaration.name,
+            CONSTRUCTOR_NAME,
+        ));
         Some(Method {
             name: self.text.of(name).to_owned(),
             line: line_of(name),
@@ -318,6 +332,15 @@ impl Reader<'_> {
     }
 }
 
+fn declared_within(mut classes: Vec<Class>, class: &str, method: &str) -> Vec<Class> {
+    for nested in &mut classes {
+        nested
+            .declared_within
+            .push((class.to_owned(), method.to_owned()));
+    }
+    classes
+}
+
 fn has_modifier(node: Node, modifier: &str) -> bool {
     let mut cursor = node.walk();
     node.children(&mut cursor)
@@ -358,7 +381,8 @@ impl Initializer {
     }
 
     fn into_method(mut self, nested: &mut Vec<Class>) -> Option<Method> {
-        nested.extend(self.scope.take_nested());
+        let class = self.scope.class.clone();
+        nested.extend(declared_within(self.scope.take_nested(), &class, self.name));
         Some(Method {
             name: self.name.to_owned(),
             line: self.line?,

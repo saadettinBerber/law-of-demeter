@@ -122,6 +122,7 @@ impl Reader<'_> {
             kind: declaration.kind,
             origin: declaration.origin,
             outer: declaration.outer.clone(),
+            declared_within: Vec::new(),
             captured: declaration.capture.variables(),
             type_parameters: self.type_parameters(declaration.node, &scope),
             annotations: self.annotations(declaration.node, &scope),

@@ -45,6 +45,7 @@ pub struct Class {
     pub kind: ClassKind,
     pub origin: ClassOrigin,
     pub outer: Option<String>,
+    pub declared_within: Vec<(String, String)>,
     pub captured: Vec<Parameter>,
     pub type_parameters: Vec<TypeParameter>,
     pub annotations: Vec<TypeName>,

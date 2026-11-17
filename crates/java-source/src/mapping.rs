@@ -53,10 +53,12 @@ fn map_file(file: &SourceFile, types: &Types) -> MappedFile {
             .classes
             .iter()
             .flat_map(|class| {
-                class
-                    .methods
-                    .iter()
-                    .map(|method| MethodMapper::new(file, types, class, method).map())
+                class.methods.iter().map(|method| {
+                    class.declared_within.iter().fold(
+                        MethodMapper::new(file, types, class, method).map(),
+                        |mapped, (outer, enclosing)| mapped.declared_within(outer, enclosing),
+                    )
+                })
             })
             .collect(),
     }
