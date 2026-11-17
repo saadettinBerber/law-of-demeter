@@ -118,9 +118,9 @@ fn check(
     let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);
     let types = ClassFileTypes::new(arguments.classpath, Some((jdk, release)));
     let selection = if arguments.targets.is_empty() {
-        Selection::Everything
+        Selection::everything()
     } else {
-        Selection::Only(arguments.targets)
+        Selection::of(arguments.targets)
     };
     let report = CheckProject::new(&sources, &types)
         .with_selection(selection)

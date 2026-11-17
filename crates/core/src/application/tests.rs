@@ -419,7 +419,7 @@ fn only_the_methods_of_a_selected_class_are_judged() {
     ]);
 
     let report = CheckProject::new(&sources, &shop_types())
-        .with_selection(Selection::Only(vec![Target::class("OrderService")]))
+        .with_selection(Selection::of(vec![Target::class("OrderService")]))
         .execute();
 
     let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
@@ -435,7 +435,7 @@ fn only_the_selected_method_of_a_class_is_judged() {
     ))]);
 
     let report = CheckProject::new(&sources, &shop_types())
-        .with_selection(Selection::Only(vec![Target::method(
+        .with_selection(Selection::of(vec![Target::method(
             "OrderService",
             "refund",
         )]))
@@ -462,7 +462,7 @@ fn a_selected_method_is_judged_with_the_types_every_source_declares() {
     ]);
 
     let report = CheckProject::new(&sources, &shop_types())
-        .with_selection(Selection::Only(vec![Target::class("OrderService")]))
+        .with_selection(Selection::of(vec![Target::class("OrderService")]))
         .execute();
 
     assert_eq!(
@@ -500,7 +500,7 @@ fn only_the_selected_files_and_methods_are_counted() {
     ]);
 
     let counts = CheckProject::new(&sources, &shop_types())
-        .with_selection(Selection::Only(vec![Target::method("OrderService", "pay")]))
+        .with_selection(Selection::of(vec![Target::method("OrderService", "pay")]))
         .execute()
         .counts();
 
@@ -529,7 +529,7 @@ fn a_selected_hybrid_class_is_reported() {
     let types = FakeTypes::new(vec![account_shape()]);
 
     let report = CheckProject::new(&account_sources(), &types)
-        .with_selection(Selection::Only(vec![Target::class("Account")]))
+        .with_selection(Selection::of(vec![Target::class("Account")]))
         .execute();
 
     assert_eq!(report.counts().hybrid_classes, 1);
@@ -540,7 +540,7 @@ fn a_hybrid_class_outside_the_selection_is_not_reported() {
     let types = FakeTypes::new(vec![account_shape()]);
 
     let report = CheckProject::new(&account_sources(), &types)
-        .with_selection(Selection::Only(vec![Target::class("OrderService")]))
+        .with_selection(Selection::of(vec![Target::class("OrderService")]))
         .execute();
 
     assert_eq!(report.hybrid_classes(), []);
@@ -551,7 +551,7 @@ fn selecting_a_method_does_not_report_its_hybrid_class() {
     let types = FakeTypes::new(vec![account_shape()]);
 
     let report = CheckProject::new(&account_sources(), &types)
-        .with_selection(Selection::Only(vec![Target::method("Account", "withdraw")]))
+        .with_selection(Selection::of(vec![Target::method("Account", "withdraw")]))
         .execute();
 
     assert_eq!(report.hybrid_classes(), []);
@@ -581,7 +581,7 @@ fn the_classes_nested_in_a_selected_class_are_selected_too() {
     ))]);
 
     let report = CheckProject::new(&sources, &types_nesting_with("::"))
-        .with_selection(Selection::Only(vec![Target::class("Order")]))
+        .with_selection(Selection::of(vec![Target::class("Order")]))
         .execute();
 
     let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
@@ -597,7 +597,7 @@ fn selecting_a_method_leaves_out_the_same_named_method_of_a_nested_class() {
     ))]);
 
     let report = CheckProject::new(&sources, &types_nesting_with("::"))
-        .with_selection(Selection::Only(vec![Target::method("Order", "total")]))
+        .with_selection(Selection::of(vec![Target::method("Order", "total")]))
         .execute();
 
     let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
@@ -615,7 +615,7 @@ fn order_service_sources() -> FakeSources {
 #[test]
 fn a_target_that_names_no_class_is_unmatched() {
     let report = CheckProject::new(&order_service_sources(), &shop_types())
-        .with_selection(Selection::Only(vec![Target::class("OrderServise")]))
+        .with_selection(Selection::of(vec![Target::class("OrderServise")]))
         .execute();
 
     assert_eq!(report.unmatched_targets(), [Target::class("OrderServise")]);
@@ -624,7 +624,7 @@ fn a_target_that_names_no_class_is_unmatched() {
 #[test]
 fn a_target_that_names_a_method_its_class_lacks_is_unmatched() {
     let report = CheckProject::new(&order_service_sources(), &shop_types())
-        .with_selection(Selection::Only(vec![Target::method("OrderService", "pai")]))
+        .with_selection(Selection::of(vec![Target::method("OrderService", "pai")]))
         .execute();
 
     assert_eq!(
@@ -636,7 +636,7 @@ fn a_target_that_names_a_method_its_class_lacks_is_unmatched() {
 #[test]
 fn targets_that_name_a_declared_class_or_method_are_matched() {
     let report = CheckProject::new(&order_service_sources(), &shop_types())
-        .with_selection(Selection::Only(vec![
+        .with_selection(Selection::of(vec![
             Target::class("OrderService"),
             Target::method("OrderService", "pay"),
         ]))

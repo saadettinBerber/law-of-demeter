@@ -15,7 +15,7 @@ impl<'a> CheckProject<'a> {
         Self {
             sources,
             types,
-            selection: Selection::Everything,
+            selection: Selection::everything(),
         }
     }
 
