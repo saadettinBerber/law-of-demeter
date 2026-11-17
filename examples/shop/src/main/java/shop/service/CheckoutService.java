@@ -23,4 +23,16 @@ public class CheckoutService {
     public void discountFirstLine(Order order, int rate) {
         order.getLines().get(0).applyDiscount(rate);
     }
+
+    public void checkoutExisting(String id) {
+        existingCart(id).checkout();
+    }
+
+    private Cart existingCart(String id) {
+        Cart cart = carts.get(id);
+        if (cart == null) {
+            throw new IllegalStateException("no cart " + id);
+        }
+        return cart;
+    }
 }
