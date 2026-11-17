@@ -2,9 +2,8 @@ use super::ports::SourceFile;
 use crate::domain::classification::Types;
 use crate::domain::method::Method;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum Selection {
-    #[default]
     Everything,
     Only(Vec<Target>),
 }
