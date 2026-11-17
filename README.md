@@ -38,6 +38,8 @@ C bir sınıf, f de C'deki bir metot. f yalnızca şu nesnelerin metotlarını �
 
 f, bu nesnelerin döndürdüğü nesnelerin metotlarını çağırmaz. Kısaca: arkadaşlarınla konuş, yabancılarla konuşma.
 
+C'nin `private` yardımcı metotları gövdeleriyle değerlendirilir. Yardımcının bütün `return` ifadeleri arkadaşsa döndürdüğü nesne de arkadaştır; kodu yardımcıya ayırmak kararı değiştirmez. `private` olmayan metotları alt sınıf ezebilir, bu yüzden döndürdükleri nesne yabancı kalır.
+
 Örneklerde C `OrderService`, f `pay`.
 
 <details>
