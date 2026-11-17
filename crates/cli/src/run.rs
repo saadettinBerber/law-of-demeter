@@ -117,13 +117,8 @@ fn check(
     let walked = java_files(&arguments.sources);
     let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);
     let types = ClassFileTypes::new(arguments.classpath, Some((jdk, release)));
-    let selection = if arguments.targets.is_empty() {
-        Selection::everything()
-    } else {
-        Selection::of(arguments.targets)
-    };
     let report = CheckProject::new(&sources, &types)
-        .with_selection(selection)
+        .with_selection(Selection::of(arguments.targets))
         .execute();
     if !report.unmatched_targets().is_empty() {
         return Err(unmatched_message(&report));
