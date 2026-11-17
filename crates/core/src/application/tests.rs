@@ -667,3 +667,34 @@ fn a_selection_of_no_targets_judges_every_method() {
     let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
     assert_eq!(judged, ["OrderService", "OrderService", "Reports"]);
 }
+
+fn run_method(class: &str) -> Method {
+    Method::new(class, "run", 40).call(Call::new(
+        Expression::parameter("order", TypeRef::class("Order")),
+        "getCustomer",
+        41,
+    ))
+}
+
+#[test]
+fn the_methods_of_a_class_declared_in_a_selected_method_are_selected() {
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/Order.java"),
+        vec![
+            "Order".to_owned(),
+            "Order$1".to_owned(),
+            "Order$2".to_owned(),
+        ],
+        vec![
+            run_method("Order$1").declared_within("Order", "pay"),
+            run_method("Order$2").declared_within("Order", "refund"),
+        ],
+    ))]);
+
+    let report = CheckProject::new(&sources, &types_nesting_with("$"))
+        .with_selection(Selection::of(vec![Target::method("Order", "pay")]))
+        .execute();
+
+    let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
+    assert_eq!(judged, ["Order$1"]);
+}

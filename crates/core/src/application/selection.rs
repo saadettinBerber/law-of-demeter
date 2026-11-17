@@ -101,7 +101,10 @@ impl Target {
     fn selects(&self, method: &Method, types: &Types) -> bool {
         match &self.method {
             None => self.contains(method.class_name(), types),
-            Some(name) => method.class_name() == self.class && method.name() == name,
+            Some(name) => {
+                (method.class_name() == self.class && method.name() == name)
+                    || method.is_declared_within(&self.class, name)
+            }
         }
     }
 

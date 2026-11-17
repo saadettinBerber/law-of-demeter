@@ -21,6 +21,7 @@ pub struct Method {
     name: String,
     line: usize,
     body: Block,
+    declared_within: Vec<(String, String)>,
 }
 
 impl Method {
@@ -30,6 +31,7 @@ impl Method {
             name: name.to_owned(),
             line,
             body: Block::default(),
+            declared_within: Vec::new(),
         }
     }
 
@@ -43,6 +45,18 @@ impl Method {
 
     pub fn line(&self) -> usize {
         self.line
+    }
+
+    pub fn declared_within(mut self, class: &str, method: &str) -> Self {
+        self.declared_within
+            .push((class.to_owned(), method.to_owned()));
+        self
+    }
+
+    pub(crate) fn is_declared_within(&self, class: &str, method: &str) -> bool {
+        self.declared_within
+            .iter()
+            .any(|(outer, enclosing)| outer == class && enclosing == method)
     }
 
     pub fn call(mut self, call: Call) -> Self {
