@@ -205,3 +205,15 @@ fn a_target_without_a_class_or_a_method_name_is_rejected() {
         ]
     );
 }
+
+#[test]
+fn a_target_with_more_than_one_method_separator_is_rejected() {
+    let error = rejected(&["--only", "shop.Order#pay#now"]);
+
+    assert_eq!(
+        error,
+        UsageError(
+            "--only needs a class, optionally followed by #method: shop.Order#pay#now".to_owned()
+        )
+    );
+}

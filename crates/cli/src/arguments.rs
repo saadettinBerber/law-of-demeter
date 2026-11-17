@@ -103,7 +103,9 @@ fn target(value: &OsString) -> Result<Target, UsageError> {
     let text = value.to_string_lossy();
     match text.split_once('#') {
         None if !text.is_empty() => Ok(Target::class(&text)),
-        Some((class, method)) if !class.is_empty() && !method.is_empty() => {
+        Some((class, method))
+            if !class.is_empty() && !method.is_empty() && !method.contains('#') =>
+        {
             Ok(Target::method(class, method))
         }
         _ => Err(UsageError(format!(
