@@ -15,7 +15,7 @@ public class DiscountService {
         findLine(id).applyDiscount(rate);
     }
 
-    private OrderLine findLine(String id) {
+    protected OrderLine findLine(String id) {
         return lines.get(id);
     }
 
