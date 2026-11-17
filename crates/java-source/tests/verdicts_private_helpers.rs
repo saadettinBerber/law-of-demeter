@@ -92,7 +92,7 @@ fn a_private_guard_returning_a_local_taken_from_a_container_field_is_a_friend() 
 #[test]
 fn a_private_helper_with_one_stranger_return_stays_a_stranger() {
     let types = shop_finding_carts_with(vec![finding_a_cart("findCart").as_private()]);
-    let helper = "private Cart findCart(String id) {\n    if (id == null) {\n        return session.getCart();\n    }\n    return carts.get(id);\n}";
+    let helper = "private Cart findCart(String id) {\n    if (id != null) {\n        return carts.get(id);\n    }\n    return session.getCart();\n}";
 
     let verdicts = verdicts_of_check_out(helper, &types);
 
