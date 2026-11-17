@@ -72,6 +72,14 @@ impl Target {
         }
     }
 
+    pub fn class_name(&self) -> &str {
+        &self.class
+    }
+
+    pub fn method_name(&self) -> Option<&str> {
+        self.method.as_deref()
+    }
+
     fn contains(&self, class: &str, types: &Types) -> bool {
         types.is_part_of(class, &self.class)
     }

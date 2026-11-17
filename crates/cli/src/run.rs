@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use law_of_demeter_class_file::Jdk;
-use law_of_demeter_core::application::{CheckProject, Counts, Selection};
+use law_of_demeter_core::application::{CheckProject, Counts, Selection, Target};
 
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
 use crate::class_file_types::ClassFileTypes;
@@ -125,8 +125,19 @@ fn check(
     let report = CheckProject::new(&sources, &types)
         .with_selection(selection)
         .execute();
+    if !report.unmatched_targets().is_empty() {
+        let unmatched: Vec<String> = report.unmatched_targets().iter().map(target_text).collect();
+        return Err(format!("nothing matches --only: {}", unmatched.join(", ")));
+    }
     write!(out, "{}", render(&report, arguments.show_allowed)).ok();
     Ok(report.counts())
+}
+
+fn target_text(target: &Target) -> String {
+    match target.method_name() {
+        Some(method) => format!("{}#{method}", target.class_name()),
+        None => target.class_name().to_owned(),
+    }
 }
 
 fn announce(arguments: &Arguments, jdk: &Jdk, release: u32, err: &mut dyn Write) {

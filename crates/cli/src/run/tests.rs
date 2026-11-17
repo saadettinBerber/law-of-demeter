@@ -533,3 +533,25 @@ fn only_the_selected_method_is_checked() {
         (CLEAN, true)
     );
 }
+
+#[test]
+fn targets_that_match_nothing_fail_without_a_report() {
+    let root = project(&[("Order.java", "clean")]);
+
+    let outcome = check(
+        root.path(),
+        &["--only", "app.Shiping", "--only", "app.Shipping#totl"],
+        Some(&mapper_by_text),
+    );
+
+    assert_eq!(
+        (
+            outcome.code,
+            outcome.out,
+            outcome.err.ends_with(
+                "Error: nothing matches --only: app.Shiping, app.Shipping#totl\nResult: check did not run (exit code 2)\n"
+            )
+        ),
+        (FAILURE, String::new(), true)
+    );
+}
