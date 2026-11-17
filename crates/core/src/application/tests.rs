@@ -466,13 +466,21 @@ fn a_selected_method_is_judged_with_the_types_every_source_declares() {
         .execute();
 
     assert_eq!(
-        report.findings()[1],
-        Finding::new(
-            path,
-            "OrderService",
-            "pay",
-            Verdict::violation("getWallet", 11, Reason::return_of("getCustomer"))
-        )
+        report.findings(),
+        [
+            Finding::new(
+                path,
+                "OrderService",
+                "pay",
+                Verdict::allowed("getCustomer", 11, Reason::parameter("order"))
+            ),
+            Finding::new(
+                path,
+                "OrderService",
+                "pay",
+                Verdict::violation("getWallet", 11, Reason::return_of("getCustomer"))
+            ),
+        ]
     );
 }
 
