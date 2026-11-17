@@ -50,6 +50,7 @@
 | Uygun | 11. Kütüphane nesnesiyle konuşmak | Raporlanmaz | ✅ |
 | Uygun | 12. Değişmez değer nesnesiyle konuşmak | Raporlanmaz | ✅ |
 | Uygun | 13. Üst sınıftan gelen alanla konuşmak | Raporlanmaz | ✅ |
+| Uygun | 14. Kendi private yardımcısının döndürdüğü arkadaşla konuşmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 1. Bir nesnenin hesabını dışarıda yapmak | Raporlanmaz | ✅ |
 | Kapsam dışı | 2. Durumu okuyup kararı dışarıda vermek | Raporlanmaz | ✅ |
 
@@ -549,6 +550,31 @@ class PaymentService extends BaseService {
 - **Neden:** `wallet`, `BaseService`'te tanımlı bir alan. C'nin üst sınıfından gelen alan, C'nin kendi alanı gibi arkadaştır.
 
 - **Örnek projede:** [`PaymentService.java:22`](examples/shop/src/main/java/shop/service/PaymentService.java#L22)
+
+</details>
+
+<details>
+<summary><strong>14. Kendi private yardımcısının döndürdüğü arkadaşla konuşmak</strong></summary>
+
+```java
+void checkoutExisting(String id) {
+    existingCart(id).checkout();
+}
+
+private Cart existingCart(String id) {
+    Cart cart = carts.get(id);
+    if (cart == null) {
+        throw new IllegalStateException("no cart " + id);
+    }
+    return cart;
+}
+```
+
+- **Neden:** `existingCart` `private`; alt sınıf onu ezemez, döndürdüğü nesne gövdesinden bellidir. Tek `return` ifadesi `carts` alanından alınan elemanı döndürüyor; o eleman arkadaş. Yardımcıyı ayırmak kararı değiştirmez: `carts.get(id).checkout()` ile aynı sonuç, Uygun 10.
+
+- **Not:** Bir `return` ifadesi bile yabancıysa sonuç yabancı kalır. Yardımcı parametresinden gelen nesneyi döndürüyorsa, başka bir nesnede çağrılıyorsa, aşırı yüklenmişse ya da yardımcılar birbirini çağırıp döngü kuruyorsa da sonuç yabancıdır. `private` olmayan yardımcı için: Uygun değil 9.
+
+- **Örnek projede:** [`CheckoutService.java:28`](examples/shop/src/main/java/shop/service/CheckoutService.java#L28)
 
 </details>
 
