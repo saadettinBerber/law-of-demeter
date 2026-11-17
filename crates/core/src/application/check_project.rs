@@ -76,7 +76,7 @@ fn judge(file: &SourceFile, catalog: &Types, selection: &Selection, report: &mut
         }
     }
     for method in methods {
-        for verdict in method.verdicts(catalog) {
+        for verdict in method.verdicts_among(catalog, file.methods()) {
             report.findings.push(Finding::new(
                 file.path(),
                 method.class_name(),

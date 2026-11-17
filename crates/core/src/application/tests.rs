@@ -698,3 +698,46 @@ fn the_methods_of_a_class_declared_in_a_selected_method_are_selected() {
     let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
     assert_eq!(judged, ["Order$1"]);
 }
+
+#[test]
+fn a_selected_method_is_judged_with_the_helpers_its_file_declares() {
+    let path = Path::new("src/Shop.java");
+    let check_out = Method::new("Shop", "checkOut", 10).call(
+        Call::new(Expression::This, "findCart", 11)
+            .running_helper_at(20)
+            .returning(TypeRef::class("Cart"))
+            .then("checkout", 11),
+    );
+    let find_cart = Method::new("Shop", "findCart", 20)
+        .give_back(Expression::field("cart", TypeRef::class("Cart")));
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        path,
+        vec!["Shop".to_owned(), "Cart".to_owned()],
+        vec![check_out, find_cart],
+    ))]);
+    let types = FakeTypes::new(vec![
+        TypeShape::new("Cart", TypeKind::Class).with_method(MethodShape::new("checkout")),
+    ]);
+
+    let report = CheckProject::new(&sources, &types)
+        .with_selection(Selection::of(vec![Target::method("Shop", "checkOut")]))
+        .execute();
+
+    assert_eq!(
+        report.findings(),
+        [
+            Finding::new(
+                path,
+                "Shop",
+                "checkOut",
+                Verdict::allowed("findCart", 11, Reason::This)
+            ),
+            Finding::new(
+                path,
+                "Shop",
+                "checkOut",
+                Verdict::allowed("checkout", 11, Reason::field("cart"))
+            ),
+        ]
+    );
+}
