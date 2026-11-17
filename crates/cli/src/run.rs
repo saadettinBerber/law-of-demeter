@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use law_of_demeter_class_file::Jdk;
-use law_of_demeter_core::application::{CheckProject, Counts};
+use law_of_demeter_core::application::{CheckProject, Counts, Selection};
 
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
 use crate::class_file_types::ClassFileTypes;
@@ -117,7 +117,14 @@ fn check(
     let walked = java_files(&arguments.sources);
     let sources = SourceFiles::new(walked.files, mapper).with_errors(walked.errors);
     let types = ClassFileTypes::new(arguments.classpath, Some((jdk, release)));
-    let report = CheckProject::new(&sources, &types).execute();
+    let selection = if arguments.targets.is_empty() {
+        Selection::Everything
+    } else {
+        Selection::Only(arguments.targets)
+    };
+    let report = CheckProject::new(&sources, &types)
+        .with_selection(selection)
+        .execute();
     write!(out, "{}", render(&report, arguments.show_allowed)).ok();
     Ok(report.counts())
 }

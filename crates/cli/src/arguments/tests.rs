@@ -1,6 +1,8 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use law_of_demeter_core::application::Target;
+
 use super::{Arguments, Command, UsageError, parse, usage};
 
 fn parsed(arguments: &[&str]) -> Command {
@@ -168,4 +170,38 @@ fn the_usage_text_names_every_option() {
     .collect();
 
     assert_eq!(missing, Vec::<&str>::new());
+}
+
+#[test]
+fn classes_and_methods_can_be_selected_more_than_once() {
+    let command = parsed(&["--only", "shop.Order", "--only=shop.Customer#getWallet"]);
+
+    assert_eq!(
+        command,
+        Command::Check(Arguments {
+            targets: vec![
+                Target::class("shop.Order"),
+                Target::method("shop.Customer", "getWallet")
+            ],
+            ..Arguments::default()
+        })
+    );
+}
+
+#[test]
+fn a_target_without_a_class_or_a_method_name_is_rejected() {
+    let errors = [
+        rejected(&["--only", "#pay"]),
+        rejected(&["--only", "shop.Order#"]),
+    ];
+
+    assert_eq!(
+        errors,
+        [
+            UsageError("--only needs a class, optionally followed by #method: #pay".to_owned()),
+            UsageError(
+                "--only needs a class, optionally followed by #method: shop.Order#".to_owned()
+            )
+        ]
+    );
 }

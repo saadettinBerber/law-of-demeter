@@ -2,6 +2,8 @@ use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use law_of_demeter_core::application::Target;
+
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Arguments {
     pub sources: Vec<PathBuf>,
@@ -9,6 +11,7 @@ pub struct Arguments {
     pub jdk_home: Option<PathBuf>,
     pub release: Option<u32>,
     pub show_allowed: bool,
+    pub targets: Vec<Target>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,12 +30,17 @@ src/main/java directory is a source root, and every target/classes directory and
 the entries of every target/classpath.txt file join the classpath. Hidden
 directories are skipped.
 
+With --only, every source root is still read, so the types of the whole project
+are known; only the selected classes and methods are judged and counted.
+
 Options:
   -s, --source <DIR>        Source root; can be given more than once
   -c, --classpath <PATH>    Directory or jar; can be given more than once or as a ':'-separated list
       --jdk-home <DIR>      JDK directory (default: JAVA_HOME, then javac on PATH)
       --release <VERSION>   Java release to read (default: the JDK's own release)
       --show-allowed        Also lists the allowed calls with the rule they follow
+      --only <TARGET>       Checks only a class (shop.Order) with its nested classes, or a
+                            method (shop.Order#pay); can be given more than once
   -h, --help                Shows this help
 
 The source roots, the classpath and the JDK are written to standard error before
@@ -59,6 +67,9 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
             "--jdk-home" => parsed.jdk_home = Some(value(&option, &mut arguments)?.into()),
             "--release" => parsed.release = Some(release(&value(&option, &mut arguments)?)?),
             "--show-allowed" => parsed.show_allowed = true,
+            "--only" => parsed
+                .targets
+                .push(target(&value(&option, &mut arguments)?)?),
             _ if option.starts_with('-') => {
                 return Err(UsageError(format!("unknown option: {option}")));
             }
@@ -86,6 +97,19 @@ fn value(
     arguments
         .next()
         .ok_or_else(|| UsageError(format!("{option} needs a value")))
+}
+
+fn target(value: &OsString) -> Result<Target, UsageError> {
+    let text = value.to_string_lossy();
+    match text.split_once('#') {
+        None if !text.is_empty() => Ok(Target::class(&text)),
+        Some((class, method)) if !class.is_empty() && !method.is_empty() => {
+            Ok(Target::method(class, method))
+        }
+        _ => Err(UsageError(format!(
+            "--only needs a class, optionally followed by #method: {text}"
+        ))),
+    }
 }
 
 fn release(value: &OsString) -> Result<u32, UsageError> {

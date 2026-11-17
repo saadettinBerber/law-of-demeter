@@ -514,3 +514,22 @@ fn a_run_with_findings_ends_by_counting_them_with_exit_code_one() {
         outcome.err
     );
 }
+
+#[test]
+fn only_the_selected_method_is_checked() {
+    let root = project(&[("Shipping.java", "violation"), ("Order.java", "clean")]);
+
+    let outcome = check(
+        root.path(),
+        &["--only", "app.Shipping#total"],
+        Some(&mapper_by_text),
+    );
+
+    assert_eq!(
+        (
+            outcome.code,
+            outcome.out.starts_with("No violations found.\n")
+        ),
+        (CLEAN, true)
+    );
+}
