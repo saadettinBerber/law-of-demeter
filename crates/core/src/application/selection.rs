@@ -1,3 +1,4 @@
+use super::ports::SourceFile;
 use crate::domain::classification::Types;
 use crate::domain::method::Method;
 
@@ -22,6 +23,21 @@ impl Selection {
             Self::Only(targets) => targets
                 .iter()
                 .any(|target| target.selects_class(class, types)),
+        }
+    }
+
+    pub(super) fn unmatched<'f>(
+        &self,
+        files: impl Iterator<Item = &'f SourceFile> + Clone,
+        types: &Types,
+    ) -> Vec<Target> {
+        match self {
+            Self::Everything => Vec::new(),
+            Self::Only(targets) => targets
+                .iter()
+                .filter(|target| !files.clone().any(|file| target.is_found_in(file, types)))
+                .cloned()
+                .collect(),
         }
     }
 
@@ -69,5 +85,15 @@ impl Target {
 
     fn selects_class(&self, class: &str, types: &Types) -> bool {
         self.method.is_none() && self.contains(class, types)
+    }
+
+    fn is_found_in(&self, file: &SourceFile, types: &Types) -> bool {
+        file.methods()
+            .iter()
+            .any(|method| self.selects(method, types))
+            || file
+                .classes()
+                .iter()
+                .any(|class| self.selects_class(class, types))
     }
 }

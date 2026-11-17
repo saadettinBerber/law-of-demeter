@@ -595,3 +595,44 @@ fn selecting_a_method_leaves_out_the_same_named_method_of_a_nested_class() {
     let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
     assert_eq!(judged, ["Order"]);
 }
+
+fn order_service_sources() -> FakeSources {
+    FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/OrderService.java"),
+        vec!["OrderService".to_owned()],
+        vec![pay_method()],
+    ))])
+}
+
+#[test]
+fn a_target_that_names_no_class_is_unmatched() {
+    let report = CheckProject::new(&order_service_sources(), &shop_types())
+        .with_selection(Selection::Only(vec![Target::class("OrderServise")]))
+        .execute();
+
+    assert_eq!(report.unmatched_targets(), [Target::class("OrderServise")]);
+}
+
+#[test]
+fn a_target_that_names_a_method_its_class_lacks_is_unmatched() {
+    let report = CheckProject::new(&order_service_sources(), &shop_types())
+        .with_selection(Selection::Only(vec![Target::method("OrderService", "pai")]))
+        .execute();
+
+    assert_eq!(
+        report.unmatched_targets(),
+        [Target::method("OrderService", "pai")]
+    );
+}
+
+#[test]
+fn targets_that_name_a_declared_class_or_method_are_matched() {
+    let report = CheckProject::new(&order_service_sources(), &shop_types())
+        .with_selection(Selection::Only(vec![
+            Target::class("OrderService"),
+            Target::method("OrderService", "pay"),
+        ]))
+        .execute();
+
+    assert_eq!(report.unmatched_targets(), []);
+}

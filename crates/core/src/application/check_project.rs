@@ -41,6 +41,7 @@ impl<'a> CheckProject<'a> {
         let catalog = types.with_project_types(declared);
         let mut report = Report {
             type_errors: errors,
+            unmatched_targets: self.selection.unmatched(files.iter().flatten(), &catalog),
             ..Report::default()
         };
         for file in files {
