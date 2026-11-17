@@ -555,3 +555,27 @@ fn targets_that_match_nothing_fail_without_a_report() {
         (FAILURE, String::new(), true)
     );
 }
+
+#[test]
+fn an_unmatched_target_is_shown_with_the_files_that_could_not_be_read() {
+    let root = project(&[("Broken.java", "broken"), ("Order.java", "clean")]);
+    let broken = root.path().join("Broken.java");
+
+    let outcome = check(
+        root.path(),
+        &["--only", "app.Broken"],
+        Some(&mapper_by_text),
+    );
+
+    assert!(
+        outcome.err.ends_with(&format!(
+            "Error: nothing matches --only: app.Broken\n\
+             These files could not be read; a target may be in one of them:\n  \
+             {}:1  Error: unexpected token\n\
+             Result: check did not run (exit code 2)\n",
+            broken.display()
+        )),
+        "{}",
+        outcome.err
+    );
+}

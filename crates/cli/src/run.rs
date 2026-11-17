@@ -3,13 +3,13 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use law_of_demeter_class_file::Jdk;
-use law_of_demeter_core::application::{CheckProject, Counts, Selection, Target};
+use law_of_demeter_core::application::{CheckProject, Counts, Report, Selection, Target};
 
 use crate::arguments::{Arguments, Command, UsageError, parse, usage};
 use crate::class_file_types::ClassFileTypes;
 use crate::jdk_choice::choose_jdk;
 use crate::maven_layout::maven_layout;
-use crate::report_text::render;
+use crate::report_text::{error_line, render};
 use crate::source_files::{Mapper, SourceFiles};
 use crate::sources::java_files;
 
@@ -126,11 +126,22 @@ fn check(
         .with_selection(selection)
         .execute();
     if !report.unmatched_targets().is_empty() {
-        let unmatched: Vec<String> = report.unmatched_targets().iter().map(target_text).collect();
-        return Err(format!("nothing matches --only: {}", unmatched.join(", ")));
+        return Err(unmatched_message(&report));
     }
     write!(out, "{}", render(&report, arguments.show_allowed)).ok();
     Ok(report.counts())
+}
+
+fn unmatched_message(report: &Report) -> String {
+    let unmatched: Vec<String> = report.unmatched_targets().iter().map(target_text).collect();
+    let mut message = format!("nothing matches --only: {}", unmatched.join(", "));
+    if !report.source_errors().is_empty() {
+        message.push_str("\nThese files could not be read; a target may be in one of them:");
+        for error in report.source_errors() {
+            message.push_str(&format!("\n  {}", error_line(error)));
+        }
+    }
+    message
 }
 
 fn target_text(target: &Target) -> String {

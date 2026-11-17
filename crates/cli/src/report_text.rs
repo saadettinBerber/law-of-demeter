@@ -143,7 +143,7 @@ fn hybrid_line(finding: &HybridFinding) -> String {
     )
 }
 
-fn error_line(error: &ReadError) -> String {
+pub(crate) fn error_line(error: &ReadError) -> String {
     let location = match error.line() {
         Some(line) => format!("{}:{line}", error.path().display()),
         None => error.path().display().to_string(),
