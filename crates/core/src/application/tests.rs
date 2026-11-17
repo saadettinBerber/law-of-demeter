@@ -2,8 +2,8 @@ use std::cell::RefCell;
 use std::path::Path;
 
 use super::{
-    CheckProject, Counts, Finding, HybridFinding, ReadError, Report, SourceFile, SourceReader,
-    TypeReading, TypeSource,
+    CheckProject, Counts, Finding, HybridFinding, ReadError, Report, Selection, SourceFile,
+    SourceReader, Target, TypeReading, TypeSource,
 };
 use crate::domain::classification::{Classification, Platform, Types};
 use crate::domain::method::{Call, Expression, Method, Reason, Verdict};
@@ -383,6 +383,95 @@ fn what_the_type_source_knows_about_a_type_decides_its_classification() {
                 11,
                 Reason::classified(Classification::DataStructure, TypeRef::class("Customer"))
             )
+        )
+    );
+}
+
+fn report_method() -> Method {
+    Method::new("Reports", "report", 5).call(Call::new(
+        Expression::parameter("order", TypeRef::class("Order")),
+        "getCustomer",
+        6,
+    ))
+}
+
+fn refund_method() -> Method {
+    Method::new("OrderService", "refund", 20).call(Call::new(
+        Expression::parameter("order", TypeRef::class("Order")),
+        "getCustomer",
+        21,
+    ))
+}
+
+#[test]
+fn only_the_methods_of_a_selected_class_are_judged() {
+    let sources = FakeSources(vec![
+        Ok(SourceFile::new(
+            Path::new("src/OrderService.java"),
+            vec!["OrderService".to_owned()],
+            vec![pay_method()],
+        )),
+        Ok(SourceFile::new(
+            Path::new("src/Reports.java"),
+            vec!["Reports".to_owned()],
+            vec![report_method()],
+        )),
+    ]);
+
+    let report = CheckProject::new(&sources, &shop_types())
+        .with_selection(Selection::Only(vec![Target::class("OrderService")]))
+        .execute();
+
+    let judged: Vec<&str> = report.findings().iter().map(Finding::class_name).collect();
+    assert_eq!(judged, ["OrderService", "OrderService"]);
+}
+
+#[test]
+fn only_the_selected_method_of_a_class_is_judged() {
+    let sources = FakeSources(vec![Ok(SourceFile::new(
+        Path::new("src/OrderService.java"),
+        vec!["OrderService".to_owned()],
+        vec![pay_method(), refund_method()],
+    ))]);
+
+    let report = CheckProject::new(&sources, &shop_types())
+        .with_selection(Selection::Only(vec![Target::method(
+            "OrderService",
+            "refund",
+        )]))
+        .execute();
+
+    let judged: Vec<&str> = report.findings().iter().map(Finding::method_name).collect();
+    assert_eq!(judged, ["refund"]);
+}
+
+#[test]
+fn a_selected_method_is_judged_with_the_types_every_source_declares() {
+    let path = Path::new("src/OrderService.java");
+    let sources = FakeSources(vec![
+        Ok(SourceFile::new(
+            path,
+            vec!["OrderService".to_owned()],
+            vec![pay_method()],
+        )),
+        Ok(SourceFile::new(
+            Path::new("src/Customer.java"),
+            vec!["Order".to_owned(), "Customer".to_owned()],
+            Vec::new(),
+        )),
+    ]);
+
+    let report = CheckProject::new(&sources, &shop_types())
+        .with_selection(Selection::Only(vec![Target::class("OrderService")]))
+        .execute();
+
+    assert_eq!(
+        report.findings()[1],
+        Finding::new(
+            path,
+            "OrderService",
+            "pay",
+            Verdict::violation("getWallet", 11, Reason::return_of("getCustomer"))
         )
     );
 }

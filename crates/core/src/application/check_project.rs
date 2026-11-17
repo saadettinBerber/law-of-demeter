@@ -1,15 +1,26 @@
 use super::ports::{SourceFile, SourceReader, TypeReading, TypeSource};
 use super::report::{Finding, HybridFinding, Report};
+use super::selection::Selection;
 use crate::domain::classification::Types;
 
 pub struct CheckProject<'a> {
     sources: &'a dyn SourceReader,
     types: &'a dyn TypeSource,
+    selection: Selection,
 }
 
 impl<'a> CheckProject<'a> {
     pub fn new(sources: &'a dyn SourceReader, types: &'a dyn TypeSource) -> Self {
-        Self { sources, types }
+        Self {
+            sources,
+            types,
+            selection: Selection::Everything,
+        }
+    }
+
+    pub fn with_selection(mut self, selection: Selection) -> Self {
+        self.selection = selection;
+        self
     }
 
     pub fn execute(&self) -> Report {
@@ -33,7 +44,7 @@ impl<'a> CheckProject<'a> {
         };
         for file in files {
             match file {
-                Ok(file) => judge(&file, &catalog, &mut report),
+                Ok(file) => judge(&file, &catalog, &self.selection, &mut report),
                 Err(error) => report.source_errors.push(error),
             }
         }
@@ -41,7 +52,7 @@ impl<'a> CheckProject<'a> {
     }
 }
 
-fn judge(file: &SourceFile, catalog: &Types, report: &mut Report) {
+fn judge(file: &SourceFile, catalog: &Types, selection: &Selection, report: &mut Report) {
     report.files += 1;
     report.methods += file.methods().len();
     for class in file.classes() {
@@ -51,7 +62,11 @@ fn judge(file: &SourceFile, catalog: &Types, report: &mut Report) {
                 .push(HybridFinding::new(file.path(), hybrid));
         }
     }
-    for method in file.methods() {
+    for method in file
+        .methods()
+        .iter()
+        .filter(|method| selection.selects(method))
+    {
         for verdict in method.verdicts(catalog) {
             report.findings.push(Finding::new(
                 file.path(),
