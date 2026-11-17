@@ -562,6 +562,7 @@ Seçenekler:
 - **`-s`, `--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Verilirse proje aranmaz; classpath yalnızca `--classpath` ile verilenlerden oluşur. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
 - **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, `:` ile ayrılmış liste de olur.
 - **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
+- **`--only`:** Yalnızca bir sınıfı, iç içe sınıflarıyla birlikte (`shop.Order`), ya da bir metodu (`shop.Order#pay`) denetler; birden çok verilebilir. Ad, raporda göründüğü gibi tam yazılır; kurucu `<init>` adıyla seçilir. Bütün kaynak kökleri yine okunur, bu yüzden kararlar tam denetimdekiyle aynıdır; özet ve çıkış kodu yalnızca seçimi sayar. Bir sınıfı denetlemek için `--source` daraltılmaz: kaynakta olmayan tipler kütüphane sayılır ve ihlaller gözden kaçar.
 - **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
 - **`-h`, `--help`:** Kullanımı gösterir.
 
@@ -576,7 +577,7 @@ JDK: /usr/lib/jvm/java-21 (release 21)
 Result: 2 violations, 1 hybrid class (exit code 1)
 ```
 
-Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır ya da kaynak kökü veya JDK bulunamamıştır. Sonuç satırı aynı durumu yazıyla söyler: `no violations`, `2 violations, 1 hybrid class` ya da `check did not run`. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir, çıkış kodunu değiştirmez.
+Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır, kaynak kökü veya JDK bulunamamıştır ya da `--only` hiçbir sınıfa veya metoda uymamıştır. Sonuç satırı aynı durumu yazıyla söyler: `no violations`, `2 violations, 1 hybrid class` ya da `check did not run`. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir, çıkış kodunu değiştirmez.
 
 ### Örnek
 
