@@ -17,6 +17,7 @@ enum Step {
         iterable: Expression,
     },
     Evaluate(Expression),
+    GiveBack(Expression),
 }
 
 impl Step {
@@ -36,6 +37,11 @@ impl Step {
                 judged.verdicts
             }
             Self::Evaluate(value) => value.judge(context).verdicts,
+            Self::GiveBack(value) => {
+                let judged = value.judge(context);
+                context.give_back(judged.subject.standing);
+                judged.verdicts
+            }
             Self::ForEach { variable, iterable } => {
                 let judged = iterable.judge(context);
                 context.bind(
@@ -89,6 +95,11 @@ impl Block {
 
     pub(super) fn evaluate(mut self, value: Expression) -> Self {
         self.steps.push(Step::Evaluate(value));
+        self
+    }
+
+    pub(super) fn give_back(mut self, value: Expression) -> Self {
+        self.steps.push(Step::GiveBack(value));
         self
     }
 

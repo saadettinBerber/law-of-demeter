@@ -60,6 +60,24 @@ impl Reason {
         }
     }
 
+    pub(super) fn rests_on_parameter(&self) -> bool {
+        match self {
+            Self::Parameter(_) => true,
+            Self::Local { origin: inner, .. }
+            | Self::LambdaParameter { feed: inner, .. }
+            | Self::LoopVariable { feed: inner, .. }
+            | Self::MethodReference { feed: inner, .. } => inner.rests_on_parameter(),
+            _ => false,
+        }
+    }
+
+    pub(super) fn without_locals(self) -> Self {
+        match self {
+            Self::Local { origin, .. } => origin.without_locals(),
+            other => other,
+        }
+    }
+
     pub fn is_unresolved(&self) -> bool {
         match self {
             Self::UnresolvedType { .. } | Self::UnresolvedName(_) => true,

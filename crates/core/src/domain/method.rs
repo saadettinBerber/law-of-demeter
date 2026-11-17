@@ -10,7 +10,7 @@ pub use expression::{Argument, Creation, Expression, Lambda, MethodReference};
 pub use reason::{Reason, Verdict};
 
 use block::Block;
-use subject::Context;
+use subject::{Context, Standing};
 
 use super::classification::Types;
 use super::type_shape::TypeRef;
@@ -84,8 +84,35 @@ impl Method {
         self
     }
 
+    pub fn give_back(mut self, value: Expression) -> Self {
+        self.body = self.body.give_back(value);
+        self
+    }
+
     pub fn verdicts(&self, types: &Types) -> Vec<Verdict> {
-        self.body.judge(&mut Context::new(types, &self.class_name))
+        self.verdicts_among(types, &[])
+    }
+
+    pub fn verdicts_among(&self, types: &Types, methods: &[Method]) -> Vec<Verdict> {
+        self.body
+            .judge(&mut Context::new(types, &self.class_name, methods))
+    }
+
+    fn handed_back(&self, mut context: Context) -> Option<Standing> {
+        self.body.judge(&mut context);
+        let mut reasons = context
+            .given_back()
+            .into_iter()
+            .map(|standing| match standing {
+                Standing::Friend(reason) if !reason.rests_on_parameter() => {
+                    Some(reason.without_locals())
+                }
+                _ => None,
+            });
+        let first = reasons.next().flatten()?;
+        reasons
+            .all(|reason| reason.is_some())
+            .then_some(Standing::Friend(first))
     }
 }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::Method;
 use super::reason::{Reason, Verdict};
 use crate::domain::classification::Types;
 use crate::domain::type_shape::TypeRef;
@@ -114,15 +115,47 @@ pub(super) struct Context<'a> {
     pub(super) types: &'a Types,
     pub(super) this_type: TypeRef,
     locals: HashMap<String, Subject>,
+    methods: &'a [Method],
+    running: Vec<usize>,
+    given_back: Vec<Standing>,
 }
 
 impl<'a> Context<'a> {
-    pub(super) fn new(types: &'a Types, class_name: &str) -> Self {
+    pub(super) fn new(types: &'a Types, class_name: &str, methods: &'a [Method]) -> Self {
         Self {
             types,
             this_type: TypeRef::class(class_name),
             locals: HashMap::new(),
+            methods,
+            running: Vec::new(),
+            given_back: Vec::new(),
         }
+    }
+
+    pub(super) fn give_back(&mut self, standing: Standing) {
+        self.given_back.push(standing);
+    }
+
+    pub(super) fn given_back(self) -> Vec<Standing> {
+        self.given_back
+    }
+
+    pub(super) fn helper_result(&self, name: &str, line: usize) -> Option<Standing> {
+        if self.running.contains(&line) {
+            return None;
+        }
+        let helper = self.methods.iter().find(|method| {
+            method.name() == name
+                && method.line() == line
+                && TypeRef::class(method.class_name()) == self.this_type
+        })?;
+        let inner = Self {
+            locals: HashMap::new(),
+            running: [self.running.as_slice(), &[line]].concat(),
+            given_back: Vec::new(),
+            ..self.clone()
+        };
+        helper.handed_back(inner)
     }
 
     pub(super) fn bind(&mut self, name: &str, subject: Subject) {

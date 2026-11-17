@@ -20,6 +20,7 @@ pub struct Call {
     valued_by: Option<usize>,
     reads_values: bool,
     keeps_entries: bool,
+    helper: Option<usize>,
 }
 
 impl Call {
@@ -36,6 +37,7 @@ impl Call {
             valued_by: None,
             reads_values: false,
             keeps_entries: false,
+            helper: None,
         }
     }
 
@@ -71,6 +73,11 @@ impl Call {
 
     pub fn keeping_entries(mut self) -> Self {
         self.keeps_entries = true;
+        self
+    }
+
+    pub fn running_helper_at(mut self, line: usize) -> Self {
+        self.helper = Some(line);
         self
     }
 
@@ -126,15 +133,23 @@ impl Call {
             .values
             .clone()
             .filter(|_| self.reads_values);
-        let standing = read_keys.or(read_values).or(mapped).unwrap_or_else(|| {
-            standing_after_call(
-                context.types,
-                &receiver.subject,
-                &self.name,
-                self.arguments.len(),
-                matches!(self.receiver, Expression::StaticType(_)),
-            )
-        });
+        let helper = || {
+            self.helper
+                .and_then(|line| context.helper_result(&self.name, line))
+        };
+        let standing = read_keys
+            .or(read_values)
+            .or(mapped)
+            .or_else(helper)
+            .unwrap_or_else(|| {
+                standing_after_call(
+                    context.types,
+                    &receiver.subject,
+                    &self.name,
+                    self.arguments.len(),
+                    matches!(self.receiver, Expression::StaticType(_)),
+                )
+            });
         let kept = |standing: &Option<Standing>| standing.clone().filter(|_| self.keeps_entries);
         let subject = Subject {
             keys: judged.keys.or(kept(&receiver.subject.keys)),
