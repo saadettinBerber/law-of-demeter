@@ -658,7 +658,7 @@ law-of-demeter
 Seçenekler:
 
 - **`-s`, `--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Verilirse proje aranmaz; classpath yalnızca `--classpath` ile verilenlerden oluşur. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
-- **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, `:` ile ayrılmış liste de olur.
+- **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, platformun yol ayırıcısıyla ayrılmış liste de olur: `:`, Windows'ta `;`.
 - **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
 - **`--only`:** Yalnızca seçilen sınıfı ya da metodu denetler; birden çok verilebilir. Bütün kaynak kökleri yine okunur, bu yüzden kararlar tam denetimdekiyle aynıdır. Bir sınıfı denetlemek için `--source` daraltılmaz: kaynakta olmayan tipler kütüphane sayılır ve ihlaller gözden kaçar.
   - **Sınıf:** `shop.Order`; iç içe ve anonim sınıfları da seçilir.
