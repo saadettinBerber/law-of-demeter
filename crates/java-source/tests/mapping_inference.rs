@@ -9,6 +9,7 @@ const LIST: &str = "java.util.List";
 const ARRAY_LIST: &str = "java.util.ArrayList";
 const COLLECTION: &str = "java.util.Collection";
 const MAP: &str = "java.util.Map";
+const CLASS: &str = "java.lang.Class";
 const IMPORTS: &str = "import java.util.List; import java.util.ArrayList; import java.util.Map;";
 const PARAMETERS: &str = "Order order, Customer customer, Premium premium, Order[] orders, List<Order> list, ArrayList<Order> arrayList, int[] ids";
 
@@ -56,6 +57,7 @@ fn world() -> Types {
                 .extending(generic(LIST, &[variable("E")])),
         )
         .with_shape(interface(MAP, &["K", "V"]))
+        .with_shape(shape(CLASS).with_type_parameter("T"))
 }
 
 fn pick(variables: &[&str], parameters: Vec<TypeRef>, returned: TypeRef) -> MethodShape {
@@ -144,6 +146,10 @@ fn the_ids() -> Expression {
     parameter("ids", TypeRef::array(TypeRef::primitive("int")))
 }
 
+fn the_order_class() -> Expression {
+    Expression::cast(generic(CLASS, &[order()]), literal())
+}
+
 fn listing(parameters: Vec<TypeRef>) -> MethodShape {
     pick(&["T"], parameters, list_of(variable("T")))
 }
@@ -171,6 +177,18 @@ fn a_type_variable_is_bound_inside_a_generic_parameter() {
     let mapped = mapped_pick("list", methods);
 
     assert_eq!(mapped, expected_pick(vec![the_list()], Some(order())));
+}
+
+#[test]
+fn a_class_literal_binds_the_type_variable_of_a_class_parameter() {
+    let methods = vec![listing(vec![generic(CLASS, &[variable("T")])])];
+
+    let mapped = mapped_pick("Order.class", methods);
+
+    assert_eq!(
+        mapped,
+        expected_pick(vec![the_order_class()], Some(list_of(order())))
+    );
 }
 
 #[test]
