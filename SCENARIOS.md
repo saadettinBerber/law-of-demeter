@@ -119,6 +119,8 @@ void addLine(Order order, OrderLine line) {
 
 - **Neden:** Koleksiyon `Order`'ın iç yapısı. Satır sayısı sınırı gibi bir kural varsa atlanıyor.
 
+- **Not:** Koleksiyonu veren nesne veri yapısı ya da kütüphane nesnesi olsa da sonuç aynı: `request.getItems().add(item)`, `builder.environment().put(key, value)`. Adı `add`, `remove`, `put`, `set`, `clear` gibi bir sözcükle başlayan çağrı değişiklik sayılır. `size`, `get`, `stream` gibi okuyan çağrılar raporlanmaz: Uygun 5.
+
 - **Örnek projede:** [`OrderService.java:56`](examples/shop/src/main/java/shop/service/OrderService.java#L56)
 
 </details>
@@ -146,6 +148,10 @@ class Account {
 - **Not:** Getter ve setter'lar Lombok yerine elle yazılsa da durum aynı.
 
 - **Kütüphane üst sınıfı:** Setter'lar kütüphanedeki bir üst sınıftan geliyorsa sınıf hibrit sayılmaz. Karar yalnızca projenin kendi metotlarına bakar.
+
+- **Getter ve setter:** Karar metodun adına değil gövdesine bakar. Getter, yalnızca bir alanı döndüren parametresiz metottur. Setter, yalnızca parametresini bir alana yazan tek parametreli metottur. Hesaplayan `getFullName()`, alanı `Collections.unmodifiableList(lines)` ile sarıp döndüren `getLines()` ve başka bir alanı da değiştiren `setEmail()` davranış sayılır. `static` metotlar ile `equals`, `hashCode` ve `toString` davranış sayılmaz.
+
+- **Proje üst sınıfı:** Projedeki üst sınıftan gelen setter ve davranış da sınıfı hibrit yapar.
 
 - **Örnek projede:** [`Account.java:6-17`](examples/shop/src/main/java/shop/domain/Account.java#L6-L17), [`RefundService.java:31`](examples/shop/src/main/java/shop/service/RefundService.java#L31)
 
@@ -195,6 +201,8 @@ void checkout(Session session) {
 - **Neden:** `getCart()` ile alınan sepet `Session`'ın bir parçası. f sepete doğrudan uzanıyor; `Session`'ın sepet üzerindeki kuralları atlanabilir.
 
 - **Not:** Kural, `Session`'ın sepeti yalnızca saklayıp saklamadığını bilemez. Getter ile ulaşılan nesneyi her zaman yabancı sayar. f bunu sahibine söylemeli: `session.checkout()`. Depo sorgusu ayrı bir durum: Uygun 9.
+
+- **Alan:** Alana doğrudan erişim getter gibi yargılanır: `session.cart.clear()` de raporlanır. f'nin oluşturduğu nesnenin alanı ve C'nin başka bir örneğinin alanı da yabancıdır: `result.items.add(item)`.
 
 - **Örnek projede:** [`CheckoutService.java:16`](examples/shop/src/main/java/shop/service/CheckoutService.java#L16)
 
@@ -377,6 +385,10 @@ String keyOf(Customer customer) {
 
 - **Not:** Lombok `@Data` ile yazılmış DTO'lar da bu gruba girer.
 
+- **Yazmak:** Veri yapısının setter'ını çağırmak da raporlanmaz: `request.getAddress().setCity(city)`. Koleksiyonunu değiştirmek raporlanır: Uygun değil 4.
+
+- **Hesaplayan getter:** Getter ve setter dışında tek bir metodu olan sınıf veri yapısı sayılmaz; üzerinden zincirle okumak raporlanır. Getter'ın tanımı: Uygun değil 5.
+
 - **Örnek projede:** [`Connector.java:8`](examples/shop/src/main/java/shop/service/Connector.java#L8), [`ShippingService.java:20`](examples/shop/src/main/java/shop/service/ShippingService.java#L20), [`ShippingService.java:24`](examples/shop/src/main/java/shop/service/ShippingService.java#L24)
 
 </details>
@@ -400,6 +412,8 @@ private Order(Builder builder) {
 - **Neden:** Builder'ın her adımı aynı builder'ı döndürür; zincir tek bir nesneyle konuşur.
 
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
+
+- **Not:** Kendi tipini döndüren metot akıcı sayılır; alıcısı yabancı olsa da raporlanmaz: `order.getBuilder().add(line)`. Aynı alıcıda kendi tipini döndürmeyen çağrı raporlanır: `order.getBuilder().isEmpty()`.
 
 - **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34)
 
@@ -436,6 +450,8 @@ String greeting(String name) {
 ```
 
 - **Neden:** Factory'nin ve `new`'in döndürdüğü nesneler f'nin içinde oluşturulmuş sayılır; bunlar f'nin arkadaşı.
+
+- **Not:** Adı `create`, `new`, `of`, `from` ya da `build` ile başlayan metot factory sayılır. Alıcısı arkadaş olmalı.
 
 - **Örnek projede:** [`ReportService.java:7`](examples/shop/src/main/java/shop/service/ReportService.java#L7), [`ReportService.java:11`](examples/shop/src/main/java/shop/service/ReportService.java#L11)
 
@@ -535,6 +551,8 @@ boolean compatible(Order order, Version required) {
 ```
 
 - **Neden:** `Version`'ın bütün alanları final, setter'ı yok, `equals` ve `hashCode`'u tanımlı; bir değer nesnesi. Bir karşılaştırma metodu taşıması onu nesne yapmaz.
+
+- **Not:** `equals` ve `hashCode` tanımlamayan değişmez sınıf değer nesnesi sayılmaz: davranışı yoksa veri yapısı, varsa nesnedir.
 
 - **Örnek projede:** [`OrderService.java:30`](examples/shop/src/main/java/shop/service/OrderService.java#L30)
 
