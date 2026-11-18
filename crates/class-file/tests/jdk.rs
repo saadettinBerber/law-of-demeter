@@ -58,10 +58,14 @@ fn error_of(result: Result<Reading, Error>) -> Error {
 }
 
 fn fake_jdk_with_javac(name: &str) -> (PathBuf, PathBuf) {
+    fake_jdk_with_compiler(name, "javac")
+}
+
+fn fake_jdk_with_compiler(name: &str, compiler: &str) -> (PathBuf, PathBuf) {
     let home = scratch_directory(name);
     fs::create_dir_all(home.join("bin")).unwrap();
     fs::write(home.join("release"), "JAVA_VERSION=\"17.0.1\"\n").unwrap();
-    fs::write(home.join("bin/javac"), "").unwrap();
+    fs::write(home.join("bin").join(compiler), "").unwrap();
     (home.clone(), home.join("bin"))
 }
 
@@ -132,6 +136,15 @@ fn javac_on_the_path_is_used_when_java_home_is_not_a_jdk() {
     let stale = scratch_directory("stale-java-home");
 
     let home = located_home(Some(&stale), Some(&bin));
+
+    assert_eq!(home, Some(fs::canonicalize(jdk_home).unwrap()));
+}
+
+#[test]
+fn javac_with_the_windows_executable_suffix_is_found_on_the_path() {
+    let (jdk_home, bin) = fake_jdk_with_compiler("windows-javac-on-path", "javac.exe");
+
+    let home = located_home(None, Some(&bin));
 
     assert_eq!(home, Some(fs::canonicalize(jdk_home).unwrap()));
 }
