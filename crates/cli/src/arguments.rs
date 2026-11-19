@@ -35,7 +35,8 @@ are known; only the selected classes and methods are judged and counted.
 
 Options:
   -s, --source <DIR>        Source root; can be given more than once
-  -c, --classpath <PATH>    Directory or jar; can be given more than once or as a ':'-separated list
+  -c, --classpath <PATH>    Directory or jar; can be given more than once or as a list joined by
+                            the platform's path separator (':', on Windows ';')
       --jdk-home <DIR>      JDK directory (default: JAVA_HOME, then javac on PATH)
       --release <VERSION>   Java release to read (default: the JDK's own release)
       --show-allowed        Also lists the allowed calls with the rule they follow

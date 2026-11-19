@@ -87,6 +87,102 @@ Sonuç: Müşteriye ve cüzdana nasıl ulaşılacağını `Order` biliyor.
 Kural nesneler içindir. Nesne verisini gizleyip davranışını açar; veri yapısı verisini açar ve davranış taşımaz. İkisi karıştırılmamalıdır.
 
 <details>
+<summary><strong>Getter, setter ve davranış</strong></summary>
+
+Araç bir metodun ne olduğuna adından değil gövdesinden karar verir:
+
+- **Getter:** Parametresizdir ve yalnızca bir alanı döndürür.
+- **Setter:** Tek parametrelidir ve yalnızca o parametreyi bir alana yazar.
+- **Davranış:** Diğer her metot. `private` ve `static` metotlar ile `equals`, `hashCode` ve `toString` sayılmaz.
+
+Hiç davranışı olmayan sınıf veri yapısıdır. Projedeki üst sınıftan gelen metotlar da sayılır. Örneklerde C `ReportService`, f `nameOf`; `Order`, müşterisini `getCustomer()` ile verir.
+
+<details>
+<summary><strong>Uygun değil</strong></summary>
+
+```java
+class Customer {
+    private String name;
+    private String surname;
+    private String email;
+    private boolean verified;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getFullName() {
+        return name + " " + surname;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+        this.verified = false;
+    }
+}
+
+class ReportService {
+    String nameOf(Order order) {
+        return order.getCustomer().getName();
+    }
+}
+```
+
+1. `order.getCustomer()`: Serbest. `order`, f'ye argüman olarak verildi.
+2. `.getName()`: Kuralı çiğner. `Customer` veri yapısı değil; iki metodu davranış:
+   - `getFullName()` bir alanı döndürmüyor, sonucu hesaplıyor.
+   - `setEmail()` yalnızca kendi alanını yazmıyor, `verified` alanını da değiştiriyor.
+
+Sonuç: Adının `get` ya da `set` ile başlaması bir metodu getter ya da setter yapmaz. `Customer` hem setter hem davranış taşıdığı için araç onu hibrit olarak da raporlar.
+
+</details>
+
+<details>
+<summary><strong>Uygun</strong></summary>
+
+```java
+class Customer {
+    private String name;
+    private String surname;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getSurname() {
+        return surname;
+    }
+
+    public void setSurname(String surname) {
+        this.surname = surname;
+    }
+}
+
+class ReportService {
+    String nameOf(Order order) {
+        return order.getCustomer().getName();
+    }
+}
+```
+
+1. `order.getCustomer()`: Serbest. `order`, f'ye argüman olarak verildi.
+2. `.getName()`: Serbest. `Customer` yalnızca getter ve setter taşıyor; veri yapısı.
+
+Sonuç: `nameOf` aynı kaldı. `Customer` yalnızca veri taşıyor; tam adı ona ihtiyaç duyan yer hesaplar.
+
+</details>
+
+</details>
+
+<details>
 <summary><strong>Hibrit sınıf</strong></summary>
 
 Hem verisini açan hem davranış taşıyan sınıfa hibrit denir. Örneklerde C `PaymentService`, f `pay`.
@@ -562,7 +658,7 @@ law-of-demeter
 Seçenekler:
 
 - **`-s`, `--source`:** Denetlenecek kaynak kökü; birden çok verilebilir. Verilirse proje aranmaz; classpath yalnızca `--classpath` ile verilenlerden oluşur. Çok modüllü projede bütün modüllerin kökleri verilir, yoksa diğer modüllerin tipleri kütüphane sayılır.
-- **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, `:` ile ayrılmış liste de olur.
+- **`-c`, `--classpath`:** Derlenmiş sınıf dizinleri ve jar'lar; birden çok verilebilir, platformun yol ayırıcısıyla ayrılmış liste de olur: `:`, Windows'ta `;`.
 - **`--show-allowed`:** Uygun çağrıları da uydukları kuralla gösterir.
 - **`--only`:** Yalnızca seçilen sınıfı ya da metodu denetler; birden çok verilebilir. Bütün kaynak kökleri yine okunur, bu yüzden kararlar tam denetimdekiyle aynıdır. Bir sınıfı denetlemek için `--source` daraltılmaz: kaynakta olmayan tipler kütüphane sayılır ve ihlaller gözden kaçar.
   - **Sınıf:** `shop.Order`; iç içe ve anonim sınıfları da seçilir.

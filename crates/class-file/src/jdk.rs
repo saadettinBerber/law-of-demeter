@@ -15,6 +15,8 @@ use crate::shape::{self, Scope};
 use crate::source::is_module_descriptor;
 use crate::{Error, Reading};
 
+const COMPILER_NAMES: [&str; 2] = ["javac", "javac.exe"];
+
 pub struct Jdk {
     home: PathBuf,
 }
@@ -140,10 +142,16 @@ fn is_jdk(home: &Path) -> bool {
 
 fn javac_home(path: &OsStr) -> Option<PathBuf> {
     env::split_paths(path).find_map(|directory| {
-        let javac = fs::canonicalize(directory.join("javac")).ok()?;
-        let home = javac.parent()?.parent()?.to_path_buf();
-        is_jdk(&home).then_some(home)
+        COMPILER_NAMES
+            .iter()
+            .find_map(|name| home_of_compiler(&directory.join(name)))
     })
+}
+
+fn home_of_compiler(compiler: &Path) -> Option<PathBuf> {
+    let compiler = fs::canonicalize(compiler).ok()?;
+    let home = compiler.parent()?.parent()?.to_path_buf();
+    is_jdk(&home).then_some(home)
 }
 
 fn parse_feature_version(version: &str) -> Option<u32> {

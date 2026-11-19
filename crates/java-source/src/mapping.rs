@@ -136,6 +136,10 @@ impl<'a> MethodMapper<'a> {
         types::type_ref_or_object(declared, &self.bounds)
     }
 
+    fn class_literal_type(&self, named: &DeclaredType) -> TypeRef {
+        TypeRef::generic("java.lang.Class", vec![self.type_ref_or_object(named)])
+    }
+
     fn parameter_type(&self, name: &str) -> TypeRef {
         self.parameters.get(name).cloned().unwrap_or_else(object)
     }
