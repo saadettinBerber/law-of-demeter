@@ -165,6 +165,7 @@ fn the_usage_text_names_every_option() {
         "--show-allowed",
         "--only",
         "--skill",
+        "update",
         "--help",
     ]
     .into_iter()

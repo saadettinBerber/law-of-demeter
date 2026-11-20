@@ -23,6 +23,7 @@ pub enum Command {
 
 pub fn usage() -> &'static str {
     "Usage: law-of-demeter [OPTIONS]
+       law-of-demeter update [OPTIONS]
 
 Finds Law of Demeter violations in Java source code.
 
@@ -46,6 +47,10 @@ Options:
                             names that contain $
       --skill               Shows the guide for coding agents that run this tool
   -h, --help                Shows this help
+
+Commands:
+  update                    Installs the CLI again from its source checkout and
+                            refreshes the installed agent skill; see update --help
 
 The source roots, the classpath and the JDK are written to standard error before
 the check, and the result with its exit code comes last. Exit code: 0 no

@@ -46,6 +46,19 @@ fn the_agent_skill_goes_to_standard_output_with_exit_code_zero() {
 }
 
 #[test]
+fn update_shows_its_own_help() {
+    let output = run(&["update", "--help"]);
+
+    assert_eq!(
+        (
+            output.status.code(),
+            text(&output.stdout).starts_with("Usage: law-of-demeter update")
+        ),
+        (Some(0), true)
+    );
+}
+
+#[test]
 fn a_usage_error_goes_to_standard_error_with_exit_code_two() {
     let output = run(&["--verbose"]);
 

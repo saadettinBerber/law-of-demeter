@@ -7,6 +7,8 @@ mod report_text;
 mod run;
 mod source_files;
 mod sources;
+mod update;
 
 pub use run::{CLEAN, Environment, FAILURE, VIOLATIONS, run};
 pub use source_files::{Declarations, Mapper};
+pub use update::{Installation, Runner, run_command, update};
