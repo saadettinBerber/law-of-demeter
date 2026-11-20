@@ -10,6 +10,7 @@ Araç, kod yazan her ajana sınır koymak için yazıldı: yapay zekâ ajanları
 
 - **Çıkış kodu sınırı çizer:** İhlal ya da hibrit sınıf varsa araç 1 ile çıkar; ajan bunu başarısız test gibi ele alır.
 - **Rapor nedenini söyler:** Her ihlal satırı dosyayı, satırı, çağrıyı ve çiğnenen kuralı gösterir.
+- **Skill ajana yolu gösterir:** [`skill/law-of-demeter/SKILL.md`](skill/law-of-demeter/SKILL.md) aracı ne zaman ve nasıl çalıştıracağını, raporu nasıl okuyacağını ve ihlali nasıl düzelteceğini anlatır. `law-of-demeter --skill` aynı metni yazdırır. Claude Code için dizini `~/.claude/skills/law-of-demeter` altına bağlamak yeterlidir.
 
 Ayrıntılar [Kullanım](#kullanım) bölümünde.
 
@@ -666,6 +667,7 @@ Seçenekler:
   - **Ad:** Raporda göründüğü gibi tam yazılır. `$` içeren ad tırnak içinde verilir: `--only 'shop.Order$Line'`.
   - **Rapor:** Bulgular, özet ve çıkış kodu yalnızca seçimi sayar; okunamayan dosyalar ve tipler bütün proje için listelenir. Hiçbir şeye uymayan seçim 2 ile çıkar.
 - **`--jdk-home`, `--release`:** JDK'yı ve sürümünü seçer. Verilmezse `JAVA_HOME` ya da `PATH`'teki `javac` kullanılır.
+- **`--skill`:** Aracı çalıştıran kod ajanları için yazılan skill'i gösterir.
 - **`-h`, `--help`:** Kullanımı gösterir.
 
 Aracın terminaldeki bütün çıktısı İngilizcedir. Araç, denetime başlamadan önce kaynak köklerini, classpath'in giriş sayısını ve JDK'yı yazar. Son satır, sonucu çıkış koduyla birlikte söyler. Bu satırlar standart hataya gider, rapor standart çıkışa gider; rapor dosyaya yönlendirildiğinde de terminalde görünürler:
