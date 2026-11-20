@@ -18,6 +18,7 @@ pub struct Arguments {
 pub enum Command {
     Check(Arguments),
     Help,
+    Skill,
 }
 
 pub fn usage() -> &'static str {
@@ -43,12 +44,17 @@ Options:
       --only <TARGET>       Checks only a class (shop.Order) with its nested classes, or a
                             method (shop.Order#pay); can be given more than once; quote
                             names that contain $
+      --skill               Shows the guide for coding agents that run this tool
   -h, --help                Shows this help
 
 The source roots, the classpath and the JDK are written to standard error before
 the check, and the result with its exit code comes last. Exit code: 0 no
 violations, 1 violations found, 2 usage or fatal error.
 "
+}
+
+pub fn skill() -> &'static str {
+    include_str!("../../../skill/law-of-demeter/SKILL.md")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,6 +67,7 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
         let option = argument.to_string_lossy();
         match option.as_ref() {
             "--help" | "-h" => return Ok(Command::Help),
+            "--skill" => return Ok(Command::Skill),
             "--source" | "-s" => parsed.sources.push(value(&option, &mut arguments)?.into()),
             "--classpath" | "-c" => parsed.classpath.extend(
                 env::split_paths(&value(&option, &mut arguments)?)

@@ -26,6 +26,26 @@ fn help_goes_to_standard_output_with_exit_code_zero() {
 }
 
 #[test]
+fn the_agent_skill_goes_to_standard_output_with_exit_code_zero() {
+    let skill = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../skill/law-of-demeter/SKILL.md"
+    ))
+    .expect("skill is readable");
+
+    let output = run(&["--skill"]);
+
+    assert_eq!(
+        (
+            output.status.code(),
+            text(&output.stdout),
+            text(&output.stderr)
+        ),
+        (Some(0), skill, String::new())
+    );
+}
+
+#[test]
 fn a_usage_error_goes_to_standard_error_with_exit_code_two() {
     let output = run(&["--verbose"]);
 

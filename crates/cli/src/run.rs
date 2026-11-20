@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use law_of_demeter_class_file::Jdk;
 use law_of_demeter_core::application::{CheckProject, Counts, Report, Selection, Target};
 
-use crate::arguments::{Arguments, Command, UsageError, parse, usage};
+use crate::arguments::{Arguments, Command, UsageError, parse, skill, usage};
 use crate::class_file_types::ClassFileTypes;
 use crate::jdk_choice::choose_jdk;
 use crate::maven_layout::maven_layout;
@@ -43,6 +43,10 @@ pub fn run<I: IntoIterator<Item = OsString>>(
     let (code, result) = match parse(arguments) {
         Ok(Command::Help) => {
             write!(out, "{}", usage()).ok();
+            return CLEAN;
+        }
+        Ok(Command::Skill) => {
+            write!(out, "{}", skill()).ok();
             return CLEAN;
         }
         Ok(Command::Check(arguments)) => match check(arguments, environment, mapper, out, err) {
