@@ -1,0 +1,30 @@
+[package]
+name = "expansion-consumer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+expansion-legacy = { path = "../legacy" }
+expansion-generator = { path = "../generator" }
+
+[features]
+alternate = []
+attr-probe = []
+cfg-probe = []
+proc-probe = []
+
+[[example]]
+name = "cfg_attr"
+path = "negative/cfg_attr.rs"
+required-features = ["attr-probe"]
+
+[[example]]
+name = "cfg_boolean"
+path = "negative/cfg_boolean.rs"
+required-features = ["cfg-probe"]
+
+[[example]]
+name = "proc_location"
+path = "negative/proc_location.rs"
+required-features = ["proc-probe"]
