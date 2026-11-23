@@ -18,7 +18,7 @@ fn an_enum_can_hold_an_object_and_change_it_through_a_method() {
 }
 
 #[test]
-fn a_private_method_can_be_called_from_another_type_in_the_same_module() {
+fn a_descendant_module_can_call_a_private_method() {
     let balance = visibility::pay(50, 20);
 
     assert_eq!(balance, 30);
