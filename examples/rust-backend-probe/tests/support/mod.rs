@@ -1,3 +1,7 @@
+mod anchors;
+
+pub(super) use anchors::{declared_function, declared_method, declared_struct, method_call};
+
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -8,7 +12,7 @@ use ra_ap_ide_db::RootDatabase;
 use ra_ap_intern::Symbol;
 use ra_ap_load_cargo::{LoadCargoConfig, ProcMacroServerChoice, load_workspace_at};
 use ra_ap_project_model::{CargoConfig, CfgOverrides, RustLibSource, TargetDirectoryConfig};
-use ra_ap_syntax::{AstNode, ast, ast::HasName};
+use ra_ap_syntax::ast;
 use ra_ap_vfs::{AbsPathBuf, Vfs};
 
 pub(super) type ProbeResult<T = ()> = Result<T, Box<dyn Error>>;
@@ -164,65 +168,4 @@ fn rustc_sysroot() -> ProbeResult<PathBuf> {
 
 pub(super) fn flag(name: &str) -> CfgAtom {
     CfgAtom::Flag(Symbol::intern(name))
-}
-
-pub(super) fn declared_function(source: &ast::SourceFile, name: &str) -> ast::Fn {
-    source
-        .syntax()
-        .children()
-        .filter_map(ast::Fn::cast)
-        .find(|function| {
-            function
-                .name()
-                .is_some_and(|function_name| function_name.text() == name)
-        })
-        .expect("fixture function declaration is missing")
-}
-
-pub(super) fn declared_struct(source: &ast::SourceFile, name: &str) -> ast::Struct {
-    source
-        .syntax()
-        .children()
-        .filter_map(ast::Struct::cast)
-        .find(|item| {
-            item.name()
-                .is_some_and(|item_name| item_name.text() == name)
-        })
-        .expect("fixture struct declaration is missing")
-}
-
-pub(super) fn declared_method(source: &ast::SourceFile, owner: &str, name: &str) -> ast::Fn {
-    source
-        .syntax()
-        .children()
-        .filter_map(ast::Impl::cast)
-        .find(|implementation| {
-            implementation
-                .self_ty()
-                .is_some_and(|ty| ty.syntax().text() == owner)
-        })
-        .expect("fixture impl declaration is missing")
-        .syntax()
-        .descendants()
-        .filter_map(ast::Fn::cast)
-        .find(|method| {
-            method
-                .name()
-                .is_some_and(|method_name| method_name.text() == name)
-        })
-        .expect("fixture method declaration is missing")
-}
-
-pub(super) fn method_call(caller: &ast::Fn, name: &str) -> ast::MethodCallExpr {
-    caller
-        .body()
-        .expect("fixture caller has no body")
-        .syntax()
-        .descendants()
-        .filter_map(ast::MethodCallExpr::cast)
-        .find(|call| {
-            call.name_ref()
-                .is_some_and(|method_name| method_name.text() == name)
-        })
-        .expect("fixture method call is missing")
 }
