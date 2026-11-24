@@ -1,0 +1,17 @@
+[package]
+name = "rust-unresolved-fixture"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[features]
+alternate = []
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "cfg-boolean"
+path = "../../../../rust-expansion/consumer/negative/cfg_boolean.rs"
