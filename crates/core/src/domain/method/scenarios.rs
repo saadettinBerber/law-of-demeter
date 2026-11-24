@@ -124,6 +124,7 @@ fn operating_on_a_value_is_allowed() {
             "ttl",
             TypeRef::class("java.time.Duration"),
         ))
+        .returning(instant.clone())
         .then("truncatedTo", 2)
         .with(Expression::literal()),
     );
@@ -134,7 +135,11 @@ fn operating_on_a_value_is_allowed() {
         verdicts,
         [
             Verdict::allowed("plus", 2, Reason::parameter("issuedAt")),
-            Verdict::allowed("truncatedTo", 2, Reason::parameter("issuedAt")),
+            Verdict::allowed(
+                "truncatedTo",
+                2,
+                Reason::classified(Classification::Value, instant)
+            ),
         ]
     );
 }
@@ -255,8 +260,10 @@ fn objects_from_factories_and_new_are_friends() {
         )
         .returning(builder.clone())
         .with(Expression::literal())
+        .returning_receiver()
         .then("append", 6)
         .returning(builder.clone())
+        .returning_receiver()
         .with(Expression::parameter(
             "name",
             TypeRef::class("java.lang.String"),
@@ -345,12 +352,14 @@ fn builder_chains_stay_with_the_builder() {
             .returning(builder.clone())
             .then("id", 2)
             .returning(builder.clone())
+            .returning_receiver()
             .with(Expression::parameter(
                 "id",
                 TypeRef::class("java.lang.String"),
             ))
             .then("total", 2)
             .returning(builder)
+            .returning_receiver()
             .with(Expression::parameter("total", TypeRef::primitive("int")))
             .then("build", 2),
     );

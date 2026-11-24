@@ -63,6 +63,9 @@ pub(super) struct Declared {
     free: Vec<String>,
     elements: Option<String>,
     yields: Yield,
+    returns_receiver: bool,
+    fixed_dispatch: bool,
+    returns_exact_type: bool,
 }
 
 impl Declared {
@@ -91,11 +94,29 @@ impl Declared {
             free: method.type_parameters().to_vec(),
             elements,
             yields,
+            returns_receiver: method.returns_receiver(),
+            fixed_dispatch: owner.is_final()
+                || method.is_final()
+                || method.is_private()
+                || method.is_static(),
+            returns_exact_type: method.returns_exact_type(),
         }
     }
 
     pub(super) fn yields(&self) -> Yield {
         self.yields
+    }
+
+    pub(super) fn returns_receiver(&self) -> bool {
+        self.returns_receiver
+    }
+
+    pub(super) fn has_fixed_dispatch(&self) -> bool {
+        self.fixed_dispatch
+    }
+
+    pub(super) fn returns_exact_type(&self) -> bool {
+        self.returns_exact_type
     }
 
     pub(super) fn produces_keys(&self, types: &Types) -> bool {

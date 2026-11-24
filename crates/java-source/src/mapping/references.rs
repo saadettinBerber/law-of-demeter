@@ -10,6 +10,51 @@ use super::returns::{Dispatch, Invocation, invoked};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
+    pub(super) fn reference_returns_receiver(
+        &mut self,
+        target: &model::Expression,
+        name: &str,
+        functional: Option<&TypeRef>,
+    ) -> bool {
+        let Some(functional) =
+            functional.and_then(|functional| functional_method(self.types, functional))
+        else {
+            return false;
+        };
+        let (receiver, arguments) = match target {
+            model::Expression::Type(owner) => {
+                let owner = named_type(owner);
+                if self
+                    .invoke(&owner, (name, Dispatch::Static), &functional.parameters)
+                    .is_some()
+                {
+                    return false;
+                }
+                let Some((receiver, arguments)) = functional.parameters.split_first() else {
+                    return false;
+                };
+                let Some(receiver) = self.supertype_named(receiver, &owner) else {
+                    return false;
+                };
+                (receiver, arguments)
+            }
+            _ => {
+                let Some(receiver) = self.type_of(target) else {
+                    return false;
+                };
+                (receiver, functional.parameters.as_slice())
+            }
+        };
+        self.invoke(&receiver, (name, Dispatch::Instance), arguments)
+            .and_then(|invocation| invocation.declared().cloned())
+            .is_some_and(|declared| {
+                declared.returns_receiver()
+                    && (declared.has_fixed_dispatch()
+                        || self.final_type(&receiver)
+                        || matches!(target, model::Expression::New(created) if created.anonymous_class.is_none()))
+            })
+    }
+
     pub(super) fn reference_result(
         &mut self,
         target: &model::Expression,

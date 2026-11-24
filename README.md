@@ -23,7 +23,7 @@ Bir metot başka nesnelerin içine uzandıkça daha çok şeye bağımlı olur. 
 - **Test kolaylaşır:** Metot yalnızca arkadaşlarını kullanır; testte sahte nesne döndüren sahte nesneler gerekmez.
 - **Kod kolay okunur:** Metodu anlamak için uzaktaki sınıfların iç yapısını bilmek gerekmez.
 
-Zincirleri gözle ayırmak zordur, çünkü her zincir ihlal değildir: veri yapısında, akıcı zincirde ya da Java koleksiyonlarında zincir serbesttir. Araç bu ayrımı derlenmiş sınıflardan okuduğu tip bilgisiyle yapar.
+Zincirleri gözle ayırmak zordur, çünkü her zincir ihlal değildir: veri yapısında, aynı arkadaşla süren akıcı zincirde ya da Java koleksiyonlarında zincir serbesttir. Araç bu ayrımı derlenmiş sınıflardan okuduğu tip bilgisiyle yapar.
 
 ## Kural
 
@@ -40,6 +40,8 @@ C bir sınıf, f de C'deki bir metot. f yalnızca şu nesnelerin metotlarını �
 f, bu nesnelerin döndürdüğü nesnelerin metotlarını çağırmaz. Kısaca: arkadaşlarınla konuş, yabancılarla konuşma.
 
 C'nin `private` yardımcı metotları gövdeleriyle değerlendirilir. Yardımcının bütün `return` ifadeleri arkadaşsa döndürdüğü nesne de arkadaştır; kodu yardımcıya ayırmak kararı değiştirmez. `private` olmayan metotları alt sınıf ezebilir, bu yüzden döndürdükleri nesne yabancı kalır.
+
+Akıcı çağrı da aynı kurala uyar: `order.getBuilder().add(line)` yabancıyla konuştuğu için ihlaldir. Arkadaş builder üzerinde `add` uygundur; zincirin arkadaşlığı koruması için çağrının gerçekten aynı alıcıyı döndürdüğü kanıtlanmalıdır. Yalnızca dönüş tipinin aynı olması yeterli değildir: `builder.other().finish()` başka bir örneğe geçiyorsa `finish` ihlaldir. Gövde kanıtı, ezilemeyen metot veya sınıfla ya da somut oluşturulma kanıtıyla birlikte kullanılır; bilinmeyen bir override için varsayılmaz.
 
 Örneklerde C `OrderService`, f `pay`.
 

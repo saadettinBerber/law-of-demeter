@@ -98,6 +98,9 @@ pub struct MethodShape {
     is_generated: bool,
     is_abstract: bool,
     is_varargs: bool,
+    is_final: bool,
+    returns_receiver: bool,
+    returns_exact_type: bool,
     type_parameters: Vec<String>,
     type_parameter_bounds: Vec<(String, TypeRef)>,
     reads_field: Option<String>,
@@ -116,6 +119,9 @@ impl MethodShape {
             is_generated: false,
             is_abstract: false,
             is_varargs: false,
+            is_final: false,
+            returns_receiver: false,
+            returns_exact_type: false,
             type_parameters: Vec::new(),
             type_parameter_bounds: Vec::new(),
             reads_field: None,
@@ -140,6 +146,21 @@ impl MethodShape {
 
     pub fn as_varargs(mut self) -> Self {
         self.is_varargs = true;
+        self
+    }
+
+    pub fn as_final(mut self) -> Self {
+        self.is_final = true;
+        self
+    }
+
+    pub fn returning_receiver(mut self) -> Self {
+        self.returns_receiver = true;
+        self
+    }
+
+    pub fn returning_exact_type(mut self) -> Self {
+        self.returns_exact_type = true;
         self
     }
 
@@ -220,6 +241,18 @@ impl MethodShape {
         self.is_varargs
     }
 
+    pub fn is_final(&self) -> bool {
+        self.is_final
+    }
+
+    pub fn returns_receiver(&self) -> bool {
+        self.returns_receiver
+    }
+
+    pub fn returns_exact_type(&self) -> bool {
+        self.returns_exact_type
+    }
+
     pub fn type_parameters(&self) -> &[String] {
         &self.type_parameters
     }
@@ -249,6 +282,7 @@ pub struct TypeShape {
     supertypes: Vec<TypeRef>,
     fields: Vec<FieldShape>,
     methods: Vec<MethodShape>,
+    is_final: bool,
 }
 
 impl TypeShape {
@@ -262,6 +296,7 @@ impl TypeShape {
             supertypes: Vec::new(),
             fields: Vec::new(),
             methods: Vec::new(),
+            is_final: false,
         }
     }
 
@@ -316,6 +351,15 @@ impl TypeShape {
 
     pub fn kind(&self) -> TypeKind {
         self.kind
+    }
+
+    pub fn as_final(mut self) -> Self {
+        self.is_final = true;
+        self
+    }
+
+    pub fn is_final(&self) -> bool {
+        self.is_final
     }
 
     pub fn supertypes(&self) -> &[TypeRef] {

@@ -286,7 +286,7 @@ fn the_naming_of_the_registry() -> Verdict {
 }
 
 #[test]
-fn a_reference_value_is_fluent_when_the_arity_it_takes_matches_the_method() {
+fn a_fluent_reference_value_on_a_stranger_is_a_violation() {
     let register = registering(naming_reference().taking(1));
 
     let verdicts = register.verdicts(&handler_types());
@@ -295,7 +295,7 @@ fn a_reference_value_is_fluent_when_the_arity_it_takes_matches_the_method() {
         verdicts,
         [
             the_naming_of_the_registry(),
-            Verdict::allowed("withName", 2, Reason::fluent(TypeRef::class("Naming"))),
+            Verdict::violation("withName", 2, Reason::return_of("naming")),
         ]
     );
 }

@@ -471,7 +471,11 @@ fn allowed_2_operating_on_a_value() {
         verdicts,
         [
             Verdict::allowed("plus", 3, Reason::parameter("issuedAt")),
-            Verdict::allowed("truncatedTo", 3, Reason::parameter("issuedAt")),
+            Verdict::allowed(
+                "truncatedTo",
+                3,
+                Reason::classified(Classification::Value, TypeRef::class("java.time.Instant"))
+            ),
         ]
     );
 }
@@ -510,6 +514,7 @@ fn builder_catalog() -> Types {
             class("Order").with_method(
                 MethodShape::new("builder")
                     .as_static()
+                    .returning_exact_type()
                     .returning(builder.clone()),
             ),
         )
@@ -517,11 +522,13 @@ fn builder_catalog() -> Types {
             class("Order$Builder")
                 .with_method(
                     MethodShape::new("id")
+                        .returning_receiver()
                         .with_parameters(vec![TypeRef::class("java.lang.String")])
                         .returning(builder.clone()),
                 )
                 .with_method(
                     MethodShape::new("total")
+                        .returning_receiver()
                         .with_parameters(vec![TypeRef::primitive("int")])
                         .returning(builder.clone()),
                 )
@@ -609,6 +616,7 @@ fn allowed_6_factories_and_new_objects() {
                 class("java.lang.StringBuilder")
                     .with_method(
                         MethodShape::new("append")
+                            .returning_receiver()
                             .with_parameters(vec![TypeRef::class("java.lang.String")])
                             .returning(builder.clone()),
                     )
@@ -1517,7 +1525,11 @@ fn variable_arity_a_formatted_string_gets_its_return_type() {
                 Reason::static_type(TypeRef::class("java.lang.String"))
             ),
             Verdict::allowed("trim", 3, Reason::static_result("format")),
-            Verdict::allowed("isEmpty", 3, Reason::static_result("format")),
+            Verdict::allowed(
+                "isEmpty",
+                3,
+                Reason::classified(Classification::Value, TypeRef::class("java.lang.String"))
+            ),
         ]
     );
 }

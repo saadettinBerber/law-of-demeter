@@ -134,7 +134,7 @@ src/main/java/shop/service/GuestService.java:11  shop.service.GuestService.topUp
 src/main/java/shop/service/GuestService.java:11  shop.service.GuestService.topUp  deposit()  Allowed: the object returned by static call guest() is a friend of f
 src/main/java/shop/service/OrderService.java:22  shop.service.OrderService.canShip  getStatus()  Allowed: order is an argument of f
 src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  plus()  Allowed: issuedAt is an argument of f
-src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  truncatedTo()  Allowed: issuedAt is an argument of f
+src/main/java/shop/service/OrderService.java:26  shop.service.OrderService.expiry  truncatedTo()  Allowed: java.time.Instant is a value
 src/main/java/shop/service/OrderService.java:30  shop.service.OrderService.compatible  getVersion()  Allowed: order is an argument of f
 src/main/java/shop/service/OrderService.java:30  shop.service.OrderService.compatible  isCompatibleWith()  Allowed: shop.domain.Version is a value
 src/main/java/shop/service/OrderService.java:34  shop.service.OrderService.create  builder()  Allowed: static call on type shop.domain.Order
@@ -173,8 +173,8 @@ src/main/java/shop/service/RefundService.java:39  shop.service.RefundService.set
 src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  create()  Allowed: factory is an argument of f
 src/main/java/shop/service/ReportService.java:7  shop.service.ReportService.report  render()  Allowed: the object returned by factory call create() is a friend of f
 src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Allowed: object created in f (java.lang.StringBuilder)
-src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Allowed: object created in f (java.lang.StringBuilder)
-src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  toString()  Allowed: object created in f (java.lang.StringBuilder)
+src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  append()  Allowed: java.lang.StringBuilder is a value
+src/main/java/shop/service/ReportService.java:11  shop.service.ReportService.greeting  toString()  Allowed: java.lang.StringBuilder is a value
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  stream()  Allowed: static call on type java.util.Arrays
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  getCustomer()  Allowed: lambda parameter order: the object returned by static call stream() is a friend of f
 src/main/java/shop/service/ReportingService.java:24  shop.service.ReportingService.rename  forEach()  Allowed: the object returned by static call stream() is a friend of f
@@ -230,16 +230,16 @@ Reasons for violations:
   1  Returned collection is modified
 
 Reasons for allowed calls:
-  63  Argument
+  62  Argument
   47  Field of the class
   16  Static call
   15  Result of a static call
   7  Container
-  7  Object created in the method
   6  Own object
+  5  Object created in the method
+  5  Value
   3  Data structure
   2  Library type
   2  Result of a repository query
   2  Static constant
-  2  Value
   1  Result of a factory

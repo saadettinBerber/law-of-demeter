@@ -362,6 +362,7 @@ pub struct MethodReference {
     input: Option<TypeRef>,
     feed: Option<Feed>,
     arity: Option<usize>,
+    returns_receiver: bool,
 }
 
 impl MethodReference {
@@ -375,6 +376,7 @@ impl MethodReference {
             input: None,
             feed: None,
             arity: None,
+            returns_receiver: false,
         }
     }
 
@@ -395,6 +397,11 @@ impl MethodReference {
 
     pub fn taking(mut self, arity: usize) -> Self {
         self.arity = Some(arity);
+        self
+    }
+
+    pub fn returning_receiver(mut self) -> Self {
+        self.returns_receiver = true;
         self
     }
 
@@ -436,11 +443,10 @@ impl MethodReference {
         let target = self.target.judge(context);
         let mut verdicts = target.verdicts;
         let taken = self.arity;
-        let arity = taken.unwrap_or(0);
         let standing = match &self.target {
             _ if self.name == "new" => taken.map(|_| self.constructed(types, &target.subject)),
             Expression::StaticType(owner) if types.declares_static(owner, &self.name) => {
-                verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
+                verdicts.push(verdict_on(context, &target.subject, &self.called()));
                 taken.map(|_| self.static_result())
             }
             Expression::StaticType(owner) => {
@@ -448,23 +454,21 @@ impl MethodReference {
                 let receiver = element
                     .clone()
                     .through(|feed| Reason::method_reference(owner.clone(), &self.name, feed));
-                let arguments = arity.saturating_sub(1);
-                verdicts.push(verdict_on(context, &receiver, &self.called(arguments)));
-                taken.map(|_| self.on(types, &element, arguments))
+                verdicts.push(verdict_on(context, &receiver, &self.called()));
+                taken.map(|_| self.on(types, &element))
             }
             _ => {
-                verdicts.push(verdict_on(context, &target.subject, &self.called(arity)));
-                taken.map(|_| self.on(types, &target.subject, arity))
+                verdicts.push(verdict_on(context, &target.subject, &self.called()));
+                taken.map(|_| self.on(types, &target.subject))
             }
         };
         Produced { verdicts, standing }
     }
 
-    fn called(&self, argument_count: usize) -> Called<'_> {
+    fn called(&self) -> Called<'_> {
         Called {
             name: &self.name,
             line: self.line,
-            argument_count,
         }
     }
 
@@ -481,7 +485,7 @@ impl MethodReference {
     fn constructed(&self, types: &Types, target: &Subject) -> Standing {
         match &self.target {
             Expression::StaticType(created) => Standing::Friend(Reason::created(created.clone())),
-            _ => self.on(types, target, 0),
+            _ => self.on(types, target),
         }
     }
 
@@ -492,8 +496,8 @@ impl MethodReference {
         }
     }
 
-    fn on(&self, types: &Types, target: &Subject, arguments: usize) -> Standing {
-        standing_after_call(types, target, &self.name, arguments, false)
+    fn on(&self, types: &Types, target: &Subject) -> Standing {
+        standing_after_call(types, target, &self.name, self.returns_receiver, false)
     }
 }
 

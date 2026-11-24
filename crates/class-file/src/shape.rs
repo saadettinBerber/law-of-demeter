@@ -9,6 +9,7 @@ use law_of_demeter_core::domain::type_shape::{
 };
 
 use crate::accessor::{self, Access};
+use crate::return_flow;
 use crate::signature::{self, TypeParameter};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -31,6 +32,9 @@ pub(crate) fn from_bytes(bytes: &[u8], scope: Scope) -> Result<Option<TypeShape>
         return Ok(None);
     }
     let mut shape = TypeShape::new(&binary_name(&class.this_class), kind_of(&class));
+    if class.access_flags.contains(ClassAccessFlags::FINAL) {
+        shape = shape.as_final();
+    }
     let Hierarchy {
         type_parameters,
         superclass,
@@ -168,6 +172,15 @@ fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShap
     }
     if method.access_flags.contains(MethodAccessFlags::VARARGS) {
         shape = shape.as_varargs();
+    }
+    if method.access_flags.contains(MethodAccessFlags::FINAL) {
+        shape = shape.as_final();
+    }
+    if return_flow::returns_receiver(method) {
+        shape = shape.returning_receiver();
+    }
+    if return_flow::returns_exact_type(method) {
+        shape = shape.returning_exact_type();
     }
     if is_lombok_generated(&method.attributes) {
         shape = shape.generated();

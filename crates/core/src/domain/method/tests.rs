@@ -492,7 +492,36 @@ fn a_local_with_a_declared_type_takes_that_type_when_its_value_has_none() {
 }
 
 #[test]
-fn a_fluent_call_on_a_returned_object_is_allowed() {
+fn a_matching_return_type_without_identity_evidence_does_not_keep_friendship() {
+    let builder = TypeRef::class("Builder");
+    let types = sample_types().with_shape(
+        TypeShape::new("Builder", TypeKind::Class)
+            .with_method(MethodShape::new("other").returning(builder.clone()))
+            .with_method(MethodShape::new("finish")),
+    );
+    let finish = Method::new("OrderService", "finish", 1).call(
+        Call::new(
+            Expression::parameter("builder", builder.clone()),
+            "other",
+            2,
+        )
+        .returning(builder)
+        .then("finish", 2),
+    );
+
+    let verdicts = finish.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("other", 2, Reason::parameter("builder")),
+            Verdict::violation("finish", 2, Reason::return_of("other")),
+        ]
+    );
+}
+
+#[test]
+fn fluent_calls_on_a_returned_object_are_violations() {
     let builder = TypeRef::class("ReportBuilder");
     let types = sample_types()
         .with_shape(
@@ -524,6 +553,7 @@ fn a_fluent_call_on_a_returned_object_is_allowed() {
         .returning(builder.clone())
         .then("title", 2)
         .returning(builder.clone())
+        .returning_receiver()
         .with(Expression::literal())
         .then("footer", 2)
         .with(Expression::literal()),
@@ -535,8 +565,32 @@ fn a_fluent_call_on_a_returned_object_is_allowed() {
         verdicts,
         [
             Verdict::allowed("getReportBuilder", 2, Reason::parameter("order")),
-            Verdict::allowed("title", 2, Reason::fluent(builder.clone())),
-            Verdict::allowed("footer", 2, Reason::fluent(builder)),
+            Verdict::violation("title", 2, Reason::return_of("getReportBuilder")),
+            Verdict::violation("footer", 2, Reason::return_of("getReportBuilder")),
+        ]
+    );
+}
+
+#[test]
+fn receiver_identity_evidence_keeps_friendship_across_return_types() {
+    let finish = Method::new("OrderService", "finish", 1).call(
+        Call::new(
+            Expression::parameter("builder", TypeRef::class("Builder")),
+            "same",
+            2,
+        )
+        .returning(TypeRef::class("Base"))
+        .returning_receiver()
+        .then("finish", 2),
+    );
+
+    let verdicts = finish.verdicts(&sample_types());
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("same", 2, Reason::parameter("builder")),
+            Verdict::allowed("finish", 2, Reason::parameter("builder")),
         ]
     );
 }

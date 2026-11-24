@@ -205,18 +205,17 @@ fn a_lambda_at_a_variable_arity_position_takes_the_element_type_of_the_array_par
 }
 
 #[test]
-fn a_variable_arity_builder_method_stays_fluent_with_any_number_of_arguments() {
+fn variable_arity_fluent_calls_on_a_stranger_remain_violations() {
     let snippet = "void build(Order order, String first, String second, String third) {\n    order.getBuilder().add(first, second).add(third);\n}";
 
     let verdicts = verdicts_in_c("", "", snippet, "build", &helpers());
 
-    let builder = TypeRef::class("Builder");
     assert_eq!(
         verdicts,
         [
             Verdict::allowed("getBuilder", 3, Reason::parameter("order")),
-            Verdict::allowed("add", 3, Reason::fluent(builder.clone())),
-            Verdict::allowed("add", 3, Reason::fluent(builder)),
+            Verdict::violation("add", 3, Reason::return_of("getBuilder")),
+            Verdict::violation("add", 3, Reason::return_of("add")),
         ]
     );
 }

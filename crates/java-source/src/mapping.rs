@@ -9,6 +9,7 @@ mod links;
 mod memo;
 mod overloads;
 mod patterns;
+mod receiver_identity;
 mod references;
 mod returns;
 mod statements;

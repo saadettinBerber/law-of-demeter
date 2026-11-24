@@ -14,6 +14,7 @@ pub struct Call {
     line: usize,
     arguments: Vec<Argument>,
     resolved: Option<TypeRef>,
+    returns_receiver: bool,
     flows: Vec<usize>,
     keyed_by: Option<usize>,
     reads_keys: bool,
@@ -31,6 +32,7 @@ impl Call {
             line,
             arguments: Vec::new(),
             resolved: None,
+            returns_receiver: false,
             flows: Vec::new(),
             keyed_by: None,
             reads_keys: false,
@@ -48,6 +50,11 @@ impl Call {
 
     pub fn returning_from(mut self, arguments: &[usize]) -> Self {
         self.flows = arguments.to_vec();
+        self
+    }
+
+    pub fn returning_receiver(mut self) -> Self {
+        self.returns_receiver = true;
         self
     }
 
@@ -119,7 +126,6 @@ impl Call {
             &Called {
                 name: &self.name,
                 line: self.line,
-                argument_count: self.arguments.len(),
             },
         ));
         let type_ref = self.resolved.clone();
@@ -146,7 +152,7 @@ impl Call {
                     context.types,
                     &receiver.subject,
                     &self.name,
-                    self.arguments.len(),
+                    self.returns_receiver,
                     matches!(self.receiver, Expression::StaticType(_)),
                 )
             });
@@ -167,7 +173,6 @@ impl Call {
 pub(super) struct Called<'a> {
     pub(super) name: &'a str,
     pub(super) line: usize,
-    pub(super) argument_count: usize,
 }
 
 pub(super) fn verdict_on(context: &Context, receiver: &Subject, called: &Called) -> Verdict {
@@ -211,9 +216,6 @@ fn stranger_verdict(
             line,
             Reason::classified(Classification::DataStructure, type_ref.clone()),
         ),
-        Some((_, type_ref)) if is_fluent(types, type_ref, name, called.argument_count) => {
-            Verdict::allowed(name, line, Reason::fluent(type_ref.clone()))
-        }
         Some((Classification::Unknown, _)) | None => Verdict::violation(
             name,
             line,
@@ -227,14 +229,15 @@ pub(super) fn standing_after_call(
     types: &Types,
     receiver: &Subject,
     name: &str,
-    argument_count: usize,
+    returns_receiver: bool,
     on_type: bool,
 ) -> Standing {
     let standing = &receiver.standing;
-    let keeps_standing = receiver.type_ref.as_ref().is_some_and(|type_ref| {
-        is_fluent(types, type_ref, name, argument_count)
-            || types.classify(type_ref) == Classification::Container
-    });
+    let keeps_standing = returns_receiver
+        || receiver
+            .type_ref
+            .as_ref()
+            .is_some_and(|type_ref| types.classify(type_ref) == Classification::Container);
     if on_type {
         Standing::Friend(Reason::static_result(name))
     } else if keeps_standing {
@@ -255,10 +258,6 @@ fn is_query(receiver: &Subject, name: &str) -> bool {
         .and_then(class_name)
         .is_some_and(|owner| is_query_on_repository(owner, name));
     receiver.standing.is_held() && (is_repository_query(name) || on_repository)
-}
-
-fn is_fluent(types: &Types, type_ref: &TypeRef, name: &str, argument_count: usize) -> bool {
-    class_name(type_ref).is_some_and(|owner| types.is_fluent(owner, name, argument_count))
 }
 
 fn is_library(context: &Context, type_ref: &TypeRef) -> bool {

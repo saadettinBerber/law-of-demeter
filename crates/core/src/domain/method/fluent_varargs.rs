@@ -21,7 +21,7 @@ fn string_parameter(name: &str) -> Expression {
 }
 
 #[test]
-fn a_variable_arity_builder_method_stays_fluent_with_any_number_of_arguments() {
+fn variable_arity_fluent_calls_on_a_stranger_remain_violations() {
     let build = Method::new("Shipping", "build", 1).call(
         Call::new(
             Expression::parameter("order", TypeRef::class("Order")),
@@ -33,6 +33,7 @@ fn a_variable_arity_builder_method_stays_fluent_with_any_number_of_arguments() {
         .with(string_parameter("first"))
         .with(string_parameter("second"))
         .returning(builder())
+        .returning_receiver()
         .then("add", 2)
         .with(string_parameter("third")),
     );
@@ -43,8 +44,8 @@ fn a_variable_arity_builder_method_stays_fluent_with_any_number_of_arguments() {
         verdicts,
         [
             Verdict::allowed("getBuilder", 2, Reason::parameter("order")),
-            Verdict::allowed("add", 2, Reason::fluent(builder())),
-            Verdict::allowed("add", 2, Reason::fluent(builder())),
+            Verdict::violation("add", 2, Reason::return_of("getBuilder")),
+            Verdict::violation("add", 2, Reason::return_of("getBuilder")),
         ]
     );
 }

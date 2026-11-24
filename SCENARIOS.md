@@ -417,9 +417,11 @@ private Order(Builder builder) {
 
 - **Neden:** Builder'ın her adımı aynı builder'ı döndürür; zincir tek bir nesneyle konuşur.
 
+- **Dönüş kanıtı:** `builder.same().finish()` ancak `same` çağrısının aynı alıcıyı döndürdüğü kanıtlanırsa arkadaşla sürer. Aynı tipi döndüren `other() { return next; }` veya bir dalda `next`, diğerinde `this` döndüren metot bu kanıtı sağlamaz; sonraki `finish` raporlanır. Aşırı yüklenmiş metotta çözülen bildirimin gövdesi kullanılır. Gövdesi `return this` olsa bile ezilebilir metot, bilinmeyen bir alt sınıf için kanıt değildir. `final`/`private` hedefler ve somut oluşturulduğu bilinen builder zincirleri bu sınır içinde değerlendirilir.
+
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
-- **Not:** Kendi tipini döndüren metot akıcı sayılır; alıcısı yabancı olsa da raporlanmaz: `order.getBuilder().add(line)`. Aynı alıcıda kendi tipini döndürmeyen çağrı raporlanır: `order.getBuilder().isEmpty()`.
+- **Yabancı alıcı:** Akıcı çağrı yabancıyla konuşmayı serbest bırakmaz. `order.getBuilder().add(line)` ve `order.getBuilder().isEmpty()` aynı nedenle raporlanır: builder, `getBuilder()` ile gelen yabancıdır. Aynı durum metot referansı için de geçerlidir.
 
 - **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34)
 

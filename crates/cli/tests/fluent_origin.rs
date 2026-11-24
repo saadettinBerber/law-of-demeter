@@ -1,0 +1,414 @@
+use std::fs;
+use std::path::PathBuf;
+use std::process::{Command, Output};
+
+const SOURCE: &str = "package shop;
+
+public class OrderService {
+    void onStranger(Order order) {
+        order.getBuilder().add(1);
+        order.getBuilder().isEmpty();
+    }
+    void onSame(Builder builder) {
+        builder.same().finish();
+    }
+    void onOther(Builder builder) {
+        builder.other().finish();
+    }
+}
+
+class Order {
+    private Builder builder;
+    Builder getBuilder() { return builder; }
+}
+
+final class Builder {
+    private int count;
+    private Builder next;
+    Builder add(int amount) { count += amount; return this; }
+    boolean isEmpty() { return count == 0; }
+    Builder same() { return this; }
+    Builder other() { return next; }
+    void finish() { count++; }
+}
+";
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_fluent_call_on_a_stranger_is_reported_like_an_observer() {
+    let project = CompiledProject::new(SOURCE);
+
+    let output = project.check("onStranger");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":5  shop.OrderService.onStranger  add()  Violation: the object returned by getBuilder() is not a friend of f",
+            ":6  shop.OrderService.onStranger  isEmpty()  Violation: the object returned by getBuilder() is not a friend of f",
+            ":5  shop.OrderService.onStranger  getBuilder()  Allowed: order is an argument of f",
+            ":6  shop.OrderService.onStranger  getBuilder()  Allowed: order is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_call_returning_another_instance_of_the_same_type_does_not_keep_friendship() {
+    let project = CompiledProject::new(SOURCE);
+
+    let output = project.check("onOther");
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":12  shop.OrderService.onOther  finish()  Violation: the object returned by other() is not a friend of f",
+            ":12  shop.OrderService.onOther  other()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_call_proven_to_return_its_receiver_keeps_friendship() {
+    let project = CompiledProject::new(SOURCE);
+
+    let output = project.check("onSame");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":9  shop.OrderService.onSame  same()  Allowed: builder is an argument of f",
+            ":9  shop.OrderService.onSame  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_overridable_receiver_return_does_not_prove_runtime_identity() {
+    let project = CompiledProject::scenario(
+        "builder.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }
+         class OtherBuilder extends Builder { Builder next; @Override Builder same() { return next; } }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_final_receiver_return_keeps_friendship_on_an_open_class() {
+    let project = CompiledProject::scenario(
+        "builder.same().finish();",
+        "class Builder { final Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_branch_returning_another_instance_prevents_identity_evidence() {
+    let project = CompiledProject::scenario(
+        "builder.choose(true).finish();",
+        "final class Builder { Builder next; Builder choose(boolean other) { return other ? next : this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by choose() is not a friend of f",
+            ":4  shop.OrderService.inspect  choose()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn the_selected_overload_supplies_receiver_identity_evidence() {
+    let project = CompiledProject::scenario(
+        "builder.same(1).finish(); builder.same(\"next\").finish();",
+        "final class Builder { Builder next; Builder same(int amount) { return this; } Builder same(String name) { return next; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_receiver_returning_a_supertype_still_keeps_the_same_friend() {
+    let project = CompiledProject::scenario(
+        "builder.same().finish();",
+        "class Base { void finish() {} } final class Builder extends Base { Base same() { return this; } }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_factory_allocation_proves_the_target_of_an_open_builder_chain() {
+    let project = CompiledProject::scenario(
+        "Builder.fresh().same().same().finish();",
+        "class Builder { static Builder fresh() { return new Builder(); } Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  fresh()  Allowed: static call on type shop.Builder",
+            ":4  shop.OrderService.inspect  same()  Allowed: the object returned by static call fresh() is a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: the object returned by static call fresh() is a friend of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: the object returned by static call fresh() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_receiver_returning_method_reference_preserves_its_input_friendship() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Builder::same).forEach(Builder::finish);",
+        "final class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    let verdicts = project.verdicts(&output);
+    let finish: Vec<_> = verdicts
+        .iter()
+        .filter(|line| line.contains("  finish()  "))
+        .collect();
+    assert_eq!(
+        finish,
+        [
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Builder::finish: the object returned by static call of() is a friend of f"
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_method_reference_returning_another_instance_loses_input_friendship() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Builder::other).forEach(Builder::finish);",
+        "final class Builder { Builder next; Builder other() { return next; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    let finish: Vec<_> = verdicts
+        .iter()
+        .filter(|line| line.contains("  finish()  "))
+        .collect();
+    assert_eq!(
+        finish,
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Builder::finish: the object returned by other() is not a friend of f"
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and cached Lombok 1.18.30; run with --ignored"]
+fn a_lombok_builder_chain_keeps_its_concrete_receiver() {
+    let lombok = PathBuf::from(std::env::var_os("HOME").expect("home directory"))
+        .join(".m2/repository/org/projectlombok/lombok/1.18.30/lombok-1.18.30.jar");
+    assert!(
+        lombok.is_file(),
+        "cached Lombok is required: {}",
+        lombok.display()
+    );
+    let project = CompiledProject::compile(
+        "package shop;
+         public class OrderService {
+             void inspect() {
+                 Order.builder().id(1).total(2).build();
+             }
+         }
+         @lombok.Builder class Order { private int id; private int total; }",
+        Some(lombok),
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  builder()  Allowed: static call on type shop.Order",
+            ":4  shop.OrderService.inspect  id()  Allowed: the object returned by static call builder() is a friend of f",
+            ":4  shop.OrderService.inspect  total()  Allowed: the object returned by static call builder() is a friend of f",
+            ":4  shop.OrderService.inspect  build()  Allowed: the object returned by static call builder() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_variable_arity_receiver_return_keeps_friendship() {
+    let project = CompiledProject::scenario(
+        "builder.add(\"first\", \"second\").add(\"third\").finish();",
+        "final class Builder { Builder add(String... names) { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  add()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  add()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn widening_the_return_type_does_not_select_the_base_body_for_a_runtime_override() {
+    let project = CompiledProject::scenario(
+        "builder.same().again().finish();",
+        "class Base { Base again() { return this; } void finish() {} } final class Builder extends Base { Builder next; Base same() { return this; } @Override Base again() { return next; } }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by again() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  again()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+struct CompiledProject {
+    temporary: tempfile::TempDir,
+    source: PathBuf,
+    classes: PathBuf,
+}
+
+impl CompiledProject {
+    fn scenario(body: &str, types: &str) -> Self {
+        Self::new(&format!(
+            "package shop;\npublic class OrderService {{\n    void inspect(Builder builder) {{\n        {body}\n    }}\n}}\n{types}\n"
+        ))
+    }
+
+    fn new(text: &str) -> Self {
+        Self::compile(text, None)
+    }
+
+    fn compile(text: &str, lombok: Option<PathBuf>) -> Self {
+        let temporary = tempfile::tempdir().expect("temporary project");
+        let source = temporary.path().join("OrderService.java");
+        let classes = temporary.path().join("classes");
+        fs::write(&source, text).expect("fixture source");
+        let mut compiler = Command::new("javac");
+        if let Some(lombok) = lombok {
+            compiler
+                .arg("-cp")
+                .arg(&lombok)
+                .arg("-processorpath")
+                .arg(lombok);
+        }
+        let compiled = compiler
+            .args(["--release", "17", "-d"])
+            .arg(&classes)
+            .arg(&source)
+            .output()
+            .expect("javac runs");
+        assert!(
+            compiled.status.success(),
+            "{}",
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        Self {
+            temporary,
+            source,
+            classes,
+        }
+    }
+
+    fn check(&self, method: &str) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_law-of-demeter"))
+            .arg("--source")
+            .arg(self.temporary.path())
+            .arg("--classpath")
+            .arg(&self.classes)
+            .args(["--release", "17", "--show-allowed", "--only"])
+            .arg(format!("shop.OrderService#{method}"))
+            .output()
+            .expect("the binary runs")
+    }
+
+    fn verdicts(&self, output: &Output) -> Vec<String> {
+        let report = String::from_utf8_lossy(&output.stdout);
+        assert!(report.contains("Source errors: 0"), "{report}");
+        assert!(report.contains("Type reading errors: 0"), "{report}");
+        report
+            .lines()
+            .filter_map(|line| line.strip_prefix(self.source.to_str().expect("UTF-8 fixture path")))
+            .map(str::to_owned)
+            .collect()
+    }
+}

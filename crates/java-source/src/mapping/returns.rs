@@ -128,7 +128,7 @@ impl MethodMapper<'_> {
         self.invocation_of(call)?.open_return()
     }
 
-    fn receiver_type(&mut self, call: &model::Call) -> Option<TypeRef> {
+    pub(super) fn receiver_type(&mut self, call: &model::Call) -> Option<TypeRef> {
         match (&call.receiver, &call.implicit_target) {
             (Some(receiver), _) => self.type_of(receiver),
             (None, Some(ImplicitTarget::OuterMethod { owner })) => Some(TypeRef::class(owner)),

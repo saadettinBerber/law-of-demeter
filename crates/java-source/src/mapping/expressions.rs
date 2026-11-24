@@ -192,6 +192,11 @@ impl MethodMapper<'_> {
     }
 
     fn linked(&mut self, mapped: Call, call: &model::Call, declared: &Declared) -> Call {
+        let mapped = if declared.returns_receiver() && self.fixed_dispatch(call, declared) {
+            mapped.returning_receiver()
+        } else {
+            mapped
+        };
         let flows = self.flows_of(call, declared);
         let mapped = with_feeding(mapped, call, &flows);
         let mapped = match position_of(&flows, &[Flow::Keys, Flow::Whole]) {
@@ -279,6 +284,11 @@ impl MethodMapper<'_> {
     ) -> MethodReference {
         let result = self.reference_result(referenced, name, target);
         let reference = MethodReference::new(self.expression(referenced), name, line);
+        let reference = if self.reference_returns_receiver(referenced, name, target) {
+            reference.returning_receiver()
+        } else {
+            reference
+        };
         let reference = match self.reference_arity(target) {
             Some(arity) => reference.taking(arity),
             None => reference,
