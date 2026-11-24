@@ -6,9 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ra_ap_cfg::{CfgAtom, CfgDiff};
-use ra_ap_hir::{
-    Adt, AnyDiagnostic, Crate, EditionedFileId, Function, InFile, ModuleDef, Semantics,
-};
+use ra_ap_hir::{Adt, AnyDiagnostic, Crate, EditionedFileId, Function, ModuleDef, Semantics};
 use ra_ap_ide_db::RootDatabase;
 use ra_ap_intern::Symbol;
 use ra_ap_load_cargo::{LoadCargoConfig, ProcMacroServerChoice, load_workspace};
@@ -17,7 +15,7 @@ use ra_ap_project_model::{
     CargoConfig, CargoFeatures, CfgOverrides, ProjectManifest, ProjectWorkspace,
     ProjectWorkspaceKind, RustLibSource, TargetDirectoryConfig,
 };
-use ra_ap_syntax::{AstNode, Edition, SyntaxNodePtr, ast, ast::HasArgList, ast::HasName};
+use ra_ap_syntax::{AstNode, Edition, ast, ast::HasArgList, ast::HasName};
 use ra_ap_vfs::{AbsPathBuf, Vfs, VfsPath};
 
 use anchors::{declared_function, declared_method, declared_struct, method_call};
@@ -202,86 +200,9 @@ fn the_real_proc_server_expands_calls_resolving_to_the_consumers_wallet() -> Pro
             .ok_or("proc test is inactive")?;
         assert!(definition.is_test(&fixture.db));
         assert_eq!(definition.module(&fixture.db), test_module);
-        assert_proc_context_diagnostics(&fixture, &semantics, &source)?;
+        assert_local_diagnostics(&fixture);
         Ok(())
     })
-}
-
-fn assert_proc_context_diagnostics(
-    fixture: &BuiltFixture,
-    semantics: &Semantics<'_, RootDatabase>,
-    source: &ast::SourceFile,
-) -> ProbeResult {
-    let legacy_caller = source
-        .syntax()
-        .descendants()
-        .filter_map(ast::Fn::cast)
-        .find(|function| {
-            function.name().is_some_and(|name| {
-                name.text() == "an_exported_macro_keeps_the_method_tokens_edition"
-            })
-        })
-        .ok_or("legacy test source is missing")?;
-    let invocation = legacy_caller
-        .syntax()
-        .descendants()
-        .filter_map(ast::MacroCall::cast)
-        .find(|call| {
-            call.path()
-                .is_some_and(|path| path.syntax().text() == "expansion_legacy::definition_items")
-        })
-        .ok_or("legacy invocation is missing")?;
-    let expansion_id = semantics
-        .to_def(&invocation)
-        .ok_or("legacy invocation is inactive or unresolved")?;
-    let expansion = semantics.expand(expansion_id);
-    assert!(expansion.err.is_none(), "legacy expansion failed");
-    let mut calls = expansion
-        .value
-        .descendants()
-        .filter_map(ast::MethodCallExpr::cast);
-    let call = calls.next().ok_or("legacy method call is missing")?;
-    assert!(
-        calls.next().is_none(),
-        "legacy expansion has multiple calls"
-    );
-    assert!(
-        call.name_ref()
-            .is_some_and(|name| name.text() == "into_iter")
-    );
-    let legacy_site = InFile::new(
-        semantics.hir_file_for(call.syntax()),
-        SyntaxNodePtr::new(call.syntax()),
-    );
-    assert_eq!(
-        legacy_site.file_id,
-        ra_ap_hir::HirFileId::MacroFile(expansion_id)
-    );
-
-    let mut diagnostics = Vec::new();
-    fixture
-        .consumer
-        .root_module(&fixture.db)
-        .diagnostics(&fixture.db, &mut diagnostics, false);
-    let mut unexpected = Vec::new();
-    for diagnostic in diagnostics {
-        match diagnostic {
-            AnyDiagnostic::InactiveCode(_) => {}
-            AnyDiagnostic::TypeMismatch(mismatch)
-                if mismatch.expr_or_pat.file_id == legacy_site.file_id
-                    && mismatch.expr_or_pat.value.syntax_node_ptr() == legacy_site.value =>
-            {
-                eprintln!("known pending legacy call TypeMismatch: {mismatch:?}");
-            }
-            other => unexpected.push(other),
-        }
-    }
-
-    assert!(
-        unexpected.is_empty(),
-        "unexpected consumer diagnostics: {unexpected:?}"
-    );
-    Ok(())
 }
 
 struct BuiltFixture {
@@ -621,3 +542,6 @@ fn prepare_fixture(
 fn flag(name: &str) -> CfgAtom {
     CfgAtom::Flag(Symbol::intern(name))
 }
+
+#[path = "../experiments/source-mapping/source_mapping_cases.rs"]
+mod source_mapping_cases;
