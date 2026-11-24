@@ -1,3 +1,4 @@
+mod free_function_semantics;
 mod trait_semantics;
 
 use std::path::Path;

@@ -49,18 +49,27 @@ fn read_attached(snapshot: &Snapshot) -> (Vec<Result<SourceFile, ReadError>>, Ve
                     issues.push(issue);
                 }
             }
-            if let ModuleDef::Function(function) = declaration
-                && let Some(source) = semantics.source(function)
-                && let Ok((path, line)) = snapshot.location(&semantics, source.value.syntax())
-            {
-                issues.push(AnalysisIssue::new(
-                    AnalysisIssueKind::Unsupported,
-                    ReadError::at_line(
-                        &path,
-                        line,
-                        "free functions are outside the first source slice",
-                    ),
-                ));
+            if let ModuleDef::Function(function) = declaration {
+                let location = semantics
+                    .source(function)
+                    .and_then(|source| snapshot.location(&semantics, source.value.syntax()).ok())
+                    .map(|(path, line)| {
+                        ReadError::at_line(
+                            &path,
+                            line,
+                            "free functions are outside the first source slice",
+                        )
+                    })
+                    .unwrap_or_else(|| {
+                        ReadError::new(
+                            &snapshot.source_root,
+                            &format!(
+                                "free function `{}` has no physical source location and is unsupported",
+                                function.name(&snapshot.db).as_str()
+                            ),
+                        )
+                    });
+                issues.push(AnalysisIssue::new(AnalysisIssueKind::Unsupported, location));
             }
             if let ModuleDef::Adt(adt) = declaration
                 && let Some(source) = semantics.source(adt)
