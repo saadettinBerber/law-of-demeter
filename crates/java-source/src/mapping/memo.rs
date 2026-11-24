@@ -7,6 +7,7 @@ use super::returns::Invocation;
 
 #[derive(Default)]
 pub(super) struct Memo {
+    pub(super) exact_calls: HashMap<usize, bool>,
     pub(super) invocations: HashMap<usize, Option<Invocation>>,
     pub(super) calls: HashMap<(usize, Option<TypeRef>), Option<TypeRef>>,
     pub(super) lambdas: HashMap<(usize, Option<TypeRef>), Mapped>,

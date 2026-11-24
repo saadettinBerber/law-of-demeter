@@ -11,6 +11,7 @@ enum Step {
         local: String,
         declared: Option<TypeRef>,
         value: Expression,
+        explains_local: bool,
     },
     ForEach {
         variable: String,
@@ -28,11 +29,16 @@ impl Step {
                 local,
                 declared,
                 value,
+                explains_local,
             } => {
                 let judged = value.judge_expecting(context, declared.as_ref().map(Target::of));
-                let subject = judged
-                    .subject
-                    .through(|origin| Reason::local(local, origin));
+                let subject = if *explains_local {
+                    judged
+                        .subject
+                        .through(|origin| Reason::local(local, origin))
+                } else {
+                    judged.subject
+                };
                 context.bind(local, subject.declared_as(declared.as_ref()));
                 judged.verdicts
             }
@@ -72,6 +78,7 @@ impl Block {
             local: local.to_owned(),
             declared: Some(type_ref),
             value,
+            explains_local: true,
         });
         self
     }
@@ -81,6 +88,7 @@ impl Block {
             local: local.to_owned(),
             declared: None,
             value,
+            explains_local: true,
         });
         self
     }
@@ -89,6 +97,16 @@ impl Block {
         self.steps.push(Step::ForEach {
             variable: variable.to_owned(),
             iterable,
+        });
+        self
+    }
+
+    pub(super) fn capture(mut self, name: &str, value: Expression) -> Self {
+        self.steps.push(Step::Assign {
+            local: name.to_owned(),
+            declared: None,
+            value,
+            explains_local: false,
         });
         self
     }

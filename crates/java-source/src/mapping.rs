@@ -16,7 +16,7 @@ mod statements;
 mod steps;
 mod types;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use law_of_demeter_core::domain::classification::Types;
@@ -73,6 +73,7 @@ struct MethodMapper<'a> {
     bounds: Bounds,
     parameters: HashMap<&'a str, TypeRef>,
     locals: HashMap<String, Option<TypeRef>>,
+    exact_locals: HashSet<String>,
     lambda_parameters: HashMap<String, TypeRef>,
     yields: Option<Vec<Option<TypeRef>>>,
     memo: Memo,
@@ -104,6 +105,7 @@ impl<'a> MethodMapper<'a> {
                 })
                 .collect(),
             locals: HashMap::new(),
+            exact_locals: HashSet::new(),
             lambda_parameters: HashMap::new(),
             yields: None,
             memo: Memo::default(),

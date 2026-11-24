@@ -341,6 +341,242 @@ fn widening_the_return_type_does_not_select_the_base_body_for_a_runtime_override
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn splitting_a_known_allocation_into_a_local_preserves_receiver_identity() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn reassignment_to_an_unknown_runtime_type_removes_local_allocation_evidence() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); local = builder; local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn allocating_a_replacement_argument_does_not_prove_the_already_evaluated_receiver() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder; local.same(local = new Builder()).finish();",
+        "class Builder { Builder same(Builder replacement) { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_new_binding_does_not_inherit_an_earlier_scopes_allocation_evidence() {
+    let project = CompiledProject::scenario(
+        "{ Builder local = new Builder(); local.same().finish(); } { Builder local = builder; local.same().finish(); }",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn allocation_evidence_must_hold_on_both_branches() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); if (builder != null) { local = builder; } else { local = new Builder(); } local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_var_alias_of_a_known_allocation_keeps_receiver_identity() {
+    let project = CompiledProject::scenario(
+        "var local = new Builder(); Builder alias = local; alias.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable alias: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable alias: local variable local: object created in f (shop.Builder)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_argument_reassignment_does_not_change_a_stranger_receiver_already_evaluated() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder.other(); local.same(local = new Builder()).finish();",
+        "class Builder { Builder next; Builder other() { return next; } Builder same(Builder replacement) { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Violation: local variable local: the object returned by other() is not a friend of f",
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  other()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_anonymous_subclass_allocation_does_not_prove_the_base_method_body() {
+    let project = CompiledProject::scenario(
+        "new Builder() { @Override Builder same() { return builder; } }.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_later_argument_assignment_does_not_change_an_earlier_argument_receiver() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder.other(); builder.take(local.count(), local = new Builder());",
+        "class Builder { Builder next; Builder other() { return next; } int count() { return 1; } void take(int count, Builder replacement) {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  count()  Violation: local variable local: the object returned by other() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_bound_reference_keeps_its_receiver_before_a_later_argument_assignment() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder.other(); builder.take(local::finish, local = new Builder());",
+        "class Builder { Builder next; Builder other() { return next; } void finish() {} void take(Runnable action, Builder replacement) {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: local variable local: the object returned by other() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn receiver_and_argument_captures_preserve_distinct_values_and_evaluate_calls_once() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder.other(); local.take(local.count(), local = new Builder());",
+        "class Builder { Builder next; Builder other() { return next; } int count() { return 1; } void take(int count, Builder replacement) {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  count()  Violation: local variable local: the object returned by other() is not a friend of f",
+            ":4  shop.OrderService.inspect  take()  Violation: local variable local: the object returned by other() is not a friend of f",
+            ":4  shop.OrderService.inspect  other()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,
@@ -411,4 +647,50 @@ impl CompiledProject {
             .map(str::to_owned)
             .collect()
     }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn constructor_arguments_keep_the_receiver_seen_by_an_earlier_argument() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder.other(); new Holder(local.count(), local = new Builder());",
+        "class Builder { Builder next; Builder other() { return next; } int count() { return 1; } } class Holder { Holder(int count, Builder replacement) {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  count()  Violation: local variable local: the object returned by other() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_conditional_argument_allocation_does_not_prove_an_existing_local() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder; builder.take(builder != null ? local = new Builder() : null); local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} void take(Builder replacement) {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+        ]
+    );
 }

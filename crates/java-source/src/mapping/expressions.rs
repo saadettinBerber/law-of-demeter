@@ -39,10 +39,7 @@ impl MethodMapper<'_> {
             model::Expression::Call(call) => self.call(call, None),
             model::Expression::New(created) => self.creation(created, None),
             model::Expression::Assignment { target, value } => self.assignment(target, value),
-            model::Expression::Operation(operands) => {
-                let operands = operands.iter().map(|operand| self.expression(operand));
-                Expression::operation(operands.collect())
-            }
+            model::Expression::Operation(operands) => self.operation(operands),
             model::Expression::Cast { target, operand } => {
                 let target = self.type_ref_or_object(target);
                 let operand = self.expression_expecting(operand, Some(&target));
@@ -117,14 +114,20 @@ impl MethodMapper<'_> {
         let declared = resolved
             .as_ref()
             .and_then(|resolved| resolved.invocation.declared().cloned());
+        let returns_receiver = self.record_call_identity(call, declared.as_ref());
         let targets = resolved
             .map(|resolved| resolved.targets)
             .unwrap_or_default();
+        let position = self.steps.position();
+        let arguments =
+            self.mapped_arguments(&call.arguments, &targets, declared.as_ref(), inherited);
+        let receiver = self.steps.before_arguments(position, receiver);
         let mut mapped = Call::new(receiver, &call.name, call.line);
-        for (index, argument) in call.arguments.iter().enumerate() {
-            let target = targets.get(index).and_then(Option::as_ref);
-            let links = self.argument_links(declared.as_ref(), index, argument, inherited);
-            mapped = mapped.with(self.argument(argument, target, &links));
+        if returns_receiver {
+            mapped = mapped.returning_receiver();
+        }
+        for argument in arguments {
+            mapped = mapped.with(argument);
         }
         let mapped = match self.own_helper(call) {
             Some(line) => mapped.running_helper_at(line),
@@ -150,6 +153,36 @@ impl MethodMapper<'_> {
             (Some(only), None) if only.is_private => Some(only.line),
             _ => None,
         }
+    }
+
+    fn mapped_arguments(
+        &mut self,
+        arguments: &[model::Expression],
+        targets: &[Option<TypeRef>],
+        declared: Option<&Declared>,
+        inherited: &[String],
+    ) -> Vec<Argument> {
+        let mut mapped = Vec::new();
+        for (index, argument) in arguments.iter().enumerate() {
+            let target = targets.get(index).and_then(Option::as_ref);
+            let links = self.argument_links(declared, index, argument, inherited);
+            let argument = self.argument(argument, target, &links);
+            mapped.push((argument, self.steps.position()));
+        }
+        let after_arguments = self.steps.position();
+        let mut captured: Vec<_> = mapped
+            .into_iter()
+            .rev()
+            .map(|(argument, position)| {
+                if position < after_arguments {
+                    self.steps.argument_before(position, argument)
+                } else {
+                    argument
+                }
+            })
+            .collect();
+        captured.reverse();
+        captured
     }
 
     fn produces_keys(&mut self, call: &model::Call) -> bool {
@@ -192,11 +225,6 @@ impl MethodMapper<'_> {
     }
 
     fn linked(&mut self, mapped: Call, call: &model::Call, declared: &Declared) -> Call {
-        let mapped = if declared.returns_receiver() && self.fixed_dispatch(call, declared) {
-            mapped.returning_receiver()
-        } else {
-            mapped
-        };
         let flows = self.flows_of(call, declared);
         let mapped = with_feeding(mapped, call, &flows);
         let mapped = match position_of(&flows, &[Flow::Keys, Flow::Whole]) {
@@ -237,10 +265,17 @@ impl MethodMapper<'_> {
             .as_ref()
             .and_then(|found| found.declared().cloned());
         let mut creation = Creation::new(self.type_ref_or_object(&created.created));
-        for (index, argument) in created.arguments.iter().enumerate() {
-            let target = invocation.as_ref().and_then(|found| found.parameter(index));
-            let links = self.argument_links(declared.as_ref(), index, argument, &[]);
-            creation = creation.with(self.argument(argument, target, &links));
+        let targets: Vec<_> = (0..created.arguments.len())
+            .map(|index| {
+                invocation
+                    .as_ref()
+                    .and_then(|found| found.parameter(index))
+                    .cloned()
+            })
+            .collect();
+        for argument in self.mapped_arguments(&created.arguments, &targets, declared.as_ref(), &[])
+        {
+            creation = creation.with(argument);
         }
         Expression::created(creation)
     }
@@ -315,9 +350,26 @@ impl MethodMapper<'_> {
             };
         };
         let declared = self.locals.get(name).cloned().flatten();
-        let value = self.expression_expecting(value, declared.as_ref());
-        self.steps.assign(name, declared, value);
+        let mapped = self.expression_expecting(value, declared.as_ref());
+        self.record_local_identity(name, declared.as_ref(), value);
+        self.steps.assign(name, declared, mapped);
         Expression::local(name)
+    }
+
+    fn operation(&mut self, operands: &[model::Expression]) -> Expression {
+        let Some((first, rest)) = operands.split_first() else {
+            return Expression::operation(Vec::new());
+        };
+        let mut mapped = vec![self.expression(first)];
+        let baseline = self.exact_locals.clone();
+        let mut guaranteed = baseline.clone();
+        for operand in rest {
+            self.exact_locals = baseline.clone();
+            mapped.push(self.expression(operand));
+            guaranteed.retain(|name| self.exact_locals.contains(name));
+        }
+        self.exact_locals = guaranteed;
+        Expression::operation(mapped)
     }
 
     fn field_type_of(&self, target: &model::Expression) -> Option<TypeRef> {

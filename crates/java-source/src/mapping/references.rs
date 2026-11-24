@@ -51,7 +51,7 @@ impl MethodMapper<'_> {
                 declared.returns_receiver()
                     && (declared.has_fixed_dispatch()
                         || self.final_type(&receiver)
-                        || matches!(target, model::Expression::New(created) if created.anonymous_class.is_none()))
+                        || self.exact_value(target))
             })
     }
 

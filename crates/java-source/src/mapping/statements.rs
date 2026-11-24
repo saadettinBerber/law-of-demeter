@@ -26,8 +26,12 @@ impl MethodMapper<'_> {
                 else_branch,
             } => {
                 self.evaluate(condition);
+                let before = self.exact_locals.clone();
                 self.statements(then_branch);
+                let after_then = self.exact_locals.clone();
+                self.exact_locals = before;
                 self.statements(else_branch);
+                self.exact_locals.retain(|name| after_then.contains(name));
             }
             Statement::For {
                 init,
@@ -36,6 +40,7 @@ impl MethodMapper<'_> {
                 body,
             } => {
                 self.statements(init);
+                self.exact_locals.clear();
                 if let Some(condition) = condition {
                     self.evaluate(condition);
                 }
@@ -43,6 +48,7 @@ impl MethodMapper<'_> {
                 for update in update {
                     self.evaluate(update);
                 }
+                self.exact_locals.clear();
             }
             Statement::ForEach {
                 variable,
@@ -55,15 +61,21 @@ impl MethodMapper<'_> {
                     self.type_ref(&variable.declared_type),
                 );
                 self.steps.for_each(&variable.name, iterable);
+                self.exact_locals.clear();
                 self.statements(body);
+                self.exact_locals.clear();
             }
             Statement::While { condition, body } => {
+                self.exact_locals.clear();
                 self.evaluate(condition);
                 self.statements(body);
+                self.exact_locals.clear();
             }
             Statement::DoWhile { body, condition } => {
+                self.exact_locals.clear();
                 self.statements(body);
                 self.evaluate(condition);
+                self.exact_locals.clear();
             }
             Statement::Try {
                 resources,
@@ -72,11 +84,15 @@ impl MethodMapper<'_> {
                 finally,
             } => {
                 self.statements(resources);
+                self.exact_locals.clear();
                 self.statements(body);
                 for caught in catches {
+                    self.exact_locals.clear();
                     self.catch(caught);
                 }
+                self.exact_locals.clear();
                 self.statements(finally);
+                self.exact_locals.clear();
             }
         }
     }
@@ -104,10 +120,12 @@ impl MethodMapper<'_> {
     fn local(&mut self, local: &LocalVariable) {
         let declared = self.type_ref(&local.declared_type);
         self.locals.insert(local.name.clone(), declared.clone());
+        self.exact_locals.remove(&local.name);
         let Some(initializer) = &local.initializer else {
             return;
         };
         let value = self.expression_expecting(initializer, declared.as_ref());
+        self.record_local_identity(&local.name, declared.as_ref(), initializer);
         self.steps.assign(&local.name, declared, value);
     }
 

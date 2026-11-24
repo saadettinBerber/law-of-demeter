@@ -35,12 +35,14 @@ impl MethodMapper<'_> {
             Expression::literal()
         };
         for branch in &switch.branches {
+            self.exact_locals.clear();
             self.bind(&subject, &branch.bindings);
             if let Some(guard) = &branch.guard {
                 self.evaluate(guard);
             }
             self.statements(&branch.body);
         }
+        self.exact_locals.clear();
         Expression::literal()
     }
 
@@ -54,6 +56,7 @@ impl MethodMapper<'_> {
 
     fn bind(&mut self, subject: &Expression, bindings: &[PatternBinding]) {
         for binding in bindings {
+            self.exact_locals.remove(&binding.name);
             let declared = self.type_ref_or_object(&binding.declared_type);
             self.locals
                 .insert(binding.name.clone(), Some(declared.clone()));

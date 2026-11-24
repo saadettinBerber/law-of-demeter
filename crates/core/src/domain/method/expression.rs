@@ -366,6 +366,15 @@ pub struct MethodReference {
 }
 
 impl MethodReference {
+    pub fn target(&self) -> &Expression {
+        &self.target
+    }
+
+    pub fn with_target(mut self, target: Expression) -> Self {
+        self.target = target;
+        self
+    }
+
     pub fn new(target: Expression, name: &str, line: usize) -> Self {
         Self {
             target,
@@ -573,6 +582,11 @@ impl Lambda {
 
     pub fn assign_var(mut self, local: &str, value: Expression) -> Self {
         self.body = self.body.assign_var(local, value);
+        self
+    }
+
+    pub fn capture(mut self, name: &str, value: Expression) -> Self {
+        self.body = self.body.capture(name, value);
         self
     }
 

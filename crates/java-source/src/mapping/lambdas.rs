@@ -72,6 +72,9 @@ impl MethodMapper<'_> {
         let outer_steps = mem::take(&mut self.steps);
         let outer_returns = self.returns.take();
         let outer_parameters = self.enter_scope(&typed);
+        let outer_exact = self.exact_locals.clone();
+        self.exact_locals
+            .retain(|name| !names.contains(&name.as_str()));
         let outer_yields = self.yields.replace(Vec::new());
         self.statements(body);
         let result = result.map(|result| {
@@ -80,6 +83,7 @@ impl MethodMapper<'_> {
         });
         let yields = mem::replace(&mut self.yields, outer_yields).unwrap_or_default();
         self.lambda_parameters = outer_parameters;
+        self.exact_locals = outer_exact;
         self.returns = outer_returns;
         let mapped = mem::replace(&mut self.steps, outer_steps).into_lambda(Lambda::new(&names));
         let mapped = typed.iter().fold(mapped, |mapped, typed| typed.on(mapped));

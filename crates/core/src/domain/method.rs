@@ -74,6 +74,11 @@ impl Method {
         self
     }
 
+    pub fn capture(mut self, name: &str, value: Expression) -> Self {
+        self.body = self.body.capture(name, value);
+        self
+    }
+
     pub fn for_each(mut self, variable: &str, iterable: Expression) -> Self {
         self.body = self.body.for_each(variable, iterable);
         self

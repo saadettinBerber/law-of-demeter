@@ -1,9 +1,10 @@
-use law_of_demeter_core::domain::method::{Call, Expression, Lambda, Method};
+use law_of_demeter_core::domain::method::{Argument, Call, Expression, Lambda, Method};
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
 #[derive(Default)]
 pub(super) struct Steps {
     operations: Vec<Operation>,
+    captures: usize,
 }
 
 enum Operation {
@@ -19,9 +20,53 @@ enum Operation {
     },
     Evaluate(Expression),
     GiveBack(Expression),
+    Capture {
+        name: String,
+        value: Expression,
+    },
 }
 
 impl Steps {
+    pub(super) fn position(&self) -> usize {
+        self.operations.len()
+    }
+
+    pub(super) fn before_arguments(&mut self, position: usize, receiver: Expression) -> Expression {
+        if self.operations.len() == position
+            || matches!(
+                receiver,
+                Expression::This
+                    | Expression::Parameter { .. }
+                    | Expression::Field { .. }
+                    | Expression::StaticType(_)
+                    | Expression::Literal
+            )
+        {
+            return receiver;
+        }
+        let name = format!("<capture:{}>", self.captures);
+        self.captures += 1;
+        self.operations.insert(
+            position,
+            Operation::Capture {
+                name: name.clone(),
+                value: receiver,
+            },
+        );
+        Expression::local(&name)
+    }
+
+    pub(super) fn argument_before(&mut self, position: usize, argument: Argument) -> Argument {
+        match argument {
+            Argument::Value(value) => Argument::Value(self.before_arguments(position, value)),
+            Argument::MethodReference(reference) => {
+                let target = self.before_arguments(position, reference.target().clone());
+                Argument::MethodReference(reference.with_target(target))
+            }
+            other => other,
+        }
+    }
+
     pub(super) fn assign(&mut self, local: &str, declared: Option<TypeRef>, value: Expression) {
         self.operations.push(Operation::Assign {
             local: local.to_owned(),
@@ -54,6 +99,7 @@ impl Steps {
             .into_iter()
             .fold(method, |method, operation| match operation {
                 Operation::Call(call) => method.call(call),
+                Operation::Capture { name, value } => method.capture(&name, value),
                 Operation::Assign {
                     local,
                     declared: Some(type_ref),
@@ -75,6 +121,7 @@ impl Steps {
             .into_iter()
             .fold(lambda, |lambda, operation| match operation {
                 Operation::Call(call) => lambda.call(call),
+                Operation::Capture { name, value } => lambda.capture(&name, value),
                 Operation::Assign {
                     local,
                     declared: Some(type_ref),

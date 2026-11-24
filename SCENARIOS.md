@@ -419,6 +419,8 @@ private Order(Builder builder) {
 
 - **Dönüş kanıtı:** `builder.same().finish()` ancak `same` çağrısının aynı alıcıyı döndürdüğü kanıtlanırsa arkadaşla sürer. Aynı tipi döndüren `other() { return next; }` veya bir dalda `next`, diğerinde `this` döndüren metot bu kanıtı sağlamaz; sonraki `finish` raporlanır. Aşırı yüklenmiş metotta çözülen bildirimin gövdesi kullanılır. Gövdesi `return this` olsa bile ezilebilir metot, bilinmeyen bir alt sınıf için kanıt değildir. `final`/`private` hedefler ve somut oluşturulduğu bilinen builder zincirleri bu sınır içinde değerlendirilir.
 
+- **Yerel değişken:** `Builder local = new Builder(); local.same().finish()` doğrudan oluşturulan nesnenin zinciriyle aynı kararı verir. Aynı nesneyi gösteren başka bir değişken de kanıtı korur. Bilinmeyen bir örneğe yeniden atama veya yalnızca bir dalda oluşturma, somut hedef kanıtı sağlamaz. Çağrının alıcısı ve argümanları soldan sağa değerlendirilir; sonraki atama, daha önce alınan nesnenin kökenini değiştirmez.
+
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
 - **Yabancı alıcı:** Akıcı çağrı yabancıyla konuşmayı serbest bırakmaz. `order.getBuilder().add(line)` ve `order.getBuilder().isEmpty()` aynı nedenle raporlanır: builder, `getBuilder()` ile gelen yabancıdır. Aynı durum metot referansı için de geçerlidir.
