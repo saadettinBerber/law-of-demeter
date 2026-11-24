@@ -16,3 +16,7 @@ ra_ap_proc_macro_api = "=0.0.358"
 ra_ap_project_model = "=0.0.358"
 ra_ap_syntax = "=0.0.358"
 ra_ap_vfs = "=0.0.358"
+
+[patch.crates-io]
+ra_ap_hir_def = { version = "=0.0.358", path = "../../third_party/rust-analyzer/ra_ap_hir_def-0.0.358" }
+ra_ap_hir_ty = { version = "=0.0.358", path = "../../third_party/rust-analyzer/ra_ap_hir_ty-0.0.358" }
