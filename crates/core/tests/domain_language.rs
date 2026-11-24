@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const LANGUAGE_NAMES: [&str; 1] = ["java"];
+const LANGUAGE_NAMES: [&str; 2] = ["java", "rust"];
 
 #[test]
 fn domain_production_sources_name_no_language() {
@@ -89,11 +89,14 @@ fn names_a_language(text: &str) -> bool {
 
 #[test]
 fn a_test_only_item_before_production_code_does_not_hide_it() {
-    let source = "#[cfg(test)]\nconst MARKER: u8 = 0;\nconst LANGUAGE: &str = \"java\";";
+    for language in ["java", "rust"] {
+        let source =
+            format!("#[cfg(test)]\nconst MARKER: u8 = 0;\nconst LANGUAGE: &str = \"{language}\";");
 
-    let production = production_part(source);
+        let production = production_part(&source);
 
-    assert!(names_a_language(&production));
+        assert!(names_a_language(&production));
+    }
 }
 
 #[test]

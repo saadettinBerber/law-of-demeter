@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/class-file", "crates/java-source", "crates/cli"]
+members = ["crates/core", "crates/class-file", "crates/java-source", "crates/rust-source", "crates/cli"]
+exclude = ["third_party/rust-analyzer/ra_ap_hir_def-0.0.358", "third_party/rust-analyzer/ra_ap_hir_ty-0.0.358"]
 
 [workspace.package]
 version = "0.1.0"
@@ -9,3 +10,7 @@ publish = false
 
 [workspace.dependencies]
 law-of-demeter-core = { path = "crates/core" }
+
+[patch.crates-io]
+ra_ap_hir_def = { version = "=0.0.358", path = "third_party/rust-analyzer/ra_ap_hir_def-0.0.358" }
+ra_ap_hir_ty = { version = "=0.0.358", path = "third_party/rust-analyzer/ra_ap_hir_ty-0.0.358" }

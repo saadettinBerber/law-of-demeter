@@ -1,0 +1,232 @@
+use std::path::Path;
+
+use law_of_demeter_core::application::TypeSource;
+use law_of_demeter_core::domain::type_shape::TypeRef;
+
+use ra_ap_hir::{Adt, PathResolution, Semantics};
+use ra_ap_syntax::{AstNode, ast, ast::HasName};
+
+use crate::{LoadOptions, RustProject};
+
+#[test]
+fn ra_resolves_parameter_binding_and_both_chain_targets_in_the_port_snapshot() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let project = RustProject::load(
+        &root.join("examples/rust-scenarios/Cargo.toml"),
+        LoadOptions::new(
+            "rust-scenario-core",
+            &root.join("target/rust-source-journey/analyzed/snapshot"),
+        ),
+    )
+    .expect("Cargo source loads");
+    let snapshot = &project._snapshot;
+    let semantics = Semantics::new(&snapshot.db);
+    let source = semantics.parse(ra_ap_hir::EditionedFileId::new(
+        &snapshot.db,
+        snapshot.selected.root_file(&snapshot.db),
+        snapshot.selected.edition(&snapshot.db),
+    ));
+    let structures: Vec<_> = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Struct::cast)
+        .collect();
+    let wallet = semantics
+        .to_def(
+            &structures
+                .iter()
+                .find(|structure| structure.name().is_some_and(|name| name.text() == "Wallet"))
+                .expect("Wallet is declared")
+                .clone(),
+        )
+        .expect("Wallet resolves");
+    let methods: Vec<_> = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Fn::cast)
+        .collect();
+    let parameter = methods
+        .iter()
+        .find(|method| {
+            method
+                .name()
+                .is_some_and(|name| name.text() == "on_parameter")
+        })
+        .expect("parameter body exists");
+    let chain = methods
+        .iter()
+        .find(|method| {
+            method
+                .name()
+                .is_some_and(|name| name.text() == "on_returned_chain")
+        })
+        .expect("chain body exists");
+    let direct = parameter
+        .syntax()
+        .descendants()
+        .find_map(ast::MethodCallExpr::cast)
+        .expect("parameter call exists");
+    let debit = chain
+        .syntax()
+        .descendants()
+        .find_map(ast::MethodCallExpr::cast)
+        .expect("chain call exists");
+
+    let wallet_impl = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Impl::cast)
+        .find(|implementation| {
+            implementation
+                .self_ty()
+                .is_some_and(|ty| ty.syntax().text() == "Wallet")
+        })
+        .expect("Wallet impl exists");
+    let wallet_debit = wallet_impl
+        .syntax()
+        .descendants()
+        .filter_map(ast::Fn::cast)
+        .find(|function| function.name().is_some_and(|name| name.text() == "debit"))
+        .expect("Wallet debit declaration exists");
+    let order_impl = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Impl::cast)
+        .find(|implementation| {
+            implementation
+                .self_ty()
+                .is_some_and(|ty| ty.syntax().text() == "Order")
+        })
+        .expect("Order impl exists");
+    let order_wallet = order_impl
+        .syntax()
+        .descendants()
+        .filter_map(ast::Fn::cast)
+        .find(|function| function.name().is_some_and(|name| name.text() == "wallet"))
+        .expect("Order wallet declaration exists");
+
+    let direct_target = semantics
+        .resolve_method_call(&direct)
+        .expect("direct target resolves");
+    let chain_target = semantics
+        .resolve_method_call(&debit)
+        .expect("chain target resolves");
+    let receiver = semantics
+        .type_of_expr(&direct.receiver().expect("direct receiver exists"))
+        .expect("receiver type resolves");
+    let ast::Expr::MethodCallExpr(projection) = debit.receiver().expect("chain receiver exists")
+    else {
+        panic!("chain receiver must be a method result")
+    };
+    let projection_target = semantics
+        .resolve_method_call(&projection)
+        .expect("projection target resolves");
+    let result = semantics
+        .type_of_expr(&ast::Expr::MethodCallExpr(projection))
+        .expect("projection result resolves");
+
+    let ast::Expr::PathExpr(receiver_path) = direct.receiver().expect("direct receiver exists")
+    else {
+        panic!("parameter receiver must be a path")
+    };
+    let parameter_definition = semantics
+        .to_def(parameter)
+        .expect("parameter method resolves");
+    let parameters = parameter_definition.params_without_self(&snapshot.db);
+    let binding = parameters[0]
+        .as_local(&snapshot.db)
+        .expect("parameter has a local identity");
+
+    let reading = TypeSource::read(&project);
+    let wallet_name = project
+        .project_types()
+        .into_iter()
+        .find(|name| name.ends_with("::Wallet"))
+        .expect("Wallet remains a project type");
+    let order_shape = reading
+        .shapes
+        .iter()
+        .find(|shape| shape.name().ends_with("::Order"))
+        .expect("Order shape is read");
+    let projection_shape = order_shape
+        .methods()
+        .iter()
+        .find(|method| method.name() == "wallet")
+        .expect("projection signature is read");
+    let service_shape = reading
+        .shapes
+        .iter()
+        .find(|shape| shape.name().ends_with("::PaymentService"))
+        .expect("Service shape is read");
+    let parameter_shape = service_shape
+        .methods()
+        .iter()
+        .find(|method| method.name() == "on_parameter")
+        .expect("parameter signature is read");
+
+    assert_eq!(
+        semantics.resolve_path(&receiver_path.path().expect("receiver has a path")),
+        Some(PathResolution::Local(binding))
+    );
+    assert_eq!(
+        direct_target,
+        semantics
+            .to_def(&wallet_debit)
+            .expect("Wallet debit resolves")
+    );
+    assert_eq!(
+        projection_target,
+        semantics
+            .to_def(&order_wallet)
+            .expect("Order wallet resolves")
+    );
+    assert_eq!(direct_target, chain_target);
+    assert_eq!(direct_target.name(&snapshot.db).as_str(), "debit");
+    assert_eq!(projection_target.name(&snapshot.db).as_str(), "wallet");
+    assert_eq!(
+        receiver
+            .original
+            .as_reference_inner()
+            .expect("parameter is borrowed")
+            .as_adt(),
+        Some(Adt::Struct(wallet))
+    );
+    assert_eq!(
+        result
+            .original
+            .as_reference_inner()
+            .expect("result is borrowed")
+            .as_adt(),
+        Some(Adt::Struct(wallet))
+    );
+    assert!(!result.original.contains_unknown());
+    assert!(!receiver.original.contains_unknown());
+    assert_eq!(
+        projection_shape.returns(),
+        Some(&TypeRef::class(&wallet_name))
+    );
+    assert_eq!(parameter_shape.parameters(), [TypeRef::class(&wallet_name)]);
+    assert!(
+        !snapshot
+            .selected
+            .cfg(&snapshot.db)
+            .check_atom(&ra_ap_cfg::CfgAtom::Flag(ra_ap_intern::Symbol::intern(
+                "test"
+            )))
+    );
+    assert!(
+        !snapshot
+            .selected
+            .cfg(&snapshot.db)
+            .check_atom(&ra_ap_cfg::CfgAtom::Flag(ra_ap_intern::Symbol::intern(
+                "rust_analyzer"
+            )))
+    );
+    assert!(
+        snapshot
+            ._proc_client
+            .server_path()
+            .as_str()
+            .ends_with("/libexec/rust-analyzer-proc-macro-srv")
+    );
+}

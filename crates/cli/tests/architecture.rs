@@ -3,7 +3,7 @@ use std::path::Path;
 
 const WORKSPACE_PREFIX: &str = "law-of-demeter-";
 const CORE: &str = "core";
-const ADAPTERS: [&str; 2] = ["class-file", "java-source"];
+const ADAPTERS: [&str; 3] = ["class-file", "java-source", "rust-source"];
 
 #[test]
 fn core_depends_on_no_other_crate() {
@@ -40,8 +40,8 @@ fn adapters_depend_on_core_and_on_no_other_adapter() {
 
 #[test]
 fn only_cli_depends_on_the_adapters() {
-    let violations: Vec<String> = [CORE, ADAPTERS[0], ADAPTERS[1]]
-        .iter()
+    let violations: Vec<String> = std::iter::once(&CORE)
+        .chain(ADAPTERS.iter())
         .flat_map(|name| {
             workspace_dependencies_of(name)
                 .into_iter()

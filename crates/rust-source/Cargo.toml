@@ -1,0 +1,20 @@
+[package]
+name = "law-of-demeter-rust-source"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+law-of-demeter-core.workspace = true
+ra_ap_cfg = "=0.0.358"
+ra_ap_hir = "=0.0.358"
+ra_ap_ide_db = "=0.0.358"
+ra_ap_intern = "=0.0.358"
+ra_ap_load-cargo = "=0.0.358"
+ra_ap_proc_macro_api = "=0.0.358"
+ra_ap_project_model = "=0.0.358"
+ra_ap_syntax = "=0.0.358"
+ra_ap_vfs = "=0.0.358"
+
+[dev-dependencies]
+tempfile = "3.27.0"

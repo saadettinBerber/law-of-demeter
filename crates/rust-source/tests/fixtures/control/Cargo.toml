@@ -1,0 +1,18 @@
+[package]
+name = "source-control"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "lib.rs"
+
+[features]
+missing = []
+wrong-type = []
+unknown-type = []
+missing-file = []
+free-function = []
+aggregate = []
+
+[workspace]

@@ -3,6 +3,7 @@ FROM rust:1.99.1-bookworm@sha256:e6f2cff35d0f309acf8433b4f05878ed77092602c5065cc
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
+COPY third_party/rust-analyzer/ third_party/rust-analyzer/
 COPY skill/law-of-demeter/SKILL.md skill/law-of-demeter/SKILL.md
 RUN cargo build --locked --release -p law-of-demeter-cli \
     && strip target/release/law-of-demeter

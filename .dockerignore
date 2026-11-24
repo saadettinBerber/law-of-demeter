@@ -3,6 +3,9 @@
 !Cargo.lock
 !crates/
 !crates/**
+!third_party/
+!third_party/rust-analyzer/
+!third_party/rust-analyzer/**
 crates/*/tests/
 crates/**/target/
 !skill/
