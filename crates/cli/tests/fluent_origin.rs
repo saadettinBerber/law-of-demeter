@@ -1836,6 +1836,131 @@ fn an_ordinary_creation_uses_the_accessible_constructor_overload() {
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac, javap and java; run with --ignored"]
+fn a_method_bound_is_adapted_to_the_selected_owners_type_arguments_for_dispatch() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "OrderService.java",
+                "package shop;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);\n    }\n}\nclass Base<T> { Base<T> next; <U extends T> Base<T> same(U... values) { return this; } void finish() {} }\nfinal class Builder extends Base<String> { @Override <U extends String> Base<String> same(U... values) { return next; } }",
+            ),
+            (
+                "DispatchCheck.java",
+                "package shop; public class DispatchCheck { public static void main(String[] arguments) { Builder builder = new Builder(); Base<String> next = new Base<>(); builder.next = next; Base<String> actual = java.util.List.of(builder).stream().map(Base::same).findFirst().orElseThrow(); System.out.print(actual == next && actual != builder); } }",
+            ),
+        ],
+        "OrderService.java",
+    );
+    let builder_bytecode = project.bytecode_target("shop.Builder");
+    assert!(builder_bytecode.contains("ACC_BRIDGE, ACC_SYNTHETIC"));
+    assert!(builder_bytecode.contains("same:([Ljava/lang/String;)Lshop/Base;"));
+    assert!(
+        project
+            .bytecode()
+            .contains("same:([Ljava/lang/Object;)Lshop/Base;")
+    );
+    assert_eq!(project.run_main("shop.DispatchCheck"), "true");
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac, javap and java; run with --ignored"]
+fn an_adapted_method_bound_can_select_an_override_that_returns_its_receiver() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "OrderService.java",
+                "package shop;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);\n    }\n}\nclass Base<T> { Base<T> next; <U extends T> Base<T> same(U... values) { return next; } void finish() {} }\nfinal class Builder extends Base<String> { @Override <U extends String> Base<String> same(U... values) { return this; } }",
+            ),
+            (
+                "DispatchCheck.java",
+                "package shop; public class DispatchCheck { public static void main(String[] arguments) { Builder builder = new Builder(); builder.next = new Base<>(); Base<String> actual = java.util.List.of(builder).stream().map(Base::same).findFirst().orElseThrow(); System.out.print(actual == builder); } }",
+            ),
+        ],
+        "OrderService.java",
+    );
+    let builder_bytecode = project.bytecode_target("shop.Builder");
+    assert!(builder_bytecode.contains("ACC_BRIDGE, ACC_SYNTHETIC"));
+    assert!(builder_bytecode.contains("same:([Ljava/lang/String;)Lshop/Base;"));
+    assert!(
+        project
+            .bytecode()
+            .contains("same:([Ljava/lang/Object;)Lshop/Base;")
+    );
+    assert_eq!(project.run_main("shop.DispatchCheck"), "true");
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac, javap and java; run with --ignored"]
+fn adapted_method_bounds_do_not_reselect_a_new_subtype_overload() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "OrderService.java",
+                "package shop;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);\n    }\n}\nclass Base<T> { Base<T> next; <U extends T> Base<T> same(U... values) { return next; } void finish() {} }\nfinal class Builder extends Base<String> { <U extends Integer> Base<String> same(U... values) { return this; } }",
+            ),
+            (
+                "DispatchCheck.java",
+                "package shop; public class DispatchCheck { public static void main(String[] arguments) { Builder builder = new Builder(); Base<String> next = new Base<>(); builder.next = next; Base<String> actual = java.util.List.of(builder).stream().map(Base::same).findFirst().orElseThrow(); System.out.print(actual == next && actual != builder); } }",
+            ),
+        ],
+        "OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("shop.Builder")
+            .contains("descriptor: ([Ljava/lang/Integer;)Lshop/Base;")
+    );
+    assert!(
+        project
+            .bytecode()
+            .contains("same:([Ljava/lang/Object;)Lshop/Base;")
+    );
+    assert_eq!(project.run_main("shop.DispatchCheck"), "true");
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,
@@ -1934,6 +2059,21 @@ impl CompiledProject {
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8(output.stdout).expect("UTF-8 bytecode listing")
+    }
+
+    fn run_main(&self, class: &str) -> String {
+        let output = Command::new("java")
+            .arg("-cp")
+            .arg(&self.classes)
+            .arg(class)
+            .output()
+            .expect("java runs");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("UTF-8 runtime output")
     }
 
     fn verdicts(&self, output: &Output) -> Vec<String> {

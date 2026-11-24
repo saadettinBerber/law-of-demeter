@@ -491,7 +491,7 @@ impl Candidate<'_> {
         } else {
             self.ancestor.shape.type_parameter_bound(name)
         };
-        bound.cloned()
+        bound.map(|bound| self.specialize(bound))
     }
 }
 
