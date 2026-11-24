@@ -141,7 +141,7 @@ fn a_nonexistent_selection_in_a_complete_project_returns_two() {
     let output = project.analyze(&["--only=Wallet#absent"]);
 
     assert_code(&output, 2);
-    assert!(text(&output.stderr).contains("nothing matches --only: Wallet#absent"));
+    assert!(text(&output.stderr).contains("nothing matches --only: shop/shop::Wallet#absent"));
 }
 
 #[test]
