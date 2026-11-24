@@ -2,7 +2,7 @@
 
 Kaynak kodda Law of Demeter ihlallerini bulur. Kodu tip bilgisiyle okur ve kuralı çiğneyen her çağrıyı nedeniyle raporlar.
 
-Şimdilik Java'yı destekler; kaynağı derlenmiş sınıflarla birlikte okur. Python, Rust gibi diller ileride eklenecek.
+Java kaynağını derlenmiş sınıflarla birlikte okur. Rust için açık Cargo paket seçimiyle çalışan [ilk kaynak dilimi](docs/rust-cli.md) vardır; bütün Rust dili henüz desteklenmez.
 
 ## Ajanlar için
 
@@ -684,6 +684,22 @@ Result: 2 violations, 1 hybrid class (exit code 1)
 ```
 
 Çıkış kodu 0 ise ihlal yoktur, 1 ise ihlal ya da hibrit sınıf vardır, 2 ise kullanım hatası vardır, kaynak kökü veya JDK bulunamamıştır ya da `--only` hiçbir sınıfa veya metoda uymamıştır. Sonuç satırı aynı durumu yazıyla söyler: `no violations`, `2 violations, 1 hybrid class` ya da `check did not run`. Okunamayan dosyalar ve çözülemeyen tipler raporda listelenir, çıkış kodunu değiştirmez.
+
+### Rust kullanımı
+
+```bash
+law-of-demeter --rust Cargo.toml --package shop \
+  --only 'shop/shop::PaymentService#on_parameter' --show-allowed
+```
+
+Rust yolunda JDK/Maven aranmaz. `--features`, `--no-default-features`, `--target` ve
+`--target-dir` Cargo analizini yapılandırır. Paket açıkça seçilir; seçim gerçek
+tip kataloğuyla çözülür. Varsayılan çıktı workspace'in `target/law-of-demeter`
+dizinidir. Rust'ta tam temiz analiz 0, tam ihlal/hibrit 1, başlatma/kullanım ya da
+kesin eşleşmeme 2, eksik analiz 3 döndürür; eksiklik varsa bilinen bulgular korunur.
+Uyumlu toolchain, offline bağımlılık hazırlığı ve desteklenen dar kapsam için
+[Rust CLI belgesine](docs/rust-cli.md), host kurulumu olmadan çalıştırmak için
+[Docker kullanımına](docs/container.md) bak. Yukarıdaki Java çıkış davranışı korunur.
 
 ### Örnek
 

@@ -1,6 +1,6 @@
 ---
 name: law-of-demeter
-description: Check Java code for Law of Demeter violations and hybrid classes with the law-of-demeter CLI, then fix what it reports. Use after writing or changing Java code, or when asked to check a Java project for Law of Demeter.
+description: Check Java code and the supported Rust source slice for Law of Demeter with the law-of-demeter CLI, then fix findings and resolve incomplete analysis. Use after changes or when asked to check a project.
 ---
 
 **Run the check after every Java change and treat findings like failing tests.**
@@ -43,7 +43,22 @@ description: Check Java code for Law of Demeter violations and hybrid classes wi
 
 - **Hybrid class line:** Lists the class's behavior methods and the getters or setters that expose its data.
 
-- **Unresolved calls, source errors and type reading errors** do not change the exit code. Rebuild and pass the missing classpath when they appear; the check is incomplete until they are gone.
+- **In Java, unresolved calls, source errors and type reading errors** do not change the exit code. Rebuild and pass the missing classpath when they appear; the check is incomplete until they are gone.
+
+## Check a Rust library
+
+---
+
+**Choose Rust explicitly and treat incomplete analysis as a failed check.**
+
+- Run `law-of-demeter --rust Cargo.toml --package shop --only 'shop/shop::PaymentService#on_parameter' --show-allowed`. The package must have one normal lib target. Rust selection uses the complete workspace type catalog; unique suffixes such as `PaymentService#on_parameter` are accepted. Ambiguous suffixes require an explicit package/target/module name.
+- Java remains the default. Rust does not need JDK/Maven; mixing Rust selection with Java source/classpath/JDK/release options is a usage error.
+- Provide Cargo/Rust 1.99.1 with matching rust-src and proc macro server, or use the repository's Docker image. Metadata and backend preparation run locked/offline; prepare Cargo.lock and dependency caches first. Build scripts and proc macros may execute project code.
+- Pass `--features payments,audit`, `--no-default-features`, and `--target <TRIPLE>` as needed. Keep sources complete; use `--only` to focus. `--target-dir` selects writable analysis/build output; the default is workspace `target/law-of-demeter`.
+- Rust exit codes: 0 complete and clean, 1 complete with violations/hybrids, 2 usage/startup/manifest or a confirmed unmatched selection, 3 incomplete analysis. Issues, source/type errors and unresolved calls take precedence over findings; known violations remain visible. An unmatched body in an incomplete project is not proof that the method is absent.
+- Rust report lines use `file:line  package/target::module::Type#method  call()  Verdict: reason`. Analysis issues show kind, location, known owner and message. Inspect Unsupported, TargetResolution, Compilation and other issues before accepting a result.
+- This is a limited slice: direct self/parameter calls, literal arguments and normal method chains. Active unsupported functions, field/local/control-flow bodies, async/closures and other unsupported constructs remain incomplete. General Rust classification, containers, trait dispatch and macro traversal are unfinished. Do not claim a project is fully checked merely because a selected supported method returns 0.
+- See `docs/rust-cli.md` and `docs/rust-source-slice.md` in the tool repository for the current scope and `docs/container.md` for read-only source mounts with writable Cargo cache and analysis output.
 
 ## Fix a finding
 
