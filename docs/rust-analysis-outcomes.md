@@ -1,6 +1,6 @@
 # Rust analiz sonuçları sözleşmesi
 
-Application, bilinen bulgularla eksik analizin kanıtını aynı raporda taşır. Bu dilimde Rust adaptörü, terminal çıktısı ve çıkış kodu uygulanmadı. Aşağıdaki çıkış kodları gelecek Rust CLI akışının sözleşmesidir; mevcut Java CLI davranışı değişmez.
+Application, bilinen bulgularla eksik analizin kanıtını aynı raporda taşır. [Rust adaptörü](rust-source-slice.md) bu sözleşmeye veri sağlar; [Rust CLI](rust-cli.md) sorunları gösterir ve aşağıdaki çıkış kodlarını uygular. Mevcut Java CLI davranışı değişmez.
 
 ## Application sözleşmesi
 
@@ -26,7 +26,7 @@ Application, bilinen bulgularla eksik analizin kanıtını aynı raporda taşır
 
 Türler dilden bağımsızdır; hangi etkin yapının hangi sorunu ürettiğine adaptör karar verir. Koşullu derlemeyle dışlanan kod etkin analiz sorunu sayılmaz. Mevcut okuma hataları yeni listeye otomatik kopyalanmaz.
 
-## Gelecek Rust CLI çıkış kodları
+## Rust CLI çıkış kodları
 
 | Kod | Sonuç |
 |---|---|
@@ -35,10 +35,12 @@ Türler dilden bağımsızdır; hangi etkin yapının hangi sorunu ürettiğine 
 | `2` | Analiz başlayamadı: kullanım, başlangıç veya manifest hatası; ya da gerçekten eşleşmeyen seçim. |
 | `3` | Başlayan analiz eksik: okuma, çözümleme, açılım, etkin desteklenmeyen yapı, derleme veya build sorunu var. |
 
-Eksiklik ve ihlal birlikteyse `3` önceliklidir; bilinen bulgular yine yazılır. Bu değerlendirme `issues()` yanında mevcut okuma hatalarını ve çözülemeyen çağrı bulgularını da kapsamalıdır. Tam yüklemeyi baştan engelleyen hata `2`, devam edilebilen fakat eksik kalan analiz `3` olur.
+Eksiklik ve ihlal birlikteyse `3` önceliklidir; bilinen bulgular yine yazılır. Bu değerlendirme `issues()` yanında mevcut kaynak/tip okuma hatalarını ve çözülemeyen çağrı bulgularını da kapsar. Tam yüklemeyi baştan engelleyen hata `2`, devam edilebilen fakat eksik kalan analiz `3` olur.
 
-`Report::unmatched_targets()` bugün yalnızca başarıyla okunan dosyalardaki eşleşmeleri değerlendirir. Eksik yükleme varsa bu liste tek başına kesin bir eşleşmeme kanıtı değildir; gelecekteki Rust CLI belirsiz seçimi `2` diye raporlamamalıdır. Proje tipi kataloğu da tek başına bir metodun varlığını veya yokluğunu kanıtlamaz.
+`Report::unmatched_targets()` yalnızca başarıyla okunan dosyalardaki eşleşmeleri değerlendirir. Eksik yükleme varsa bu liste tek başına kesin bir eşleşmeme kanıtı değildir; Rust CLI belirsiz seçimi sorunlarıyla birlikte `3` olarak bildirir. Seçilen bulgu ve sayımlar korunur. Proje tipi kataloğu da tek başına bir metodun varlığını veya yokluğunu kanıtlamaz.
 
 ## Doğrulama sınırı
 
 [Application davranış testleri](../crates/core/src/application/tests/analysis_issues.rs), gerçek `CheckProject` çağrısını küçük port stub'larıyla çalıştırır. İhlal ile sorunun birlikte korunmasını, gövde ve proje kapsamını, seçim kurallarını, eksik kaynakta proje üyeliğini ve varsayılan portlarla eski raporun korunmasını sınar. Bu testler Rust ayrıştırıcısını, Cargo yüklemesini veya yukarıdaki çıkış kodlarını uçtan uca doğrulamaz.
+
+[CLI süreç testleri](../crates/cli/tests/rust_binary.rs), gerçek Cargo kaynaklarını derlenmiş araçla analiz ederek çıkış kodlarını, seçimleri, konumları ve eksik analiz raporunu doğrular. Docker gerektiren testler normal koşuda atlanır; imaj doğrulaması için açıkça çalıştırılır.

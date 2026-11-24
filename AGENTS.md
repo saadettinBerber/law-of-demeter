@@ -1,6 +1,6 @@
 # law-of-demeter
 
-Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README.md)'de, beklenen davranış [senaryolarda](SCENARIOS.md), yapılacaklar [karar listesinde](decision.md) durur.
+Java ve desteklenen Rust kaynaklarında Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README.md)'de, beklenen davranış [senaryolarda](SCENARIOS.md), yapılacaklar [karar listesinde](decision.md) durur. Rust'ın mevcut sınırları [CLI belgesinde](docs/rust-cli.md) açıklanır.
 
 Önce bu üç belgeyi oku. Sıradaki işi karar listesinin tamamlanmamış satırlarından belirle; ilgili senaryoyu ve mevcut kodu kontrol et.
 
@@ -22,19 +22,21 @@ Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README
 
   - `java-source`: Java kaynak kodunu ayrıştırır.
 
+  - `rust-source`: Cargo projesini yükler; Rust kaynak ve tip bilgisini aynı anlamsal modelden port'lara aktarır.
+
 - **cli:** Nesneleri birbirine bağlar ve aracı başlatır.
 
 - Her katman ayrı bir crate'tir; bağımlılık yönünü derleyici korur.
 
-- Tip şekli (`TypeShape`), `.class` okuyucu ile domain arasındaki sözleşmedir. Değiştirmen gerekirse yalnızca ekleme yap.
+- Tip şekli (`TypeShape`), adaptörlerle domain arasındaki sözleşmedir. Değiştirmen gerekirse yalnızca ekleme yap.
 
 - **Domain hiçbir dili bilmez:** Domain'e (`crates/core/src/domain`) dile özgü hiçbir şey girmez; dil adı da yazılmaz.
 
-  - Aşırı yükleme, generic çıkarım, değişken sayıda argüman, lambda ve metot referansı tipleri ile veri akışı bağlarını dilin adapter'ı (`crates/java-source`) çözer.
+  - Aşırı yükleme, generic çıkarım, değişken sayıda argüman, lambda ve metot referansı tipleri ile veri akışı bağlarını ilgili dilin adapter'ı çözer. Rust'ta henüz desteklenmeyen yapıyı eksik analiz olarak bildir; boş metot veya uygun çağrı üreterek gizleme.
 
   - Adapter sonuçları köprü alanlarıyla verir: `Call::returning`, `returning_from`, `keyed_by`, `yielding_keys`; `Lambda` ve `MethodReference` üzerinde `resolving`, `declaring`, `taking`, `fed_by_*`, `expecting`.
 
-  - Dile ait değerler adapter'ın kurduğu `Platform`'dan (`java_platform()`) gelir.
+  - Dile ait değerler adapter'ın kurduğu `Platform`'dan gelir.
 
   - Domain'in bir bilgiye ihtiyacı olursa köprü alanı ekle (yalnızca ekleme) ve alanı adapter doldursun.
 
@@ -42,13 +44,13 @@ Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README
 
   - Domain testlerindeki örnek platform (`sample_platform.rs`) yalnızca testler için bir dili modeller; Java'ya benzeyen örnek adlar orada kalabilir.
 
-  - `crates/core/tests/domain_language.rs` domain üretim kodunda `java` geçmediğini denetler.
+  - `crates/core/tests/domain_language.rs` domain üretim koduna dil ayrıntılarının girmediğini denetler.
 
 ## Kapsam
 
 ---
 
-**Araç herhangi bir Java projesinde çalışır; repo belirli bir projeye ait bilgi taşımaz.**
+**Repo belirli bir projeye ait bilgi taşımaz. Java ve Rust kapsamını kendi doğrulanmış senaryolarıyla değerlendir.**
 
 - Belgelere, testlere, test verilerine ve commit mesajlarına gerçek bir projenin sınıf, paket ya da dosya adlarını ve bulgu sayılarını yazma.
 
@@ -67,6 +69,8 @@ Java kodunda Law of Demeter ihlallerini bulan Rust aracı. Kural [README](README
 - Lint: `cargo clippy --workspace --all-targets -- -D warnings`
 
 - Örnek projeler (Maven, JDK ve ısınmış `~/.m2` gerekir): `cargo test -p law-of-demeter-cli --test examples -- --ignored`
+
+- Rust kaynak testleri uyumlu Cargo/rustc, rust-src ve proc macro sunucusu gerektirir; ayrıntılar [Rust CLI belgesindedir](docs/rust-cli.md). Docker testlerini [konteyner belgesindeki](docs/container.md) açık komutlarla çalıştır.
 
 ## Test Driven Development
 

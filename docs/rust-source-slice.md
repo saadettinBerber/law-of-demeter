@@ -1,6 +1,6 @@
 # İlk Rust kaynak adaptörü dilimi
 
-`crates/rust-source`, gerçek Cargo kaynağını mevcut `SourceReader` ve `TypeSource` portlarına bağlar. `RustProject::load(manifest, LoadOptions)` tek Cargo/rust-analyzer snapshot'ı yükler; iki port aynı snapshot'tan çıkarılan bildirimleri kullanır. `CheckProject` ve domain üretim kodu değişmez. Bu bir kütüphane API'sidir; CLI henüz Rust seçmez ve Docker imajı hâlâ Java analizi sunar.
+`crates/rust-source`, gerçek Cargo kaynağını mevcut `SourceReader` ve `TypeSource` portlarına bağlar. `RustProject::load(manifest, LoadOptions)` tek Cargo/rust-analyzer snapshot'ı yükler; iki port aynı snapshot'tan çıkarılan bildirimleri kullanır. `CheckProject` ve domain üretim kodu değişmez. Bu belge ilk kütüphane diliminin kapsamını ve doğrulama geçmişini kaydeder. Güncel çalıştırma seçenekleri [Rust CLI](rust-cli.md) ve [Docker](container.md) belgelerindedir.
 
 ## Doğrulanan davranış
 
@@ -29,7 +29,7 @@ Seçilen hedef bir trait bildirimi veya trait uygulamasına aitse `Unsupported` 
 
 Bütün gövde aktarılamazsa metot domain'e verilmez; sahibi ve konumu olan issue döner. Bu nedenle okunamayan gövdenin metot seçimi mevcut application sözleşmesinde ayrıca unmatched olabilir. Bilinen çağrıların kısmi gövdeden kurtarılması bu dilimin kapsamı değildir. Bağımsız fonksiyonlar ve desteklenmeyen aggregate bildirimleri açık issue taşır; modül sahte self yapılmaz.
 
-Yereller, alan kökenleri, oluşturma, reborrow, genel kontrol akışı, trait/generic dispatch, closure/async, makro traversal/tekrar önleme, standart koleksiyon/sarmalayıcı politikaları ve Rust CLI/çıkış politikası sonraki işlerdir. Mevcut senaryo dosyasındaki bu tür etkin gövdeler boş Method/Literal/Operation ile temiz gösterilmez.
+Yereller, alan kökenleri, oluşturma, reborrow, genel kontrol akışı, trait/generic dispatch, closure/async, makro traversal/tekrar önleme ve standart koleksiyon/sarmalayıcı politikaları ilk dilimin dışındadır. Mevcut senaryo dosyasındaki bu tür etkin gövdeler boş Method/Literal/Operation ile temiz gösterilmez. CLI'ın uyguladığı çıkış kodları [analiz sonuçları sözleşmesinde](rust-analysis-outcomes.md) açıklanır.
 
 ## Bağımlılık ve doğrulama kaydı
 
