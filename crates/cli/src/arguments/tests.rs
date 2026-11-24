@@ -238,6 +238,47 @@ fn an_option_can_carry_its_value_after_an_equals_sign() {
 }
 
 #[test]
+fn an_inline_java_path_keeps_its_leading_dash() {
+    let inline = parsed(&["--source=-src", "--classpath=out"]);
+    let relative = parsed(&["--source=./-src", "--classpath=out"]);
+
+    assert_eq!(
+        inline,
+        Command::Check(Arguments {
+            sources: vec![PathBuf::from("-src")],
+            classpath: vec![PathBuf::from("out")],
+            ..Arguments::default()
+        })
+    );
+    assert_eq!(
+        relative,
+        Command::Check(Arguments {
+            sources: vec![PathBuf::from("./-src")],
+            classpath: vec![PathBuf::from("out")],
+            ..Arguments::default()
+        })
+    );
+}
+
+#[test]
+fn inline_rust_paths_keep_their_leading_dashes() {
+    let command = parsed(&[
+        "--rust=-library/Cargo.toml",
+        "--package=shop",
+        "--target-dir=-analysis",
+        "--features=payment",
+    ]);
+
+    let Command::Check(arguments) = command else {
+        panic!("check command")
+    };
+    let rust = arguments.rust.expect("Rust configuration");
+    assert_eq!(rust.manifest, PathBuf::from("-library/Cargo.toml"));
+    assert_eq!(rust.target_dir, Some(PathBuf::from("-analysis")));
+    assert_eq!(rust.features, ["payment"]);
+}
+
+#[test]
 fn help_is_requested_with_either_spelling_and_needs_no_source() {
     let commands = [parsed(&["--help"]), parsed(&["-h"])];
 

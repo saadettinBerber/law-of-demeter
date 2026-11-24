@@ -85,6 +85,39 @@ fn an_unmatched_selection_returns_two() {
     );
 }
 
+#[test]
+#[ignore = "requires Docker engine and a built image; run with --ignored"]
+fn an_inline_java_source_path_can_begin_with_a_dash() {
+    let project = ContainerProject::compiled();
+    fs::rename(
+        project.path.join("src/main/java"),
+        project.path.join("-src"),
+    )
+    .expect("source directory with a leading dash");
+    let arguments = [
+        "--classpath=target/classes",
+        "--only=shop.OrderService#pay",
+        "--show-allowed",
+    ];
+
+    let relative = project.analyze(&[&["--source=./-src"][..], &arguments].concat());
+    let inline = project.analyze(&[&["--source=-src"][..], &arguments].concat());
+
+    assert_eq!(
+        relative.status.code(),
+        Some(0),
+        "{}",
+        text(&relative.stderr)
+    );
+    assert_eq!(inline.status.code(), Some(0), "{}", text(&inline.stderr));
+    let report = text(&inline.stdout);
+    assert!(
+        report.contains("OrderService.java:5  shop.OrderService.pay  charge()  Allowed:"),
+        "{report}"
+    );
+    assert_complete(&report);
+}
+
 fn assert_complete(report: &str) {
     assert!(report.contains("unresolved 0)"), "{report}");
     assert!(report.contains("Source errors: 0"), "{report}");

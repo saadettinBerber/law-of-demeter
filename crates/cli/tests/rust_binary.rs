@@ -257,6 +257,43 @@ fn cargo_features_and_no_default_features_reach_the_active_source_configuration(
 }
 
 #[test]
+fn inline_rust_paths_keep_features_and_selection_active() {
+    let project = RustFixture::new(&format!(
+        "{CLEAN}#[cfg(feature = \"payment\")]\nimpl Wallet {{ pub fn pay(&self) {{ self.debit(); }} }}\n"
+    ));
+    project.extend_manifest("[features]\npayment = []\n");
+    let library = project.path.join("-library");
+    fs::create_dir(&library).expect("nested library");
+    for file in ["Cargo.toml", "Cargo.lock", "lib.rs"] {
+        fs::rename(project.path.join(file), library.join(file)).expect("move library source");
+    }
+
+    let output = project.analyze(&[
+        "--rust=-library/Cargo.toml",
+        "--target-dir=-analysis",
+        "--features=payment",
+        "--only=Wallet#pay",
+        "--show-allowed",
+    ]);
+
+    assert_code(&output, 0);
+    assert!(text(&output.stdout).contains("debit()  Allowed: f's own object"));
+    let context = text(&output.stderr);
+    assert!(
+        context.contains(&format!(
+            "Analysis output: {}",
+            project
+                .path
+                .canonicalize()
+                .expect("project path")
+                .join("-analysis")
+                .display()
+        )),
+        "{context}"
+    );
+}
+
+#[test]
 fn an_ambiguous_type_suffix_requires_an_explicit_catalog_choice() {
     let project = RustFixture::new(
         "pub mod first { pub struct Wallet; }\npub mod second { pub struct Wallet; }\n",

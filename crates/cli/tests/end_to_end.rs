@@ -57,3 +57,59 @@ fn a_java_project_is_judged_from_source_and_compiled_classes() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+#[ignore = "requires a JDK in JAVA_HOME; run with --ignored"]
+fn an_inline_java_source_path_can_begin_with_a_dash() {
+    let project = tempfile::tempdir().expect("temporary Java project");
+    let source = project.path().join("-src");
+    fs::create_dir(&source).expect("source directory");
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/container/OrderService.java"),
+        source.join("OrderService.java"),
+    )
+    .expect("Java fixture");
+    let jdk = PathBuf::from(std::env::var_os("JAVA_HOME").expect("JAVA_HOME points to a JDK"));
+    let compiled = Command::new(jdk.join("bin/javac"))
+        .current_dir(project.path())
+        .args(["-d", "out", "./-src/OrderService.java"])
+        .output()
+        .expect("Java compiler");
+    assert!(
+        compiled.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let analyze = |source| {
+        Command::new(env!("CARGO_BIN_EXE_law-of-demeter"))
+            .current_dir(project.path())
+            .args([
+                source,
+                "--classpath=out",
+                "--only=shop.OrderService#pay",
+                "--show-allowed",
+            ])
+            .output()
+            .expect("Java CLI")
+    };
+
+    let relative = analyze("--source=./-src");
+    let inline = analyze("--source=-src");
+
+    assert_eq!(
+        relative.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&relative.stderr)
+    );
+    assert_eq!(
+        inline.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&inline.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&inline.stdout)
+            .contains("OrderService.java:5  shop.OrderService.pay  charge()  Allowed:")
+    );
+}

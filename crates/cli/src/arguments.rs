@@ -95,7 +95,7 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
     let mut targets = Vec::new();
     let mut arguments = arguments.into_iter().flat_map(split_at_equals);
     while let Some(argument) = arguments.next() {
-        let option = argument.to_string_lossy();
+        let option = argument.text.to_string_lossy();
         match option.as_ref() {
             "--help" | "-h" => return Ok(Command::Help),
             "--skill" => return Ok(Command::Skill),
@@ -190,24 +190,42 @@ pub fn parse<I: IntoIterator<Item = OsString>>(arguments: I) -> Result<Command, 
     Ok(Command::Check(parsed))
 }
 
-fn split_at_equals(argument: OsString) -> Vec<OsString> {
+struct Token {
+    text: OsString,
+    attached: bool,
+}
+
+fn split_at_equals(argument: OsString) -> Vec<Token> {
     let split = argument
         .to_str()
         .filter(|text| text.starts_with("--"))
         .and_then(|text| text.split_once('='));
     match split {
-        Some((option, value)) => vec![option.into(), value.into()],
-        None => vec![argument],
+        Some((option, value)) => vec![
+            Token {
+                text: option.into(),
+                attached: false,
+            },
+            Token {
+                text: value.into(),
+                attached: true,
+            },
+        ],
+        None => vec![Token {
+            text: argument,
+            attached: false,
+        }],
     }
 }
 
 fn value(
     option: &str,
-    arguments: &mut impl Iterator<Item = OsString>,
+    arguments: &mut impl Iterator<Item = Token>,
 ) -> Result<OsString, UsageError> {
     arguments
         .next()
-        .filter(|value| !value.to_string_lossy().starts_with('-'))
+        .filter(|value| value.attached || !value.text.to_string_lossy().starts_with('-'))
+        .map(|value| value.text)
         .ok_or_else(|| UsageError(format!("{option} needs a value")))
 }
 
