@@ -157,6 +157,293 @@ fn an_ordinary_associated_function_is_not_treated_as_a_constructor() {
     assert!(report.findings().is_empty(), "{report:?}");
 }
 
+#[test]
+fn locals_and_normal_borrows_keep_the_chain_receivers_origin() {
+    let project = load_fixture();
+
+    let report = check(
+        &project,
+        &[
+            "through_local",
+            "through_reborrow",
+            "parameter_reborrow",
+            "shared_borrow",
+        ],
+    );
+
+    assert_eq!(
+        verdicts(&report),
+        [
+            (
+                "through_local".into(),
+                Verdict::allowed("customer", 168, Reason::parameter("order"))
+            ),
+            (
+                "through_local".into(),
+                Verdict::violation(
+                    "wallet",
+                    169,
+                    Reason::local("customer", Reason::return_of("customer"))
+                )
+            ),
+            (
+                "through_local".into(),
+                Verdict::violation(
+                    "withdraw",
+                    170,
+                    Reason::local("wallet", Reason::return_of("wallet"))
+                )
+            ),
+            (
+                "through_reborrow".into(),
+                Verdict::allowed("customer", 174, Reason::parameter("order"))
+            ),
+            (
+                "through_reborrow".into(),
+                Verdict::violation(
+                    "wallet",
+                    176,
+                    Reason::local(
+                        "temporary",
+                        Reason::local("customer", Reason::return_of("customer"))
+                    )
+                )
+            ),
+            (
+                "through_reborrow".into(),
+                Verdict::violation(
+                    "withdraw",
+                    177,
+                    Reason::local("wallet", Reason::return_of("wallet"))
+                )
+            ),
+            (
+                "parameter_reborrow".into(),
+                Verdict::allowed(
+                    "activate",
+                    182,
+                    Reason::local("temporary", Reason::parameter("customer"))
+                )
+            ),
+            (
+                "shared_borrow".into(),
+                Verdict::allowed("wallet_shared", 253, Reason::parameter("order"))
+            ),
+            (
+                "shared_borrow".into(),
+                Verdict::violation(
+                    "balance",
+                    255,
+                    Reason::local(
+                        "borrowed",
+                        Reason::local("wallet", Reason::return_of("wallet_shared"))
+                    )
+                )
+            ),
+        ]
+    );
+    assert_complete(&report);
+}
+
+#[test]
+fn moving_owned_values_and_copying_values_or_references_do_not_wash_their_origin() {
+    let project = load_fixture();
+
+    let report = check(
+        &project,
+        &["shared_copy", "owned_move", "moved_parameter", "copy_value"],
+    );
+
+    assert_eq!(
+        verdicts(&report),
+        [
+            (
+                "shared_copy".into(),
+                Verdict::allowed("wallet_shared", 186, Reason::parameter("order"))
+            ),
+            (
+                "shared_copy".into(),
+                Verdict::violation(
+                    "balance",
+                    188,
+                    Reason::local(
+                        "copied",
+                        Reason::local("wallet", Reason::return_of("wallet_shared"))
+                    )
+                )
+            ),
+            (
+                "owned_move".into(),
+                Verdict::allowed("into_wallet", 192, Reason::parameter("order"))
+            ),
+            (
+                "owned_move".into(),
+                Verdict::violation(
+                    "withdraw",
+                    194,
+                    Reason::local(
+                        "moved",
+                        Reason::local("wallet", Reason::return_of("into_wallet"))
+                    )
+                )
+            ),
+            (
+                "moved_parameter".into(),
+                Verdict::allowed(
+                    "withdraw",
+                    199,
+                    Reason::local("moved", Reason::parameter("wallet"))
+                )
+            ),
+            (
+                "copy_value".into(),
+                Verdict::allowed("ticket", 289, Reason::parameter("dispatch"))
+            ),
+            (
+                "copy_value".into(),
+                Verdict::violation(
+                    "stamp",
+                    291,
+                    Reason::local(
+                        "copied",
+                        Reason::local("ticket", Reason::return_of("ticket"))
+                    )
+                )
+            ),
+        ]
+    );
+    assert_complete(&report);
+}
+
+#[test]
+fn reference_aliases_preserve_self_identity_and_genuine_creation() {
+    let project = load_fixture();
+    let wallet = TypeRef::class(&project_type(&project, "Wallet"));
+
+    let report = check(&project, &["alias_self", "alias_peer", "create_borrowed"]);
+
+    assert_eq!(
+        verdicts(&report),
+        [
+            (
+                "alias_self".into(),
+                Verdict::allowed("withdraw", 204, Reason::field("wallet"))
+            ),
+            (
+                "alias_peer".into(),
+                Verdict::violation("withdraw", 209, Reason::field_of("wallet"))
+            ),
+            (
+                "create_borrowed".into(),
+                Verdict::allowed("amount", 214, Reason::parameter("seed"))
+            ),
+            (
+                "create_borrowed".into(),
+                Verdict::allowed(
+                    "withdraw",
+                    216,
+                    Reason::local("wallet", Reason::created(wallet))
+                )
+            ),
+        ]
+    );
+    assert_complete(&report);
+}
+
+#[test]
+fn custom_deref_coercions_and_raw_pointer_origins_stay_explicitly_unsupported() {
+    let project = load_fixture();
+
+    let report = check(
+        &project,
+        &["custom_projection", "coerced_projection", "raw_projection"],
+    );
+
+    let owners: Vec<_> = report
+        .issues()
+        .iter()
+        .map(|issue| {
+            (
+                issue.kind(),
+                issue.owner().and_then(Target::method_name),
+                issue.line(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        owners,
+        [
+            (
+                AnalysisIssueKind::Unsupported,
+                Some("custom_projection"),
+                Some(220)
+            ),
+            (
+                AnalysisIssueKind::Unsupported,
+                Some("coerced_projection"),
+                Some(225)
+            ),
+            (
+                AnalysisIssueKind::Unsupported,
+                Some("raw_projection"),
+                Some(230)
+            ),
+        ],
+        "{report:?}"
+    );
+    assert!(report.issues().iter().all(|issue| {
+        issue.path() == fixture().join("lib.rs")
+            && issue
+                .owner()
+                .is_some_and(|owner| owner.class_name() == project_type(&project, "PaymentService"))
+    }));
+    assert_eq!(report.counts().methods, 0);
+    assert!(report.findings().is_empty());
+    assert!(report.source_errors().is_empty());
+    assert!(report.type_errors().is_empty());
+}
+
+#[test]
+fn shadowing_and_reassignment_are_not_reported_using_a_stale_local_origin() {
+    let project = load_fixture();
+
+    let report = check(&project, &["shadowed", "reassigned"]);
+
+    let owners: Vec<_> = report
+        .issues()
+        .iter()
+        .map(|issue| {
+            (
+                issue.kind(),
+                issue.owner().and_then(Target::method_name),
+                issue.line(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        owners,
+        [
+            (AnalysisIssueKind::Unsupported, Some("shadowed"), Some(239)),
+            (
+                AnalysisIssueKind::Unsupported,
+                Some("reassigned"),
+                Some(246)
+            ),
+        ],
+        "{report:?}"
+    );
+    assert!(report.issues().iter().all(|issue| {
+        issue.path() == fixture().join("lib.rs")
+            && issue
+                .owner()
+                .is_some_and(|owner| owner.class_name() == project_type(&project, "PaymentService"))
+    }));
+    assert_eq!(report.counts().methods, 0);
+    assert!(report.findings().is_empty());
+    assert!(report.source_errors().is_empty());
+    assert!(report.type_errors().is_empty());
+}
+
 fn load_fixture() -> RustProject {
     let compiled = Command::new("cargo")
         .args(["check", "--offline", "--locked", "--manifest-path"])

@@ -29,7 +29,7 @@ Seçilen hedef bir trait bildirimi veya trait uygulamasına aitse `Unsupported` 
 
 Bütün gövde aktarılamazsa metot domain'e verilmez; sahibi ve konumu olan issue döner. Bu nedenle okunamayan gövdenin metot seçimi mevcut application sözleşmesinde ayrıca unmatched olabilir. Bilinen çağrıların kısmi gövdeden kurtarılması bu dilimin kapsamı değildir. Bağımsız fonksiyonlar ve desteklenmeyen aggregate bildirimleri açık issue taşır; modül sahte self yapılmaz.
 
-Yereller, alan kökenleri, oluşturma, reborrow, genel kontrol akışı, trait/generic dispatch, closure/async, makro traversal/tekrar önleme ve standart koleksiyon/sarmalayıcı politikaları ilk dilimin dışındadır. Mevcut senaryo dosyasındaki bu tür etkin gövdeler boş Method/Literal/Operation ile temiz gösterilmez. CLI'ın uyguladığı çıkış kodları [analiz sonuçları sözleşmesinde](rust-analysis-outcomes.md) açıklanır.
+Sonraki [arkadaş kökleri dilimi](rust-friend-origins.md), doğrudan alan kökenlerini, basit HIR local bağlarını, gerçek named/tuple struct oluşturmayı ve normal referans/reborrow biçimlerini taşır. Taşıma ve Copy kopyası mevcut kökeni korur. Shadowing ve yeniden atama, genel kontrol akışı, trait/generic dispatch, closure/async ve standart koleksiyon/sarmalayıcı politikaları açık kalır. Desteklenmeyen etkin gövdeler boş Method/Literal/Operation ile temiz gösterilmez. Etkin trait varsayılan gövdeleri de [açık issue](rust-trait-completeness.md) taşır; bu genel trait desteği değildir. CLI'ın uyguladığı çıkış kodları [analiz sonuçları sözleşmesinde](rust-analysis-outcomes.md) açıklanır.
 
 ## Bağımlılık ve doğrulama kaydı
 

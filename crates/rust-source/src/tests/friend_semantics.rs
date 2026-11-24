@@ -67,19 +67,6 @@ fn ra_resolves_the_same_private_field_on_self_and_on_another_instance() {
     );
 }
 
-fn field_in(source: &ast::SourceFile, method: &str) -> ast::FieldExpr {
-    source
-        .syntax()
-        .descendants()
-        .filter_map(ast::Fn::cast)
-        .find(|function| function.name().is_some_and(|name| name.text() == method))
-        .expect("caller exists")
-        .syntax()
-        .descendants()
-        .find_map(ast::FieldExpr::cast)
-        .expect("caller has a field")
-}
-
 #[test]
 fn ra_distinguishes_a_tuple_constructor_alias_from_a_function_and_resolves_local_bindings() {
     use ra_ap_hir::{CallableKind, PathResolution};
@@ -179,6 +166,105 @@ fn ra_distinguishes_a_tuple_constructor_alias_from_a_function_and_resolves_local
     assert_eq!(function_target.as_function(), Some(constructor_function));
     assert_eq!(resolved_usage, Some(PathResolution::Local(local)));
     assert_eq!(captured, holder_params[0].as_local(&snapshot.db));
+}
+
+#[test]
+fn ra_distinguishes_reference_dereference_from_custom_projection_and_coercion() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let project = RustProject::load(
+        &root.join("tests/fixtures/friends/Cargo.toml"),
+        LoadOptions::new(
+            "friend-origins",
+            &root.join("../../target/rust-friends-journey/analyzed/reference-learning"),
+        ),
+    )
+    .expect("friend source loads");
+    let snapshot = &project._snapshot;
+    let semantics = Semantics::new(&snapshot.db);
+    let source = semantics.parse(ra_ap_hir::EditionedFileId::new(
+        &snapshot.db,
+        snapshot.selected.root_file(&snapshot.db),
+        snapshot.selected.edition(&snapshot.db),
+    ));
+    let normal = function_in(&source, "parameter_reborrow")
+        .body()
+        .expect("normal body exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::PrefixExpr::cast)
+        .expect("reference dereference exists");
+    let custom = function_in(&source, "custom_projection")
+        .body()
+        .expect("custom body exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::PrefixExpr::cast)
+        .expect("custom dereference exists");
+    let coercion = function_in(&source, "coerced_projection")
+        .body()
+        .expect("coercion body exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::LetStmt::cast)
+        .and_then(|statement| statement.initializer())
+        .expect("coercion initializer exists");
+
+    let normal_operand = semantics
+        .type_of_expr(&normal.expr().expect("normal operand exists"))
+        .expect("normal operand resolves");
+    let custom_operand = semantics
+        .type_of_expr(&custom.expr().expect("custom operand exists"))
+        .expect("custom operand resolves");
+    let coercion_type = semantics
+        .type_of_expr(&coercion)
+        .expect("coercion resolves");
+
+    assert_eq!(normal.op_kind(), Some(ast::UnaryOp::Deref));
+    assert!(normal_operand.original.as_reference_inner().is_some());
+    assert_eq!(custom.op_kind(), Some(ast::UnaryOp::Deref));
+    assert!(custom_operand.original.as_reference_inner().is_none());
+    assert_eq!(
+        custom_operand
+            .original
+            .as_adt()
+            .expect("wrapper is an ADT")
+            .name(&snapshot.db)
+            .as_str(),
+        "Wrapper"
+    );
+    assert_eq!(
+        coercion_type
+            .original
+            .as_reference_inner()
+            .and_then(|ty| ty.as_adt())
+            .expect("original wrapper resolves")
+            .name(&snapshot.db)
+            .as_str(),
+        "Wrapper"
+    );
+    assert_eq!(
+        coercion_type
+            .adjusted
+            .and_then(|ty| ty.as_reference_inner())
+            .and_then(|ty| ty.as_adt())
+            .expect("adjusted wallet resolves")
+            .name(&snapshot.db)
+            .as_str(),
+        "Wallet"
+    );
+}
+
+fn field_in(source: &ast::SourceFile, method: &str) -> ast::FieldExpr {
+    source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Fn::cast)
+        .find(|function| function.name().is_some_and(|name| name.text() == method))
+        .expect("caller exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::FieldExpr::cast)
+        .expect("caller has a field")
 }
 
 fn function_in(source: &ast::SourceFile, name: &str) -> ast::Fn {

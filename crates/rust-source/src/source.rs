@@ -319,6 +319,19 @@ impl<'db> BodyReader<'_, 'db> {
             ast::Expr::FieldExpr(field) => self.field(field),
             ast::Expr::RecordExpr(record) => self.record(record),
             ast::Expr::CallExpr(call) => self.tuple(call),
+            ast::Expr::RefExpr(reference) => self.reference(reference),
+            ast::Expr::PrefixExpr(prefix) => self.dereference(prefix),
+            ast::Expr::ParenExpr(parenthesized) => {
+                self.same_value(expression)?;
+                let value = parenthesized.expr().ok_or_else(|| {
+                    self.issue(
+                        AnalysisIssueKind::Parse,
+                        expression.syntax(),
+                        "parenthesized value is missing",
+                    )
+                })?;
+                self.expression(&value)
+            }
             ast::Expr::Literal(_) => Ok(Expression::literal()),
             ast::Expr::PathExpr(path) => {
                 self.same_value(expression)?;
@@ -340,6 +353,53 @@ impl<'db> BodyReader<'_, 'db> {
                 "expression is outside the supported scope",
             )),
         }
+    }
+
+    fn reference(&self, reference: &ast::RefExpr) -> Result<Expression, AnalysisIssue> {
+        if reference.raw_token().is_some() {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                reference.syntax(),
+                "raw references are outside the supported scope",
+            ));
+        }
+        self.same_value(&ast::Expr::RefExpr(reference.clone()))?;
+        let value = reference.expr().ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Parse,
+                reference.syntax(),
+                "borrowed value is missing",
+            )
+        })?;
+        self.expression(&value)
+    }
+
+    fn dereference(&self, prefix: &ast::PrefixExpr) -> Result<Expression, AnalysisIssue> {
+        let value = prefix.expr().ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Parse,
+                prefix.syntax(),
+                "dereferenced value is missing",
+            )
+        })?;
+        let info = self.semantics.type_of_expr(&value).ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::TypeResolution,
+                value.syntax(),
+                "dereferenced value type is unresolved",
+            )
+        })?;
+        if prefix.op_kind() != Some(ast::UnaryOp::Deref)
+            || info.original.as_reference_inner().is_none()
+        {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                prefix.syntax(),
+                "only normal reference dereference is supported",
+            ));
+        }
+        self.same_value(&ast::Expr::PrefixExpr(prefix.clone()))?;
+        self.expression(&value)
     }
 
     fn local(&self, local: Local<'db>, node: &SyntaxNode) -> Result<Expression, AnalysisIssue> {
@@ -691,6 +751,7 @@ impl<'db> BodyReader<'_, 'db> {
             )
         })?;
         for argument in arguments.args() {
+            self.same_value(&argument)?;
             translated = translated.with(self.expression(&argument)?);
         }
         Ok(translated)
