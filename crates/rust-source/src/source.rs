@@ -22,6 +22,28 @@ pub(super) fn read(
     let mut owners = HashMap::new();
     for module in snapshot.selected.modules(&snapshot.db) {
         for declaration in module.declarations(&snapshot.db) {
+            if let ModuleDef::Trait(trait_) = declaration {
+                for item in trait_.items(&snapshot.db) {
+                    let AssocItem::Function(function) = item else {
+                        continue;
+                    };
+                    if !function.has_body(&snapshot.db) {
+                        continue;
+                    }
+                    let message = "trait default method bodies are outside the supported scope";
+                    let location = semantics.source(function)
+                        .and_then(|source| source.value.body())
+                        .and_then(|body| snapshot.location(&semantics, body.syntax()).ok())
+                        .map(|(path, line)| ReadError::at_line(&path, line, message))
+                        .unwrap_or_else(|| ReadError::new(&snapshot.source_root, "trait default body has no physical source location and is unsupported"));
+                    let mut issue = AnalysisIssue::new(AnalysisIssueKind::Unsupported, location);
+                    if let Some(owner) = snapshot.definition_identity(declaration) {
+                        issue = issue
+                            .in_body(Target::method(&owner, function.name(&snapshot.db).as_str()));
+                    }
+                    issues.push(issue);
+                }
+            }
             if let ModuleDef::Function(function) = declaration
                 && let Some(source) = semantics.source(function)
                 && let Ok((path, line)) = snapshot.location(&semantics, source.value.syntax())

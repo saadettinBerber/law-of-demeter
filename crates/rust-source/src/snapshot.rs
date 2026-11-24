@@ -152,11 +152,20 @@ impl Snapshot {
     }
 
     pub(super) fn identity(&self, adt: Adt) -> String {
-        let krate = adt.module(&self.db).krate(&self.db);
-        let path = ModuleDef::Adt(adt)
+        self.definition_identity(ModuleDef::Adt(adt))
+            .unwrap_or_else(|| adt.name(&self.db).as_str().to_owned())
+    }
+
+    pub(super) fn definition_identity(&self, definition: ModuleDef) -> Option<String> {
+        let krate = definition.module(&self.db)?.krate(&self.db);
+        let path = definition
             .canonical_path(&self.db, krate.edition(&self.db))
-            .unwrap_or_else(|| adt.name(&self.db).as_str().to_owned());
-        match self.identities.get(&krate) {
+            .or_else(|| {
+                definition
+                    .name(&self.db)
+                    .map(|name| name.as_str().to_owned())
+            })?;
+        Some(match self.identities.get(&krate) {
             Some(prefix) => format!("{prefix}::{path}"),
             None => format!(
                 "{}::{path}",
@@ -165,7 +174,7 @@ impl Snapshot {
                     .map(|name| name.to_string())
                     .unwrap_or_default()
             ),
-        }
+        })
     }
 
     pub(super) fn type_ref(&self, ty: &Type<'_>) -> Result<TypeRef, String> {

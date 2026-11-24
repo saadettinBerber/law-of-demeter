@@ -1,3 +1,5 @@
+mod trait_semantics;
+
 use std::path::Path;
 
 use law_of_demeter_core::application::TypeSource;

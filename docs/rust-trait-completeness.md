@@ -1,0 +1,13 @@
+# Trait default gövdesinde eksik analiz kaydı
+
+Önceki kaynak gezintisi modül fonksiyonları ve impl öğelerini okuyordu; trait'in sağladığı etkin metot gövdesi görünmüyordu. Derlenen Wallet/Checkout örneği bu yüzden 1 metot, 0 çağrı, 0 issue ile yanlış temiz rapor üretiyordu. Gerçek Cargo kontrolünden geçen kaynak→`RustProject`→`CheckProject` regresyonu önce bu raporda kırmızı oldu.
+
+Kaynak okuyucu artık etkin `ModuleDef::Trait` öğelerini HIR üzerinden gezer. `Function::has_body` gerçek default gövdeyi required imzadan ayırır; cfg dışı öğeler HIR listesine girmez. Her etkin default gövde, gerçek trait/fonksiyon kimliğinden kurulan owner ve mevcut kaynak konumuyla `Unsupported` üretir. ADT ve trait kimliklerinin paket/hedef/modül kısmı aynı private tanım helper'ından gelir; public API veya core değişmez.
+
+Trait için sahte Method, module-self veya TypeShape üretilmez. Konumu bulunamayan/makro tarafından üretilen gövde kök kaynak yolunda açık fallback issue taşır; sessizce atlanmaz. Başka açıkça seçilen Wallet::debit, bu unrelated trait gövdesinin owner'lı issue'sunu almaz. Trait çağrıları ve genel trait yürütme desteği bu düzeltmenin kapsamı değildir.
+
+`tests/fixtures/trait-defaults` normal, yalnız imza ve makro varyantlarında gerçek `cargo check --lib --locked --offline` ile doğrulanır. Tam normal beklenti `lib.rs:11`, Checkout.pay, Unsupported; yöntem sayısı yalnız gerçek Wallet::debit nedeniyle 1, çağrı sayısı 0'dır. Required/cfg kontrolü ve ilgisiz seçim ayrı testlerdir. HIR öğrenme testi, etkin öğe ve has_body bayraklarını bağımsız doğrular.
+
+Kayıtlar bu worktree'nin `target/rust-friends-journey` dizinindedir: `trait-completeness-red.log`, `trait-completeness-green.log`, `trait-generated-green.log`, `trait-completeness-learning.log`. Owner'ı kaldıran izole bozulma ilgisiz seçim testinde; fiziksel konumu olmayan default'u atan bozulma gerçek makro testinde kırıldı. `trait-faults.json` iki komutu, exit 101'leri ve byte eş geri almayı kaydeder. Bunlar derleme/kurulum hatası değil gerçek rapor assertion'larıdır.
+
+Son doğrulama: `cargo test --offline --locked -p law-of-demeter-rust-source` 25 geçti, 0 hata/ignored; başlangıçtaki 17 kontrol ve P2 guard'ları dahil. `cargo fmt --all --check` ve `cargo clippy --workspace --all-targets --offline --locked -- -D warnings` exit 0. Exact komut/süre/çıkışlar `trait-completeness-verification.json` içindedir. Own `target/rust-friends-journey`, debug 0, incremental 0, jobs 1, test threads 1 kullanıldı; kök Cargo/lock, core/CLI/Java/vendor/probe değişmedi. Oluşturma/yerel eşlemesi bu commit'e alınmadı; ayrı WIP olarak korunur.
