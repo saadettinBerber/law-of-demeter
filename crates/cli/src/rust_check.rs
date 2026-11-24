@@ -52,14 +52,23 @@ pub(crate) fn check(
     let report = CheckProject::new(&project, &project)
         .with_selection(Selection::of(targets))
         .execute();
+    let unmatched = report
+        .unmatched_targets()
+        .iter()
+        .map(|target| {
+            let class = names.display(target.class_name());
+            match target.method_name() {
+                Some(method) => format!("{class}#{method}"),
+                None => class,
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
     let mut uncertainty = None;
     if !report.unmatched_targets().is_empty() && !incomplete(&report) {
         let all = CheckProject::new(&project, &project).execute();
         if !incomplete(&all) {
-            return Err(format!(
-                "nothing matches --only: {}",
-                arguments.targets.join(", ")
-            ));
+            return Err(format!("nothing matches --only: {}", unmatched));
         }
         uncertainty = Some(all);
     }
@@ -67,7 +76,7 @@ pub(crate) fn check(
         writeln!(
             err,
             "Selection could not be verified because project analysis is incomplete: {}",
-            arguments.targets.join(", ")
+            unmatched
         )
         .ok();
     }

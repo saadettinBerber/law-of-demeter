@@ -145,6 +145,24 @@ fn a_nonexistent_selection_in_a_complete_project_returns_two() {
 }
 
 #[test]
+fn only_unmatched_selections_are_named_in_the_no_match_error() {
+    let project = RustFixture::new(CLEAN);
+
+    let output = project.analyze(&["--only=Wallet#debit", "--only=Missing"]);
+
+    assert_code(&output, 2);
+    let context = text(&output.stderr);
+    assert!(
+        context.contains("Error: nothing matches --only: Missing\n"),
+        "{context}"
+    );
+    assert!(
+        !context.contains("nothing matches --only: Wallet#debit"),
+        "{context}"
+    );
+}
+
+#[test]
 fn an_unsupported_selected_body_is_incomplete_even_when_it_has_no_method_report() {
     let project = RustFixture::new(SOURCE);
 
@@ -211,6 +229,13 @@ fn uncertain_selection_keeps_only_selected_findings_and_counts() {
     assert!(
         !report.contains("No violations found.") && !report.contains("debit()  Violation:"),
         "{report}"
+    );
+    let context = text(&output.stderr);
+    assert!(
+        context.contains(
+            "Selection could not be verified because project analysis is incomplete: Missing#pay\n"
+        ),
+        "{context}"
     );
 }
 
