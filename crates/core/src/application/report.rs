@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use super::AnalysisIssue;
 use super::ports::ReadError;
 use super::selection::Target;
 use crate::domain::classification::HybridClass;
@@ -111,6 +112,7 @@ pub struct Report {
     pub(super) source_errors: Vec<ReadError>,
     pub(super) type_errors: Vec<ReadError>,
     pub(super) unmatched_targets: Vec<Target>,
+    pub(super) issues: Vec<AnalysisIssue>,
 }
 
 impl Report {
@@ -130,6 +132,7 @@ impl Report {
             source_errors,
             type_errors,
             unmatched_targets: Vec::new(),
+            issues: Vec::new(),
         }
     }
 
@@ -163,6 +166,10 @@ impl Report {
 
     pub fn type_errors(&self) -> &[ReadError] {
         &self.type_errors
+    }
+
+    pub fn issues(&self) -> &[AnalysisIssue] {
+        &self.issues
     }
 
     pub fn unmatched_targets(&self) -> &[Target] {

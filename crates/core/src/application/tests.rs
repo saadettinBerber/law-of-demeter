@@ -1,3 +1,5 @@
+mod analysis_issues;
+
 use std::cell::RefCell;
 use std::path::Path;
 

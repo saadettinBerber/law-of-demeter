@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use super::AnalysisIssue;
 use crate::domain::classification::{Platform, Types};
 use crate::domain::method::Method;
 use crate::domain::type_shape::TypeShape;
@@ -71,6 +72,10 @@ impl SourceFile {
 
 pub trait SourceReader {
     fn read(&self, types: &Types) -> Vec<Result<SourceFile, ReadError>>;
+
+    fn issues(&self) -> Vec<AnalysisIssue> {
+        Vec::new()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -82,4 +87,8 @@ pub struct TypeReading {
 
 pub trait TypeSource {
     fn read(&self) -> TypeReading;
+
+    fn project_types(&self) -> Vec<String> {
+        Vec::new()
+    }
 }

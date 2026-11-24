@@ -32,7 +32,8 @@ impl<'a> CheckProject<'a> {
         } = self.types.read();
         let types = shapes
             .into_iter()
-            .fold(Types::new().with_platform(platform), Types::with_shape);
+            .fold(Types::new().with_platform(platform), Types::with_shape)
+            .with_project_types(self.types.project_types());
         let files = self.sources.read(&types);
         let declared = files
             .iter()
@@ -41,6 +42,15 @@ impl<'a> CheckProject<'a> {
         let catalog = types.with_project_types(declared);
         let mut report = Report {
             type_errors: errors,
+            issues: self
+                .sources
+                .issues()
+                .into_iter()
+                .filter(|issue| {
+                    self.selection
+                        .selects_issue(issue, files.iter().flatten(), &catalog)
+                })
+                .collect(),
             unmatched_targets: self.selection.unmatched(files.iter().flatten(), &catalog),
             ..Report::default()
         };
