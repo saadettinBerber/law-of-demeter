@@ -1961,6 +1961,194 @@ fn adapted_method_bounds_do_not_reselect_a_new_subtype_overload() {
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac, javap and java; run with --ignored"]
+fn a_noninherited_package_method_does_not_replace_an_interface_default() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { Object same() { return this; } }",
+            ),
+            (
+                "beta/Contract.java",
+                "package beta; public interface Contract { default Contract same() { return new Other(); } void finish(); } class Other implements Contract { public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta; public final class Builder extends alpha.Base implements Contract { public void finish() {} }",
+            ),
+            (
+                "beta/OrderService.java",
+                "package beta;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Contract::same).forEach(Contract::finish);\n    }\n}",
+            ),
+            (
+                "beta/DispatchCheck.java",
+                "package beta; public class DispatchCheck { public static void main(String[] arguments) { Builder builder = new Builder(); Contract actual = java.util.List.of(builder).stream().map(Contract::same).findFirst().orElseThrow(); System.out.print(actual != builder && actual instanceof Other); } }",
+            ),
+        ],
+        "beta/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.OrderService")
+            .contains("REF_invokeInterface beta/Contract.same:()Lbeta/Contract;")
+    );
+    assert!(
+        project
+            .bytecode_target("beta.Contract")
+            .contains("class beta/Other")
+    );
+    assert_eq!(project.run_main("beta.DispatchCheck"), "true");
+
+    let output = project.check_target("beta.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  beta.OrderService.inspect  finish()  Violation: method reference Contract::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac, javap and java; run with --ignored"]
+fn a_noninherited_package_method_does_not_hide_a_default_receiver_return() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { Object same() { return new Object(); } }",
+            ),
+            (
+                "beta/Contract.java",
+                "package beta; public interface Contract { default Contract same() { return this; } void finish(); }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta; public final class Builder extends alpha.Base implements Contract { public void finish() {} }",
+            ),
+            (
+                "beta/OrderService.java",
+                "package beta;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Contract::same).forEach(Contract::finish);\n    }\n}",
+            ),
+            (
+                "beta/DispatchCheck.java",
+                "package beta; public class DispatchCheck { public static void main(String[] arguments) { Builder builder = new Builder(); Contract actual = java.util.List.of(builder).stream().map(Contract::same).findFirst().orElseThrow(); System.out.print(actual == builder); } }",
+            ),
+        ],
+        "beta/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.OrderService")
+            .contains("REF_invokeInterface beta/Contract.same:()Lbeta/Contract;")
+    );
+    assert!(!project.bytecode_target("beta.Builder").contains(" same("));
+    assert_eq!(project.run_main("beta.DispatchCheck"), "true");
+
+    let output = project.check_target("beta.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  beta.OrderService.inspect  finish()  Allowed: method reference Contract::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac, javap and java; run with --ignored"]
+fn an_inherited_public_implementation_is_used_only_for_a_proven_runtime_receiver() {
+    for (finality, class_body, default_body, runtime_check, exit, finish) in [
+        (
+            "final ",
+            "return this;",
+            "return new Other();",
+            "actual == builder",
+            0,
+            ":4  beta.OrderService.inspect  finish()  Allowed: method reference Contract::finish: the object returned by static call of() is a friend of f",
+        ),
+        (
+            "final ",
+            "return next;",
+            "return this;",
+            "actual == next && actual != builder",
+            1,
+            ":4  beta.OrderService.inspect  finish()  Violation: method reference Contract::finish: the object returned by same() is not a friend of f",
+        ),
+        (
+            "",
+            "return this;",
+            "return new Other();",
+            "actual == builder",
+            1,
+            ":4  beta.OrderService.inspect  finish()  Violation: method reference Contract::finish: the object returned by same() is not a friend of f",
+        ),
+    ] {
+        let base = format!(
+            "package alpha; public class Base implements beta.Contract {{ public beta.Contract next; public beta.Contract same() {{ {class_body} }} public void finish() {{}} }}"
+        );
+        let contract = format!(
+            "package beta; public interface Contract {{ default Contract same() {{ {default_body} }} void finish(); }} class Other implements Contract {{ public void finish() {{}} }}"
+        );
+        let builder = format!(
+            "package beta; public {finality}class Builder extends alpha.Base implements Contract {{}}"
+        );
+        let runtime = format!(
+            "package beta; public class DispatchCheck {{ public static void main(String[] arguments) {{ Builder builder = new Builder(); Contract next = new Other(); builder.next = next; Contract actual = java.util.List.of(builder).stream().map(Contract::same).findFirst().orElseThrow(); System.out.print({runtime_check}); }} }}"
+        );
+        let project = CompiledProject::sources(
+            &[
+                ("alpha/Base.java", &base),
+                ("beta/Contract.java", &contract),
+                ("beta/Builder.java", &builder),
+                (
+                    "beta/OrderService.java",
+                    "package beta;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Contract::same).forEach(Contract::finish);\n    }\n}",
+                ),
+                ("beta/DispatchCheck.java", &runtime),
+            ],
+            "beta/OrderService.java",
+        );
+        assert!(
+            project
+                .bytecode_target("beta.OrderService")
+                .contains("REF_invokeInterface beta/Contract.same:()Lbeta/Contract;")
+        );
+        assert!(
+            project
+                .bytecode_target("alpha.Base")
+                .contains("public beta.Contract same();")
+        );
+        assert!(!project.bytecode_target("beta.Builder").contains(" same("));
+        assert_eq!(project.run_main("beta.DispatchCheck"), "true");
+
+        let output = project.check_target("beta.OrderService", "inspect");
+
+        assert_eq!(output.status.code(), Some(exit), "{base}\n{builder}");
+        assert_eq!(
+            project
+                .verdicts(&output)
+                .iter()
+                .filter(|line| line.contains("  finish()  "))
+                .collect::<Vec<_>>(),
+            [finish],
+            "{base}\n{builder}"
+        );
+    }
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,

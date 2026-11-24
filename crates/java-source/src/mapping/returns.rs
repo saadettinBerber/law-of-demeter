@@ -539,15 +539,23 @@ impl MethodMapper<'_> {
             }
             return selected.method.returns_receiver();
         }
-        if let Some(selected) = classes.first() {
-            return selected.method.returns_receiver();
+        if let Some(implementation) = classes
+            .iter()
+            .find(|candidate| candidate.method.is_public())
+        {
+            return !implementation.method.is_abstract()
+                && implementation.method.returns_receiver();
         }
         let mut defaults = matching
             .iter()
-            .filter(|candidate| !candidate.method.is_abstract())
+            .filter(|candidate| {
+                candidate.ancestor.shape.kind() == TypeKind::Interface
+                    && !candidate.method.is_abstract()
+            })
             .filter(|candidate| {
                 !matching.iter().any(|other| {
-                    other.ancestor.shape.name() != candidate.ancestor.shape.name()
+                    other.ancestor.shape.kind() == TypeKind::Interface
+                        && other.ancestor.shape.name() != candidate.ancestor.shape.name()
                         && super::lineage::closure(
                             self.types,
                             &TypeRef::class(other.ancestor.shape.name()),
