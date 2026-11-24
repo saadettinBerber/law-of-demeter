@@ -1,0 +1,79 @@
+{
+  "archives": [
+    {
+      "package": "ra_ap_hir_def",
+      "version": "0.0.358",
+      "url": "https://crates.io/api/v1/crates/ra_ap_hir_def/0.0.358/download",
+      "sha256": "7ef811f35ed1c394d27a7e0d79869aa4891108496736597b87bbc632a4eee1ec",
+      "vcs": {
+        "git": {
+          "sha1": "2ad81e72b7e978cb800dffe1bcce5c9f98032acf",
+          "dirty": true
+        },
+        "path_in_vcs": "crates/hir-def"
+      }
+    },
+    {
+      "package": "ra_ap_hir_ty",
+      "version": "0.0.358",
+      "url": "https://crates.io/api/v1/crates/ra_ap_hir_ty/0.0.358/download",
+      "sha256": "725f913d562b8d794035bc3bcc3e62adf09b843e11b443750bf8a7027ec1d3bf",
+      "vcs": {
+        "git": {
+          "sha1": "2ad81e72b7e978cb800dffe1bcce5c9f98032acf",
+          "dirty": true
+        },
+        "path_in_vcs": "crates/hir-ty"
+      }
+    }
+  ],
+  "source_patch": {
+    "file": "method-token-edition.patch",
+    "sha256": "b6f555c62e922cc341e961ba64d410025cf3f3c23e949f6be4f03f1100b71a2e",
+    "strip": 1,
+    "fuzz": 0
+  },
+  "probe_patch": {
+    "file": "probe-experiment.patch",
+    "sha256": "9043140de9a2a8bcb4d4cd5d35280ea962c499f7445bf76cd04b463dbc19351b",
+    "strip": 1,
+    "fuzz": 0
+  },
+  "files": [
+    {
+      "file": "ra_ap_hir_def-0.0.358/src/expr_store.rs",
+      "before_sha256": "9d15ae1a01af9e84e91d176ac8960394d4f15dd9b170fcc12896714affb021f7",
+      "after_sha256": "56a21b0c5ff1260a3dd7653ac10d6dadc8f5f7607ae5fe009d1e9eb35efc2608"
+    },
+    {
+      "file": "ra_ap_hir_def-0.0.358/src/expr_store/lower.rs",
+      "before_sha256": "4f38f2fc98a3f05408427bc7266c6c7f70e2f2d61092a6afb38bee358e8a5d7f",
+      "after_sha256": "5a4fb3232c6db5a104108c96be01de1d4839e58ec37fe07b07867766ed4501b7"
+    },
+    {
+      "file": "ra_ap_hir_def-0.0.358/src/expr_store/pretty.rs",
+      "before_sha256": "fcd1337968d1d587bf038487cc366dc2facd864e7a6340b75c77434f1f67a987",
+      "after_sha256": "e8d100175fc4572c8f9a142f6d529166f70a66ca77cabbf77a5f651dce8578bc"
+    },
+    {
+      "file": "ra_ap_hir_def-0.0.358/src/hir.rs",
+      "before_sha256": "82b8a483610ebacac1543e10b8dd0b4cf43a4b5e1501f3f906537be76f0ad6e1",
+      "after_sha256": "dc5da63faee105581ab2639abe572ad8b1a3c77084b974cc2f85fc49f2104884"
+    },
+    {
+      "file": "ra_ap_hir_ty-0.0.358/src/infer/expr.rs",
+      "before_sha256": "241fa4f1fdac35c9c223ef15f6c3a3d3e4d9c5c9ac90936a80c8f1daac400250",
+      "after_sha256": "fbebfcb1fc291e68d8af99120879a23fc7c174377b35a9204b8d591264a1c73b"
+    },
+    {
+      "file": "ra_ap_hir_ty-0.0.358/src/infer/mutability.rs",
+      "before_sha256": "8752be35e7878cf7426dd93094e86833d7fb53b5aacb20facff6c18bec0f35c5",
+      "after_sha256": "aaa6f51cb366fe33076fe6c2757e7026985802615bde4b50fdb353a8d9f8b623"
+    },
+    {
+      "file": "ra_ap_hir_ty-0.0.358/src/method_resolution.rs",
+      "before_sha256": "b35ca84ae3d1e2c3a97e425b4f36fdca4fb638c18f1406248fb1c795aa19c1e0",
+      "after_sha256": "74c21c532b339cb8e42d51ee8b2cbebe1fbad955bbc72ca10c18363cec44147d"
+    }
+  ]
+}

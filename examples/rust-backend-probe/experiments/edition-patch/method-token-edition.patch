@@ -1,0 +1,109 @@
+--- a/ra_ap_hir_def-0.0.358/src/expr_store.rs
++++ b/ra_ap_hir_def-0.0.358/src/expr_store.rs
+@@ -720,7 +720,7 @@
+                 visitor.on_expr(*callee);
+                 visitor.on_exprs(args);
+             }
+-            Expr::MethodCall { receiver, args, generic_args, method_name: _ } => {
++            Expr::MethodCall { receiver, args, generic_args, .. } => {
+                 visitor.on_expr(*receiver);
+                 visitor.on_exprs(args);
+                 visitor.on_generic_args_opt(generic_args);
+--- a/ra_ap_hir_def-0.0.358/src/expr_store/lower.rs
++++ b/ra_ap_hir_def-0.0.358/src/expr_store/lower.rs
+@@ -1566,6 +1566,15 @@
+                     Box::default()
+                 };
+                 let method_name = e.name_ref().map(|nr| nr.as_name()).unwrap_or_else(Name::missing);
++                let method_edition = e
++                    .name_ref()
++                    .map(|name| {
++                        self.span_map()
++                            .span_for_range(name.syntax().text_range())
++                            .ctx
++                            .edition(self.db)
++                    })
++                    .unwrap_or_else(|| self.expander.current_file_id().edition(self.db));
+                 let generic_args = e
+                     .generic_arg_list()
+                     .and_then(|it| {
+@@ -1573,7 +1582,7 @@
+                     })
+                     .map(Box::new);
+                 self.alloc_expr(
+-                    Expr::MethodCall { receiver, method_name, args, generic_args },
++                    Expr::MethodCall { receiver, method_name, method_edition, args, generic_args },
+                     syntax_ptr,
+                 )
+             }
+--- a/ra_ap_hir_def-0.0.358/src/expr_store/pretty.rs
++++ b/ra_ap_hir_def-0.0.358/src/expr_store/pretty.rs
+@@ -597,7 +597,7 @@
+                 }
+                 w!(self, ")");
+             }
+-            Expr::MethodCall { receiver, method_name, args, generic_args } => {
++            Expr::MethodCall { receiver, method_name, args, generic_args, .. } => {
+                 self.print_expr_in(prec, *receiver);
+                 w!(self, ".{}", method_name.display(self.db, self.edition));
+                 if let Some(args) = generic_args {
+--- a/ra_ap_hir_def-0.0.358/src/hir.rs
++++ b/ra_ap_hir_def-0.0.358/src/hir.rs
+@@ -311,6 +311,7 @@
+     MethodCall {
+         receiver: ExprId,
+         method_name: Name,
++        method_edition: syntax::Edition,
+         args: Box<[ExprId]>,
+         generic_args: Option<Box<GenericArgs>>,
+     },
+--- a/ra_ap_hir_ty-0.0.358/src/infer/expr.rs
++++ b/ra_ap_hir_ty-0.0.358/src/infer/expr.rs
+@@ -433,7 +433,7 @@
+                     expected,
+                 ),
+             Expr::Call { callee, args, .. } => self.infer_call(tgt_expr, *callee, args, expected),
+-            Expr::MethodCall { receiver, args, method_name, generic_args } => self
++            Expr::MethodCall { receiver, args, method_name, generic_args, .. } => self
+                 .infer_method_call(
+                     tgt_expr,
+                     *receiver,
+--- a/ra_ap_hir_ty-0.0.358/src/infer/mutability.rs
++++ b/ra_ap_hir_ty-0.0.358/src/infer/mutability.rs
+@@ -107,8 +107,7 @@
+                     self.infer_mut_expr(*tail, Mutability::Not);
+                 }
+             }
+-            Expr::MethodCall { receiver: it, method_name: _, args, generic_args: _ }
+-            | Expr::Call { callee: it, args } => {
++            Expr::MethodCall { receiver: it, args, .. } | Expr::Call { callee: it, args } => {
+                 self.infer_mut_not_expr_iter(args.iter().copied().chain(Some(*it)));
+             }
+             Expr::Match { expr, arms } => {
+--- a/ra_ap_hir_ty-0.0.358/src/method_resolution.rs
++++ b/ra_ap_hir_ty-0.0.358/src/method_resolution.rs
+@@ -22,7 +22,7 @@
+     attrs::AttrFlags,
+     builtin_derive::BuiltinDeriveImplMethod,
+     expr_store::{Body, path::GenericArgs as HirGenericArgs},
+-    hir::{ExprId, generics::GenericParams},
++    hir::{Expr, ExprId, generics::GenericParams},
+     lang_item::LangItems,
+     nameres::{DefMap, block_def_map, crate_def_map},
+     resolver::Resolver,
+@@ -171,8 +171,14 @@
+         method_name: Name,
+         self_ty: Ty<'db>,
+     ) -> probe::PickResult<'db> {
++        let edition = match &self.store[call_expr] {
++            Expr::MethodCall { method_edition, .. } => *method_edition,
++            _ => self.edition,
++        };
+         self.with_method_resolution(call_expr.into(), receiver.into(), |ctx| {
+-            let pick = ctx.probe_for_name(probe::Mode::MethodCall, method_name, self_ty)?;
++            let method_context = MethodResolutionContext { edition, ..*ctx };
++            let pick =
++                method_context.probe_for_name(probe::Mode::MethodCall, method_name, self_ty)?;
+             Ok(pick)
+         })
+     }
