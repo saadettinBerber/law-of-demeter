@@ -783,8 +783,8 @@ Proje altıgen mimariyle (ports & adapters) yazılır. Kural ortadaki domain'de 
 | Port | Ne sağlar | Adapter |
 |---|---|---|
 | Denetim isteği | Denetlenecek kaynaklar ve derlenmiş sınıflar | CLI |
-| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin kaynağı: parametre, alan, `new` ya da başka bir çağrının dönüşü. Tip kataloğunu alır, tipleri çözer (aşırı yükleme, generic, lambda, veri akışı) ve sonucu köprü alanlarıyla domain'e verir. | Java ayrıştırıcı |
-| Tip kataloğu | Bir tipin alanları ve metotları (Lombok'un ürettikleri dahil) ve dilin platformu: bilinen tipler ile nesne, kurucu ve builder kuralları | `.class` okuyucu; platform için Java ayrıştırıcının Java platformu |
+| Kaynak okuyucu | Metotlar ve çağrıları; her çağrının hedefinin kaynağı: parametre, alan, oluşturma ya da başka bir çağrının dönüşü. Desteklenen dil yapılarını çözer ve sonucu köprü alanlarıyla domain'e verir. | Java ayrıştırıcı; Rust için Cargo/rust-analyzer adaptörü |
+| Tip kataloğu | Bir tipin alanları ve metotları ve dilin platformu: bilinen tipler ile nesne, kurucu ve builder kuralları | Java için `.class` okuyucu ve Java platformu; Rust için aynı Cargo/rust-analyzer modelinden bildirimler |
 | Rapor çıkışı | Bulgular: dosya, satır ve çiğnenen kural. Kullanıcı isterse uygun çağrılar da uydukları kuralla birlikte. | Metin raporu |
 
 Bağımlılık yalnızca içe doğru akar: adapter → application → domain. Her katman ayrı bir crate'tir (`core` domain ve application'ı, `class-file` ve `java-source` adapter'ları taşır; `cli` hepsini bağlar), bu yüzden yönü derleyici korur. Domain verinin hangi yoldan geldiğini bilmez; domain testleri Java dosyası olmadan yazılır.

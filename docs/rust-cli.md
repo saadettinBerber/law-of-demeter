@@ -59,20 +59,23 @@ başarısızsa açık nedeniyle 2 döner. Java'nın mevcut rapor/çıkış davra
 
 ## Kapsam
 
-Bu, bütün Rust dilini destekleyen bir denetleyici değildir. Doğrudan parametre ve
-self çağrıları, literal argümanlar ve normal metot zincirleri ilk dilimdedir.
-Gerçek çağrı hedefi ve tipleri Rust adaptöründen gelir. S2 parametre çağrısı ile
-S5 dönen cüzdan zincirinin izin/ihlal ayrımı terminale kadar sınanır.
+Desteklenen kaynak kapsamı doğrudan parametre/self çağrılarını, alan kökenlerini,
+literal argümanları, normal metot zincirlerini, named/tuple struct oluşturmayı ve
+basit `let` bağlarını içerir. Normal referans, reborrow, move ve Copy aktarımı
+mevcut nesne kökenini korur. Başka nesnenin alanına erişim veya zinciri yerel
+değişkenlere bölmek tek başına arkadaşlık kazandırmaz. Gerçek çağrı hedefi ve
+tipleri Rust adaptöründen gelir. Ayrıntılar [arkadaş kökleri dilimindedir](rust-friend-origins.md).
 
-Alan kökeni, yereller/oluşturma, genel kontrol akışı, bağımsız fonksiyonlar,
-closure/async, trait/generic dispatch, standart koleksiyon politikaları ve genel
-makro traversal'ı ilk dilimde tamamlanmamıştır. Etkin desteklenmeyen gövdeler
-eksik raporlanır. `#[cfg]` ile dışlanan kod sorun sayılmaz; `cfg!` çalışma zamanı
-dalını derlemeden çıkarmaz. Getter/setter/hibrit sınıflandırmasının genel Rust
-politikası bu CLI değişikliğinde uygulanmaz. Adaptörün ayrıntılı kapsamı
-[ilk kaynak dilimindedir](rust-source-slice.md).
+Genel kontrol akışı, shadowing/yeniden atama, bağımsız ve alıcısız fonksiyonlar,
+closure/async, trait/generic dispatch, sarmalayıcılar, standart koleksiyon
+politikaları ve genel makro traversal'ı henüz tamamlanmamıştır. Etkin
+desteklenmeyen gövdeler eksik raporlanır. [Trait varsayılan gövdeleri](rust-trait-completeness.md)
+ve [konumu olmayan makro üretimi fonksiyonlar](rust-free-function-completeness.md)
+da açık sorun üretir. `#[cfg]` ile dışlanan kod sorun sayılmaz; `cfg!` çalışma
+zamanı dalını derlemeden çıkarmaz. Genel Rust getter/setter/hibrit sınıflandırması
+ve derive kapsamı açık kalır.
 
-## Doğrulama kaydı
+## İlk CLI diliminin doğrulama kaydı
 
 24 Kasım 2026, macOS ARM64, Rust/Cargo 1.99.1; `target/rust-cli-journey` mutlak
 çıktı yoluyla, dev/test debug 0, incremental 0 ve jobs 1 kullanıldı. Java örnekleri
