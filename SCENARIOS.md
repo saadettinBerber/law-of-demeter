@@ -423,6 +423,8 @@ private Order(Builder builder) {
 
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
+- **Üst tip referansı:** `Builder` son sınıfsa `map(Base::same)`, eşdeğer lambda ve `map(Builder::same)` aynı alıcı kimliğini korur. Aşırı yükleme `Base` üzerinden çözülür; çalışma zamanındaki gövde ise gerçek `Builder` üzerindeki ezmeye göre belirlenir. Alt tipin yeni aşırı yüklemesi seçimi değiştirmez. Bilinmeyen alt sınıf için kimlik kanıtı oluşmaz.
+
 - **Yabancı alıcı:** Akıcı çağrı yabancıyla konuşmayı serbest bırakmaz. `order.getBuilder().add(line)` ve `order.getBuilder().isEmpty()` aynı nedenle raporlanır: builder, `getBuilder()` ile gelen yabancıdır. Aynı durum metot referansı için de geçerlidir.
 
 - **Örnek projede:** [`OrderService.java:34`](examples/shop/src/main/java/shop/service/OrderService.java#L34)

@@ -1045,6 +1045,228 @@ fn an_inaccessible_static_overload_does_not_turn_an_instance_reference_into_a_fa
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_base_qualifier_preserves_the_final_functional_receivers_identity() {
+    for (body, expected) in [
+        (
+            "builder.same().finish();",
+            ":4  shop.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+        ),
+        (
+            "java.util.List.of(builder).stream().map(value -> value.same()).forEach(Base::finish);",
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: lambda parameter value: the object returned by static call of() is a friend of f",
+        ),
+        (
+            "java.util.List.of(builder).stream().map(Builder::same).forEach(Base::finish);",
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ),
+        (
+            "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ),
+    ] {
+        let project = CompiledProject::scenario(
+            body,
+            "class Base { Base same() { return this; } void finish() {} } final class Builder extends Base {}",
+        );
+
+        let output = project.check("inspect");
+
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{body}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let verdicts = project.verdicts(&output);
+        assert_eq!(
+            verdicts
+                .iter()
+                .filter(|line| line.contains("  finish()  "))
+                .collect::<Vec<_>>(),
+            [expected],
+            "{body}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_base_reference_uses_the_final_subtypes_override_instead_of_the_base_body() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "class Base { Base same() { return this; } void finish() {} } final class Builder extends Base { Base next; @Override Base same() { return next; } }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_base_reference_does_not_reselect_a_subtype_overload() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "class Base { Base next; Base same(Object... values) { return next; } void finish() {} } final class Builder extends Base { Builder same() { return this; } }",
+    );
+    assert!(
+        project
+            .bytecode()
+            .contains("same:([Ljava/lang/Object;)Lshop/Base;")
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_base_reference_keeps_the_selected_variable_arity_declaration() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "class Base { Base next; Base same(Object... values) { return this; } void finish() {} } final class Builder extends Base { Base same() { return next; } }",
+    );
+    assert!(
+        project
+            .bytecode()
+            .contains("same:([Ljava/lang/Object;)Lshop/Base;")
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_base_reference_keeps_generic_specialization_separate_from_runtime_dispatch() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "class Base<T> { Base<T> next; Base<T> same(T... values) { return this; } void finish() {} } final class Builder extends Base<String> { Base<String> same(Integer... values) { return next; } }",
+    );
+    assert!(
+        project
+            .bytecode()
+            .contains("same:([Ljava/lang/Object;)Lshop/Base;")
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_open_functional_receiver_does_not_gain_identity_from_a_base_reference() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "class Base { Base same() { return this; } void finish() {} } class Builder extends Base {}",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_interface_reference_keeps_the_final_functional_receivers_identity() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "interface Base { default Base same() { return this; } void finish(); } final class Builder implements Base { public void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_interface_reference_uses_the_more_specific_default_implementation() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);",
+        "interface Base { default Base same() { return this; } void finish(); } interface Other extends Base { default Base same() { return null; } } final class Builder implements Base, Other { public void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,

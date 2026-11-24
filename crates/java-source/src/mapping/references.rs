@@ -60,7 +60,7 @@ impl MethodMapper<'_> {
         else {
             return false;
         };
-        let (receiver, arguments) = match target {
+        let (receiver, lookup, arguments) = match target {
             model::Expression::Type(owner) => {
                 let owner = named_type(owner);
                 if self
@@ -72,26 +72,29 @@ impl MethodMapper<'_> {
                 let Some((receiver, arguments)) = functional.parameters.split_first() else {
                     return false;
                 };
-                let Some(receiver) = self.supertype_named(receiver, &owner) else {
+                let Some(lookup) = self.supertype_named(receiver, &owner) else {
                     return false;
                 };
-                (receiver, arguments)
+                (receiver.clone(), lookup, arguments)
             }
             _ => {
                 let Some(receiver) = self.type_of(target) else {
                     return false;
                 };
-                (receiver, functional.parameters.as_slice())
+                (receiver.clone(), receiver, functional.parameters.as_slice())
             }
         };
-        self.invoke(&receiver, (name, Dispatch::Instance), arguments)
-            .and_then(|invocation| invocation.declared().cloned())
-            .is_some_and(|declared| {
-                declared.returns_receiver()
-                    && (declared.has_fixed_dispatch()
-                        || self.final_type(&receiver)
-                        || self.exact_value(target))
-            })
+        let Some(invocation) = self.invoke(&lookup, (name, Dispatch::Instance), arguments) else {
+            return false;
+        };
+        let Some(declared) = invocation.declared() else {
+            return false;
+        };
+        if declared.has_fixed_dispatch() {
+            return declared.returns_receiver();
+        }
+        (self.final_type(&receiver) || self.exact_value(target))
+            && self.dispatched_receiver_return(&invocation, &receiver)
     }
 
     pub(super) fn reference_result(

@@ -1,5 +1,5 @@
 use law_of_demeter_core::domain::classification::Types;
-use law_of_demeter_core::domain::type_shape::{MethodShape, TypeRef, TypeShape};
+use law_of_demeter_core::domain::type_shape::{MethodShape, TypeKind, TypeRef, TypeShape};
 
 use crate::platform::CONSTRUCTOR_NAME;
 use crate::{self as model, ImplicitTarget, TypeName};
@@ -195,6 +195,14 @@ pub(super) struct Invocation {
     bounds: Bindings,
     results: Vec<(TypeRef, TypeRef)>,
     declared: Option<Declared>,
+    dispatch: Option<DispatchTarget>,
+}
+
+#[derive(Clone)]
+struct DispatchTarget {
+    owner: String,
+    name: String,
+    parameters: Vec<TypeRef>,
 }
 
 impl Invocation {
@@ -360,6 +368,7 @@ impl MethodMapper<'_> {
                     bounds: Bindings::new(),
                     results: Vec::new(),
                     declared: None,
+                    dispatch: None,
                 })
             }
         }
@@ -372,6 +381,13 @@ struct Candidate<'a> {
 }
 
 impl Candidate<'_> {
+    fn dispatch_parameters(&self) -> Vec<TypeRef> {
+        self.parameters()
+            .iter()
+            .map(|parameter| erased(parameter, &|name| self.declared_bound(name)))
+            .collect()
+    }
+
     fn parameters(&self) -> Vec<TypeRef> {
         self.method
             .parameters()
@@ -407,6 +423,11 @@ impl Candidate<'_> {
                 self.ancestor.shape,
                 argument_count,
             )),
+            dispatch: Some(DispatchTarget {
+                owner: self.ancestor.shape.name().to_owned(),
+                name: self.method.name().to_owned(),
+                parameters: self.dispatch_parameters(),
+            }),
         }
     }
 
@@ -458,6 +479,70 @@ impl Candidate<'_> {
 }
 
 impl MethodMapper<'_> {
+    pub(super) fn dispatched_receiver_return(
+        &self,
+        invocation: &Invocation,
+        receiver: &TypeRef,
+    ) -> bool {
+        let Some(target) = &invocation.dispatch else {
+            return false;
+        };
+        let ancestors = lineage(self.types, receiver);
+        let matching: Vec<_> = ancestors
+            .iter()
+            .flat_map(|ancestor| {
+                named(ancestor.shape, &target.name)
+                    .into_iter()
+                    .map(|method| Candidate { method, ancestor })
+            })
+            .filter(|candidate| {
+                !candidate.method.is_private()
+                    && !candidate.method.is_static()
+                    && candidate.dispatch_parameters() == target.parameters
+            })
+            .collect();
+        let classes: Vec<_> = matching
+            .iter()
+            .filter(|candidate| candidate.ancestor.shape.kind() != TypeKind::Interface)
+            .collect();
+        if let Some(index) = classes
+            .iter()
+            .position(|candidate| candidate.ancestor.shape.name() == target.owner)
+        {
+            let mut selected = classes[index];
+            for candidate in classes[..index].iter().rev() {
+                if !selected.method.is_public()
+                    && package_of(selected.ancestor.shape.name())
+                        != package_of(candidate.ancestor.shape.name())
+                {
+                    return false;
+                }
+                selected = candidate;
+            }
+            return selected.method.returns_receiver();
+        }
+        if let Some(selected) = classes.first() {
+            return selected.method.returns_receiver();
+        }
+        let mut defaults = matching
+            .iter()
+            .filter(|candidate| !candidate.method.is_abstract())
+            .filter(|candidate| {
+                !matching.iter().any(|other| {
+                    other.ancestor.shape.name() != candidate.ancestor.shape.name()
+                        && super::lineage::closure(
+                            self.types,
+                            &TypeRef::class(other.ancestor.shape.name()),
+                        )
+                        .iter()
+                        .any(|ancestor| {
+                            class_name(ancestor) == Some(candidate.ancestor.shape.name())
+                        })
+                })
+            });
+        matches!((defaults.next(), defaults.next()), (Some(selected), None) if selected.method.returns_receiver())
+    }
+
     fn candidates<'a>(
         &self,
         ancestors: &'a [Ancestor<'a>],
@@ -520,6 +605,10 @@ fn named<'t>(shape: &'t TypeShape, method: &str) -> Vec<&'t MethodShape> {
         .iter()
         .filter(|candidate| candidate.name() == method)
         .collect()
+}
+
+fn package_of(name: &str) -> &str {
+    name.rsplit_once('.').map_or("", |(package, _)| package)
 }
 
 fn agreed_return(candidates: &[&Candidate]) -> Option<TypeRef> {
