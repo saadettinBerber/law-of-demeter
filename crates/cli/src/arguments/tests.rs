@@ -5,6 +5,97 @@ use law_of_demeter_core::application::Target;
 
 use super::{Arguments, Command, UsageError, parse, usage};
 
+#[test]
+fn rust_options_and_opaque_selections_work_in_any_order() {
+    let arguments = [
+        "--only=path+file:///project#shop@0.1.0::shop::Order#pay",
+        "--features=payments,audit",
+        "--features",
+        "receipts",
+        "--package=shop",
+        "--no-default-features",
+        "--target=aarch64-unknown-linux-gnu",
+        "--target-dir=output with spaces",
+        "--rust",
+        "project with spaces/Cargo.toml",
+        "--show-allowed",
+    ];
+
+    let command = parse(arguments.into_iter().map(OsString::from));
+
+    assert!(matches!(command, Ok(Command::Check(_))), "{command:?}");
+    let Ok(Command::Check(arguments)) = command else {
+        unreachable!()
+    };
+    let rust = arguments.rust.expect("Rust options");
+    assert_eq!(
+        rust.manifest,
+        PathBuf::from("project with spaces/Cargo.toml")
+    );
+    assert_eq!(rust.package, "shop");
+    assert_eq!(rust.features, ["payments", "audit", "receipts"]);
+    assert!(rust.no_default_features);
+    assert_eq!(rust.target.as_deref(), Some("aarch64-unknown-linux-gnu"));
+    assert_eq!(rust.target_dir, Some(PathBuf::from("output with spaces")));
+    assert_eq!(
+        rust.targets,
+        ["path+file:///project#shop@0.1.0::shop::Order#pay"]
+    );
+    assert!(arguments.show_allowed);
+}
+
+#[test]
+fn rust_requires_an_explicit_package() {
+    let error = rejected(&["--rust", "Cargo.toml"]);
+
+    assert_eq!(error.0, "--rust requires --package <NAME>");
+}
+
+#[test]
+fn rust_rejects_java_options_in_either_order() {
+    let mixed = [
+        "--source=src",
+        "--classpath=",
+        "--jdk-home=/jdk",
+        "--release=21",
+    ]
+    .map(|option| {
+        [
+            rejected(&[option, "--rust=Cargo.toml", "--package=shop"]),
+            rejected(&["--rust=Cargo.toml", "--package=shop", option]),
+        ]
+    });
+
+    for errors in mixed {
+        for error in errors {
+            assert_eq!(error.0, "--rust cannot be combined with Java options");
+        }
+    }
+}
+
+#[test]
+fn rust_configuration_requires_rust_selection() {
+    let errors = [
+        "--package=shop",
+        "--features=payments",
+        "--no-default-features",
+        "--target=host",
+        "--target-dir=output",
+    ]
+    .map(|option| rejected(&[option]));
+
+    for error in errors {
+        assert_eq!(error.0, "Rust options require --rust <Cargo.toml>");
+    }
+}
+
+#[test]
+fn a_following_option_is_not_consumed_as_a_missing_value() {
+    let error = rejected(&["--rust", "--package=shop"]);
+
+    assert_eq!(error.0, "--rust needs a value");
+}
+
 fn parsed(arguments: &[&str]) -> Command {
     parse(arguments.iter().map(OsString::from)).expect("arguments parse")
 }
@@ -167,6 +258,12 @@ fn the_usage_text_names_every_option() {
         "--skill",
         "update",
         "--help",
+        "--rust",
+        "--package",
+        "--features",
+        "--no-default-features",
+        "--target",
+        "--target-dir",
     ]
     .into_iter()
     .filter(|option| !text.contains(option))
