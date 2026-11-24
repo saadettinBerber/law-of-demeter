@@ -17,6 +17,59 @@ impl PaymentService {
 const CLEAN: &str = "pub struct Wallet;\nimpl Wallet { pub fn debit(&self) {} }\n";
 
 #[test]
+fn raw_identifier_type_selections_resolve_readable_and_suffix_names() {
+    let project = RustFixture::new(include_str!("fixtures/rust-raw-identifiers.rs"));
+    project.compile();
+
+    let output = project.analyze(&[
+        "--only=shop/shop::r#type",
+        "--only=shop::r#type",
+        "--only=r#type",
+        "--show-allowed",
+    ]);
+
+    assert_code(&output, 0);
+    let report = text(&output.stdout);
+    assert!(report.contains("Methods: 2\n  Calls: 1"), "{report}");
+    assert!(
+        report.contains(
+            "lib.rs:9  shop/shop::r#type#match  touch()  Allowed: other is an argument of f"
+        ),
+        "{report}"
+    );
+}
+
+#[test]
+fn raw_identifier_method_spelling_selects_the_declared_method() {
+    let project = RustFixture::new(include_str!("fixtures/rust-raw-identifiers.rs"));
+    project.compile();
+
+    let output = project.analyze(&["--only=shop/shop::r#type#r#match", "--show-allowed"]);
+
+    assert_code(&output, 0);
+    let report = text(&output.stdout);
+    assert!(report.contains("Methods: 1\n  Calls: 1"), "{report}");
+    assert!(
+        report.contains(
+            "lib.rs:9  shop/shop::r#type#match  touch()  Allowed: other is an argument of f"
+        ),
+        "{report}"
+    );
+}
+
+#[test]
+fn displayed_method_spelling_selects_raw_identifier_declarations() {
+    let project = RustFixture::new(include_str!("fixtures/rust-raw-identifiers.rs"));
+    project.compile();
+
+    let output = project.analyze(&["--only=shop/shop::r#type#match", "--show-allowed"]);
+
+    assert_code(&output, 0);
+    let report = text(&output.stdout);
+    assert!(report.contains("Methods: 1\n  Calls: 1"), "{report}");
+}
+
+#[test]
 fn a_trait_dispatch_is_incomplete_instead_of_using_a_same_named_inherent_signature() {
     let project = RustFixture::new(include_str!("fixtures/rust-trait-dispatch.rs"));
     project.compile();
@@ -507,6 +560,42 @@ fn rust_container_keeps_a_deref_dispatch_incomplete() {
     let report = text(&output.stdout);
     assert!(report.contains("lib.rs:23  shop/shop::Processor#through_deref  Unsupported: receiver projection is outside the first source slice"), "{report}");
     assert!(report.contains("Methods: 0\n  Calls: 0"), "{report}");
+}
+
+#[test]
+#[ignore = "requires Docker engine and a built image; run with --ignored"]
+fn rust_container_selects_raw_identifier_types_and_methods() {
+    let project = RustFixture::new(include_str!("fixtures/rust-raw-identifiers.rs"));
+    project.compile_in_container();
+
+    let type_only = project.in_container(&["--only=shop/shop::r#type", "--show-allowed"]);
+    let raw_method = project.in_container(&["--only=shop/shop::r#type#r#match", "--show-allowed"]);
+    let displayed_method =
+        project.in_container(&["--only=shop/shop::r#type#match", "--show-allowed"]);
+
+    assert_eq!(
+        (
+            type_only.status.code(),
+            raw_method.status.code(),
+            displayed_method.status.code()
+        ),
+        (Some(0), Some(0), Some(0)),
+        "{}\n{}\n{}",
+        text(&type_only.stderr),
+        text(&raw_method.stderr),
+        text(&displayed_method.stderr)
+    );
+    assert!(text(&type_only.stdout).contains("Methods: 2\n  Calls: 1"));
+    for output in [raw_method, displayed_method] {
+        let report = text(&output.stdout);
+        assert!(report.contains("Methods: 1\n  Calls: 1"), "{report}");
+        assert!(
+            report.contains(
+                "lib.rs:9  shop/shop::r#type#match  touch()  Allowed: other is an argument of f"
+            ),
+            "{report}"
+        );
+    }
 }
 
 struct RustFixture {

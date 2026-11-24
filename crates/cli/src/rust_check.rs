@@ -43,7 +43,7 @@ pub(crate) fn check(
     .ok();
     let project = RustProject::load(&manifest, options)
         .map_err(|error| crate::report_text::error_line(&error))?;
-    let names = Names::new(project.project_types(), &metadata)?;
+    let names = Names::new(&project, &metadata)?;
     let targets = arguments
         .targets
         .iter()
@@ -142,14 +142,18 @@ fn metadata(manifest: &Path) -> Result<Value, String> {
         .map_err(|error| format!("reading Cargo metadata: {error}"))
 }
 
-struct Names(Vec<(String, String)>);
+struct Names {
+    types: Vec<(String, String)>,
+    methods: Vec<Target>,
+}
 
 impl Names {
-    fn new(catalog: Vec<String>, metadata: &Value) -> Result<Self, String> {
+    fn new(project: &RustProject, metadata: &Value) -> Result<Self, String> {
         let packages = metadata["packages"]
             .as_array()
             .ok_or("Cargo metadata has no packages")?;
-        let names = catalog
+        let types = project
+            .project_types()
             .into_iter()
             .map(|identity| {
                 let readable = packages
@@ -165,15 +169,24 @@ impl Names {
                 (identity, readable)
             })
             .collect::<Vec<_>>();
-        Ok(Self(names))
+        let mut methods = Vec::new();
+        for shape in TypeSource::read(project).shapes {
+            methods.extend(
+                shape
+                    .methods()
+                    .iter()
+                    .map(|method| Target::method(shape.name(), method.name())),
+            );
+        }
+        Ok(Self { types, methods })
     }
 
     fn display(&self, identity: &str) -> String {
-        let Some((_, readable)) = self.0.iter().find(|(name, _)| name == identity) else {
+        let Some((_, readable)) = self.types.iter().find(|(name, _)| name == identity) else {
             return identity.to_owned();
         };
         if self
-            .0
+            .types
             .iter()
             .filter(|(_, candidate)| candidate == readable)
             .count()
@@ -186,8 +199,13 @@ impl Names {
     }
 
     fn resolve(&self, text: &str) -> Result<Target, String> {
-        let (class, method) = if self.0.iter().any(|(identity, _)| identity == text) {
+        let (class, method) = if !self.matching(text).is_empty() {
             (text, None)
+        } else if let Some((separator, _)) = text
+            .rmatch_indices('#')
+            .find(|(index, _)| !self.matching(&text[..*index]).is_empty())
+        {
+            (&text[..separator], Some(&text[separator + 1..]))
         } else {
             match text.rsplit_once('#') {
                 Some((class, method)) if !method.contains("::") => (class, Some(method)),
@@ -199,27 +217,42 @@ impl Names {
                 "--only needs a type, optionally followed by #method: {text}"
             ));
         }
-        let matches: Vec<_> = self
-            .0
-            .iter()
-            .filter(|(identity, readable)| {
-                identity == class || readable == class || identity.ends_with(&format!("::{class}"))
-            })
-            .collect();
+        let matches = self.matching(class);
         if matches.len() > 1 {
             return Err(format!(
                 "ambiguous --only: {text}; use one of: {}",
                 matches
                     .iter()
-                    .map(|(identity, _)| self.display(identity))
+                    .map(|identity| self.display(identity))
                     .collect::<Vec<_>>()
                     .join(", ")
             ));
         }
-        let identity = matches.first().map_or(class, |(identity, _)| identity);
+        let identity = matches.first().copied().unwrap_or(class);
         Ok(match method {
-            Some(method) => Target::method(identity, method),
+            Some(method) => {
+                let method = method
+                    .strip_prefix("r#")
+                    .filter(|name| {
+                        self.methods.iter().any(|target| {
+                            target.class_name() == identity && target.method_name() == Some(name)
+                        })
+                    })
+                    .unwrap_or(method);
+                Target::method(identity, method)
+            }
             None => Target::class(identity),
         })
+    }
+
+    fn matching(&self, name: &str) -> Vec<&str> {
+        let suffix = format!("::{name}");
+        self.types
+            .iter()
+            .filter(|(identity, readable)| {
+                identity == name || readable == name || identity.ends_with(&suffix)
+            })
+            .map(|(identity, _)| identity.as_str())
+            .collect()
     }
 }
