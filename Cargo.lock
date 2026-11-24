@@ -207,7 +207,9 @@ version = "0.1.0"
 name = "law-of-demeter-java-source"
 version = "0.1.0"
 dependencies = [
+ "law-of-demeter-class-file",
  "law-of-demeter-core",
+ "tempfile",
  "tree-sitter",
  "tree-sitter-java",
 ]

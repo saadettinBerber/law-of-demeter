@@ -204,6 +204,12 @@ void checkout(Session session) {
 
 - **Alan:** Alana doğrudan erişim getter gibi yargılanır: `session.cart.clear()` de raporlanır. f'nin oluşturduğu nesnenin alanı ve C'nin başka bir örneğinin alanı da yabancıdır: `result.items.add(item)`.
 
+- **Arkadaşlık sınırı:** f'nin oluşturduğu `result` üzerinde `result.addMember(member)` uygundur; `result.items.add(member)` iç koleksiyona uzandığı için ihlaldir. Aynı sınıfın parametre olarak alınan `other` örneğinde de `other.addMember(member)` uygun, `other.items.add(member)` ihlaldir. `items` alanının `private` olması bu kararı değiştirmez; aynı sınıftan erişim izni, alanı f'nin arkadaşı yapmaz.
+
+- **Yeni sarmalayıcı:** `Holder holder = new Holder(order.wallet())` yalnızca `Holder` nesnesini oluşturur. `holder.charge()` arkadaş çağrısıdır; taşınan cüzdana `holder.wallet.withdraw()` ile uzanmak ihlaldir. Kurucuya bir nesne vermek o nesneyi yeniden oluşturmaz.
+
+- **Derlenen karşılaştırmalar:** [Java fixture](crates/java-source/tests/fixtures/field-friendship/Order.java), geçerli `private` erişimi de içerir; [adaptör bağlantısı testleri](crates/java-source/tests/field_friendship.rs) `javac` ile derlenen tipleri ve kaynağı mevcut `CheckProject` üzerinden değerlendirir.
+
 - **Örnek projede:** [`CheckoutService.java:16`](examples/shop/src/main/java/shop/service/CheckoutService.java#L16)
 
 </details>

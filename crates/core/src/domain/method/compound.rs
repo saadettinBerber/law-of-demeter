@@ -234,6 +234,75 @@ fn calling_a_method_on_a_field_of_another_object_is_reaching_into_it() {
 }
 
 #[test]
+fn a_created_owner_is_a_friend_but_its_collection_is_not() {
+    let items = TypeRef::generic("java.util.List", vec![TypeRef::class("Member")]);
+    let order = TypeRef::class("Order");
+    let types = sample_types().with_shape(
+        TypeShape::new("Order", TypeKind::Class)
+            .with_field(FieldShape::new("items", items.clone()))
+            .with_method(MethodShape::new("addMember")),
+    );
+    let create = Method::new("Order", "create", 1)
+        .assign(
+            "result",
+            order.clone(),
+            Expression::created(Creation::new(order.clone())),
+        )
+        .call(Call::new(Expression::local("result"), "addMember", 3))
+        .call(Call::new(
+            Expression::field_of(Expression::local("result"), "items"),
+            "add",
+            4,
+        ));
+
+    let verdicts = create.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed(
+                "addMember",
+                3,
+                Reason::local("result", Reason::created(order))
+            ),
+            Verdict::violation(
+                "add",
+                4,
+                Reason::container_mutation(items, Reason::field_of("items"))
+            ),
+        ]
+    );
+}
+
+#[test]
+fn another_instance_of_the_current_type_is_a_friend_but_its_collection_is_not() {
+    let items = TypeRef::generic("java.util.List", vec![TypeRef::class("Member")]);
+    let types = sample_types().with_shape(
+        TypeShape::new("Order", TypeKind::Class)
+            .with_field(FieldShape::new("items", items.clone()))
+            .with_method(MethodShape::new("addMember")),
+    );
+    let other = Expression::parameter("other", TypeRef::class("Order"));
+    let copy = Method::new("Order", "copy", 1)
+        .call(Call::new(other.clone(), "addMember", 2))
+        .call(Call::new(Expression::field_of(other, "items"), "add", 3));
+
+    let verdicts = copy.verdicts(&types);
+
+    assert_eq!(
+        verdicts,
+        [
+            Verdict::allowed("addMember", 2, Reason::parameter("other")),
+            Verdict::violation(
+                "add",
+                3,
+                Reason::container_mutation(items, Reason::field_of("items"))
+            ),
+        ]
+    );
+}
+
+#[test]
 fn a_field_of_another_object_takes_the_type_the_catalog_declares_for_it() {
     let types = sample_types()
         .with_shape(order_with_public_fields())

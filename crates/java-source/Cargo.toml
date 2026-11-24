@@ -8,3 +8,7 @@ publish.workspace = true
 law-of-demeter-core.workspace = true
 tree-sitter = "0.27.2"
 tree-sitter-java = "0.23.5"
+
+[dev-dependencies]
+law-of-demeter-class-file = { path = "../class-file" }
+tempfile = "3"
