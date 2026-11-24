@@ -15,6 +15,7 @@ impl PaymentService {
 }
 ";
 const CLEAN: &str = "pub struct Wallet;\nimpl Wallet { pub fn debit(&self) {} }\n";
+const INCOMPLETE: &str = include_str!("fixtures/rust-incomplete-body.rs");
 
 #[test]
 fn raw_identifier_type_selections_resolve_readable_and_suffix_names() {
@@ -164,7 +165,8 @@ fn only_unmatched_selections_are_named_in_the_no_match_error() {
 
 #[test]
 fn an_unsupported_selected_body_is_incomplete_even_when_it_has_no_method_report() {
-    let project = RustFixture::new(SOURCE);
+    let project = RustFixture::new(INCOMPLETE);
+    project.compile();
 
     let output = project.analyze(&["--only=Order#wallet"]);
 
@@ -211,7 +213,8 @@ fn an_unreadable_module_prevents_a_false_no_match_verdict() {
 
 #[test]
 fn uncertain_selection_keeps_only_selected_findings_and_counts() {
-    let project = RustFixture::new(SOURCE);
+    let project = RustFixture::new(INCOMPLETE);
+    project.compile();
 
     let output = project.analyze(&[
         "--only=PaymentService#on_parameter",
@@ -551,7 +554,8 @@ fn rust_container_reports_a_returned_wallet_with_exit_one() {
 #[test]
 #[ignore = "requires Docker engine and a built image; run with --ignored"]
 fn rust_container_keeps_an_unsupported_body_incomplete() {
-    let project = RustFixture::new(SOURCE);
+    let project = RustFixture::new(INCOMPLETE);
+    project.compile_in_container();
 
     let output = project.in_container(&["--only=Order#wallet"]);
 
@@ -636,7 +640,7 @@ impl RustFixture {
             .args(["check", "--offline", "--locked", "--lib"])
             .env("CARGO_TARGET_DIR", self.output.join("compiler"))
             .output()
-            .expect("Cargo checks the dispatch fixture");
+            .expect("Cargo checks the Rust fixture");
 
         assert!(output.status.success(), "{}", text(&output.stderr));
     }
@@ -653,7 +657,7 @@ impl RustFixture {
             .arg(container_image())
             .args(["check", "--offline", "--locked", "--lib"])
             .output()
-            .expect("container Cargo checks the dispatch fixture");
+            .expect("container Cargo checks the Rust fixture");
 
         assert!(output.status.success(), "{}", text(&output.stderr));
     }
