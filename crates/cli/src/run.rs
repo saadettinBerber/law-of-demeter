@@ -49,10 +49,14 @@ pub fn run<I: IntoIterator<Item = OsString>>(
             write!(out, "{}", skill()).ok();
             return CLEAN;
         }
-        Ok(Command::Check(arguments)) => match check(arguments, environment, mapper, out, err) {
-            Ok(counts) => {
+        Ok(Command::Check(mut arguments)) => match if let Some(rust) = arguments.rust.take() {
+            crate::rust_check::check(*rust, arguments.show_allowed, environment, out, err)
+        } else {
+            check(arguments, environment, mapper, out, err).map(|counts| verdict(&counts))
+        } {
+            Ok(result) => {
                 writeln!(err).ok();
-                verdict(&counts)
+                result
             }
             Err(message) => {
                 writeln!(err, "Error: {message}").ok();

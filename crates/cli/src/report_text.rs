@@ -5,19 +5,48 @@ use std::collections::BTreeMap;
 use crate::reason_text::{category, describe};
 
 pub fn render(report: &Report, show_allowed: bool) -> String {
+    render_named(report, show_allowed, None, None)
+}
+
+pub(crate) fn render_rust(
+    report: &Report,
+    show_allowed: bool,
+    display: &dyn Fn(&str) -> String,
+    uncertainty: Option<&Report>,
+) -> String {
+    render_named(report, show_allowed, Some(display), uncertainty)
+}
+
+pub(crate) fn incomplete(report: &Report) -> bool {
+    !report.issues().is_empty()
+        || !report.source_errors().is_empty()
+        || !report.type_errors().is_empty()
+        || report.findings().iter().any(Finding::is_unresolved)
+}
+
+fn render_named(
+    report: &Report,
+    show_allowed: bool,
+    display: Option<&dyn Fn(&str) -> String>,
+    uncertainty: Option<&Report>,
+) -> String {
     let findings = report.findings();
     let finding_lines = |keep: fn(&Finding) -> bool, verdict: &str| -> Vec<String> {
         findings
             .iter()
             .filter(|finding| keep(finding))
-            .map(|finding| finding_line(finding, verdict))
+            .map(|finding| finding_line(finding, verdict, display))
             .collect()
     };
     let mut text = String::new();
     let has_violation = findings
         .iter()
         .any(|finding| finding.is_violation() && !finding.is_unresolved());
-    if !has_violation && report.hybrid_classes().is_empty() {
+    if !has_violation
+        && report.hybrid_classes().is_empty()
+        && (display.is_none() || !incomplete(report))
+        && uncertainty.is_none()
+    {
         text.push_str("No violations found.\n\n");
     }
     section(
@@ -43,7 +72,11 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
     section(
         &mut text,
         "Hybrid classes",
-        report.hybrid_classes().iter().map(hybrid_line).collect(),
+        report
+            .hybrid_classes()
+            .iter()
+            .map(|finding| hybrid_line(finding, display))
+            .collect(),
     );
     section(
         &mut text,
@@ -55,7 +88,46 @@ pub fn render(report: &Report, show_allowed: bool) -> String {
         "Type reading errors",
         report.type_errors().iter().map(error_line).collect(),
     );
+    if let Some(display) = display {
+        section(
+            &mut text,
+            if uncertainty.is_some() {
+                "Unverified selection issues"
+            } else {
+                "Analysis issues"
+            },
+            uncertainty
+                .unwrap_or(report)
+                .issues()
+                .iter()
+                .map(|issue| {
+                    let location = match issue.line() {
+                        Some(line) => format!("{}:{line}", issue.path().display()),
+                        None => issue.path().display().to_string(),
+                    };
+                    let owner = issue
+                        .owner()
+                        .map(|target| match target.method_name() {
+                            Some(method) => format!("{}#{method}", display(target.class_name())),
+                            None => display(target.class_name()),
+                        })
+                        .unwrap_or_else(|| "project".into());
+                    format!(
+                        "{location}  {owner}  {:?}: {}",
+                        issue.kind(),
+                        issue.message()
+                    )
+                })
+                .collect(),
+        );
+    }
     text.push_str(&summary(report, show_allowed));
+    if display.is_some() {
+        text.push_str(&format!(
+            "\nAnalysis issues: {}\n",
+            uncertainty.unwrap_or(report).issues().len()
+        ));
+    }
     text
 }
 
@@ -119,25 +191,39 @@ fn section(text: &mut String, title: &str, lines: Vec<String>) {
     text.push('\n');
 }
 
-fn finding_line(finding: &Finding, verdict: &str) -> String {
+fn finding_line(
+    finding: &Finding,
+    verdict: &str,
+    display: Option<&dyn Fn(&str) -> String>,
+) -> String {
+    let owner = match display {
+        Some(display) => format!(
+            "{}#{}",
+            display(finding.class_name()),
+            finding.method_name()
+        ),
+        None => format!("{}.{}", finding.class_name(), finding.method_name()),
+    };
     format!(
-        "{}:{}  {}.{}  {}()  {}: {}",
+        "{}:{}  {}  {}()  {}: {}",
         finding.path().display(),
         finding.line(),
-        finding.class_name(),
-        finding.method_name(),
+        owner,
         finding.call(),
         verdict,
         describe(finding.reason())
     )
 }
 
-fn hybrid_line(finding: &HybridFinding) -> String {
+fn hybrid_line(finding: &HybridFinding, display: Option<&dyn Fn(&str) -> String>) -> String {
     let hybrid = finding.hybrid();
     format!(
         "{}  {}  Hybrid class: behavior: {}; setters: {}",
         finding.path().display(),
-        hybrid.class(),
+        display.map_or_else(
+            || hybrid.class().to_owned(),
+            |display| display(hybrid.class())
+        ),
         hybrid.behavior_methods().join(", "),
         hybrid.setters().join(", ")
     )

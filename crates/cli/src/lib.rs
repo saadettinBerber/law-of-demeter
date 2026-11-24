@@ -5,6 +5,7 @@ mod maven_layout;
 mod reason_text;
 mod report_text;
 mod run;
+mod rust_check;
 mod source_files;
 mod sources;
 mod update;

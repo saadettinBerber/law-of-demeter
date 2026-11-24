@@ -534,6 +534,8 @@ dependencies = [
  "law-of-demeter-class-file",
  "law-of-demeter-core",
  "law-of-demeter-java-source",
+ "law-of-demeter-rust-source",
+ "serde_json",
  "tempfile",
 ]
 
