@@ -360,3 +360,5 @@ fn dispatch_call(source: &ast::SourceFile, name: &str) -> ast::MethodCallExpr {
         .find_map(ast::MethodCallExpr::cast)
         .expect("dispatch caller has a call")
 }
+
+mod friend_semantics;
