@@ -633,6 +633,8 @@ Sonuç: Cüzdana `Customer` ulaşıyor; `GuestService` cüzdanı tanımıyor.
 
 ## Kullanım
 
+Host makineye Rust, JDK veya Maven kurmadan çalıştırmak için [Docker kullanımına](docs/container.md) bak.
+
 Araç repo kökünden kurulur:
 
 ```bash

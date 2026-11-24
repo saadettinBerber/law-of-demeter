@@ -35,4 +35,3 @@
 | [Veri yapısına yazmayı tek karara bağla. Bugün setter serbest (`request.getAddress().setCity(city)`), koleksiyona eklemek ihlal (`request.getItems().add(item)`).](SCENARIOS.md#uygun) | Yapılmadı |
 | [Kütüphane nesnesinin verdiği koleksiyonu değiştirmeyi karara bağla. Bugün `builder.environment().put(key, value)` ihlal; Uygun 11 ile Uygun değil 4 çakışıyor.](SCENARIOS.md#uygun-değil) | Yapılmadı |
 | [İhlal satırında alıcının tipini ve neden veri yapısı sayılmadığını göster; hibrit satırında davranışın geldiği üst sınıfı göster.](README.md#kullanım) | Yapılmadı |
-| [Rust kurulu olmayan makine için sürüm ikilisi ya da `Dockerfile` sağla.](README.md#kullanım) | Yapılmadı |

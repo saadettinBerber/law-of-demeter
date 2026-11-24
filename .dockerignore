@@ -1,0 +1,10 @@
+**
+!Cargo.toml
+!Cargo.lock
+!crates/
+!crates/**
+crates/*/tests/
+crates/**/target/
+!skill/
+!skill/law-of-demeter/
+!skill/law-of-demeter/SKILL.md
