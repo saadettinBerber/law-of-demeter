@@ -15,6 +15,7 @@ mod returns;
 mod statements;
 mod steps;
 mod types;
+mod writes;
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;

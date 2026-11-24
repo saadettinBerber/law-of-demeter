@@ -623,6 +623,247 @@ fn a_conditional_argument_allocation_does_not_prove_an_existing_local() {
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_unwritten_allocation_keeps_its_identity_across_loops() {
+    for loop_body in [
+        "for (int index = 0; index < 2; index++) {}",
+        "while (builder != null) { break; }",
+        "do {} while (builder != null);",
+        "for (Builder item : new Builder[0]) {}",
+    ] {
+        let project = CompiledProject::scenario(
+            &format!("Builder local = new Builder(); {loop_body} local.same().finish();"),
+            "class Builder { Builder same() { return this; } void finish() {} }",
+        );
+
+        let output = project.check("inspect");
+
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{loop_body}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert_eq!(
+            project.verdicts(&output),
+            [
+                ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+                ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+            ]
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_unwritten_allocation_keeps_its_identity_across_exception_handling() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); try { int count = 1; } catch (RuntimeException ignored) {} finally {} local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_unwritten_allocation_keeps_its_identity_inside_nested_loops() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); for (int index = 0; index < 2; index++) { while (builder != null) { local.same().finish(); break; } }",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_repeated_write_invalidates_allocation_evidence_before_the_loop_body() {
+    for loop_body in [
+        "for (int index = 0; index < 2; index++) { local.same().finish(); local = builder; }",
+        "for (int index = 0; index < 2; local = builder, index++) { local.same().finish(); }",
+        "do { local.same().finish(); local = builder; } while (builder != null);",
+        "for (int index = 0; index < 2; index++) { while (builder != null) { local = builder; break; } local.same().finish(); }",
+    ] {
+        let project = CompiledProject::scenario(
+            &format!("Builder local = new Builder(); {loop_body}"),
+            "class Builder { Builder same() { return this; } void finish() {} }",
+        );
+
+        let output = project.check("inspect");
+
+        assert_eq!(output.status.code(), Some(1), "{loop_body}");
+        let verdicts = project.verdicts(&output);
+        assert_eq!(
+            verdicts
+                .iter()
+                .filter(|line| line.contains("  Violation: "))
+                .collect::<Vec<_>>(),
+            [
+                ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ],
+            "{loop_body}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn writes_in_other_bindings_do_not_invalidate_an_outer_allocation() {
+    for loop_body in [
+        "while (builder != null) { builder.local = builder; break; }",
+        "for (int index = 0; index < 2; index++) { new Runnable() { public void run() { Builder local = builder; local = new Builder(); } }; }",
+    ] {
+        let project = CompiledProject::scenario(
+            &format!("Builder local = new Builder(); {loop_body} local.same().finish();"),
+            "class Builder { Builder local; Builder same() { return this; } void finish() {} }",
+        );
+
+        let output = project.check("inspect");
+
+        assert_eq!(output.status.code(), Some(0), "{loop_body}");
+        assert_eq!(
+            project.verdicts(&output),
+            [
+                ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+                ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+            ]
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_finally_reassignment_preserves_the_receiver_seen_before_that_assignment() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); try { local.same().finish(); } finally { local = builder; } local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_finally_allocation_supplies_identity_for_the_following_call() {
+    let project = CompiledProject::scenario(
+        "Builder local = builder; try {} finally { local = new Builder(); } local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_catch_cannot_reuse_identity_that_the_try_body_may_have_reassigned() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); try { local = builder; builder.touch(); } catch (RuntimeException ignored) { local.same().finish(); }",
+        "class Builder { Builder same() { return this; } void finish() {} void touch() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_unwritten_allocation_keeps_its_identity_across_switch_branches() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); switch (builder == null ? 0 : 1) { case 0: break; default: break; } local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: local variable local: object created in f (shop.Builder)",
+            ":4  shop.OrderService.inspect  finish()  Allowed: local variable local: object created in f (shop.Builder)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_switch_write_prevents_reusing_allocation_evidence_after_the_branch() {
+    let project = CompiledProject::scenario(
+        "Builder local = new Builder(); switch (builder == null ? 0 : 1) { case 0: local = builder; break; default: break; } local.same().finish();",
+        "class Builder { Builder same() { return this; } void finish() {} }",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,

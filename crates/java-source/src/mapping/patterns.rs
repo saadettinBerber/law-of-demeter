@@ -4,6 +4,7 @@ use crate::{self as model, PatternBinding, Switch};
 
 use super::MethodMapper;
 use super::steps::is_quiet;
+use super::writes::assigned_in;
 
 const SUBJECT: &str = "<subject>";
 
@@ -34,15 +35,21 @@ impl MethodMapper<'_> {
             self.steps.evaluate(selector);
             Expression::literal()
         };
+        let written = switch
+            .branches
+            .iter()
+            .flat_map(|branch| assigned_in(&branch.body, branch.guard.iter()))
+            .collect();
+        let invariants = self.unwritten_locals(&written);
         for branch in &switch.branches {
-            self.exact_locals.clear();
+            self.exact_locals = invariants.clone();
             self.bind(&subject, &branch.bindings);
             if let Some(guard) = &branch.guard {
                 self.evaluate(guard);
             }
             self.statements(&branch.body);
         }
-        self.exact_locals.clear();
+        self.exact_locals = invariants;
         Expression::literal()
     }
 

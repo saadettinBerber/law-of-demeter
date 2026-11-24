@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use law_of_demeter_core::domain::method::Expression as Value;
 use law_of_demeter_core::domain::type_shape::TypeRef;
 
@@ -5,6 +7,7 @@ use crate::{Catch, Expression, LocalVariable, Statement};
 
 use super::MethodMapper;
 use super::expressions::expecting;
+use super::writes::assigned_in;
 
 impl MethodMapper<'_> {
     pub(super) fn statements(&mut self, statements: &[Statement]) {
@@ -39,8 +42,11 @@ impl MethodMapper<'_> {
                 update,
                 body,
             } => {
+                let outer: HashSet<_> = self.locals.keys().cloned().collect();
                 self.statements(init);
-                self.exact_locals.clear();
+                let written = assigned_in(body, condition.iter().chain(update));
+                let invariants = self.unwritten_locals(&written);
+                self.exact_locals = invariants.clone();
                 if let Some(condition) = condition {
                     self.evaluate(condition);
                 }
@@ -48,7 +54,8 @@ impl MethodMapper<'_> {
                 for update in update {
                     self.evaluate(update);
                 }
-                self.exact_locals.clear();
+                self.exact_locals = invariants;
+                self.exact_locals.retain(|name| outer.contains(name));
             }
             Statement::ForEach {
                 variable,
@@ -61,21 +68,25 @@ impl MethodMapper<'_> {
                     self.type_ref(&variable.declared_type),
                 );
                 self.steps.for_each(&variable.name, iterable);
-                self.exact_locals.clear();
+                self.exact_locals.remove(&variable.name);
+                let invariants = self.unwritten_locals(&assigned_in(body, []));
+                self.exact_locals = invariants.clone();
                 self.statements(body);
-                self.exact_locals.clear();
+                self.exact_locals = invariants;
             }
             Statement::While { condition, body } => {
-                self.exact_locals.clear();
+                let invariants = self.unwritten_locals(&assigned_in(body, [condition]));
+                self.exact_locals = invariants.clone();
                 self.evaluate(condition);
                 self.statements(body);
-                self.exact_locals.clear();
+                self.exact_locals = invariants;
             }
             Statement::DoWhile { body, condition } => {
-                self.exact_locals.clear();
+                let invariants = self.unwritten_locals(&assigned_in(body, [condition]));
+                self.exact_locals = invariants.clone();
                 self.statements(body);
                 self.evaluate(condition);
-                self.exact_locals.clear();
+                self.exact_locals = invariants;
             }
             Statement::Try {
                 resources,
@@ -83,16 +94,32 @@ impl MethodMapper<'_> {
                 catches,
                 finally,
             } => {
+                let outer: HashSet<_> = self.locals.keys().cloned().collect();
+                let before = self.exact_locals.clone();
+                let mut written = assigned_in(resources, []);
+                written.extend(assigned_in(body, []));
+                let catch_start: HashSet<_> = before.difference(&written).cloned().collect();
                 self.statements(resources);
-                self.exact_locals.clear();
                 self.statements(body);
+                let mut continuing = self.exact_locals.clone();
+                continuing.retain(|name| outer.contains(name));
                 for caught in catches {
-                    self.exact_locals.clear();
+                    self.exact_locals = catch_start.clone();
                     self.catch(caught);
+                    continuing.retain(|name| self.exact_locals.contains(name));
+                    written.extend(assigned_in(&caught.body, []));
                 }
-                self.exact_locals.clear();
+                self.exact_locals = before.difference(&written).cloned().collect();
                 self.statements(finally);
-                self.exact_locals.clear();
+                let written = assigned_in(finally, []);
+                continuing.retain(|name| !written.contains(name));
+                continuing.extend(
+                    self.exact_locals
+                        .iter()
+                        .filter(|name| written.contains(*name) && outer.contains(*name))
+                        .cloned(),
+                );
+                self.exact_locals = continuing;
             }
         }
     }
@@ -100,6 +127,10 @@ impl MethodMapper<'_> {
     pub(super) fn evaluate(&mut self, expression: &Expression) {
         let value = self.expression(expression);
         self.steps.evaluate(value);
+    }
+
+    pub(super) fn unwritten_locals(&self, written: &HashSet<String>) -> HashSet<String> {
+        self.exact_locals.difference(written).cloned().collect()
     }
 
     fn returned(&mut self, expression: &Expression) {
@@ -130,6 +161,7 @@ impl MethodMapper<'_> {
     }
 
     fn catch(&mut self, caught: &Catch) {
+        self.exact_locals.remove(&caught.name);
         let declared = match caught.types.as_slice() {
             [only] => self.type_ref_or_object(only),
             _ => TypeRef::class("java.lang.Throwable"),
