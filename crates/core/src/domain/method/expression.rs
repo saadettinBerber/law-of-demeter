@@ -366,15 +366,6 @@ pub struct MethodReference {
 }
 
 impl MethodReference {
-    pub fn target(&self) -> &Expression {
-        &self.target
-    }
-
-    pub fn with_target(mut self, target: Expression) -> Self {
-        self.target = target;
-        self
-    }
-
     pub fn new(target: Expression, name: &str, line: usize) -> Self {
         Self {
             target,
@@ -387,6 +378,15 @@ impl MethodReference {
             arity: None,
             returns_receiver: false,
         }
+    }
+
+    pub fn target(&self) -> &Expression {
+        &self.target
+    }
+
+    pub fn with_target(mut self, target: Expression) -> Self {
+        self.target = target;
+        self
     }
 
     pub fn returning(mut self, type_ref: TypeRef) -> Self {

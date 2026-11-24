@@ -31,7 +31,7 @@ impl Steps {
         self.operations.len()
     }
 
-    pub(super) fn before_arguments(&mut self, position: usize, receiver: Expression) -> Expression {
+    pub(super) fn capture_before(&mut self, position: usize, receiver: Expression) -> Expression {
         if self.operations.len() == position
             || matches!(
                 receiver,
@@ -56,11 +56,15 @@ impl Steps {
         Expression::local(&name)
     }
 
-    pub(super) fn argument_before(&mut self, position: usize, argument: Argument) -> Argument {
+    pub(super) fn capture_argument_before(
+        &mut self,
+        position: usize,
+        argument: Argument,
+    ) -> Argument {
         match argument {
-            Argument::Value(value) => Argument::Value(self.before_arguments(position, value)),
+            Argument::Value(value) => Argument::Value(self.capture_before(position, value)),
             Argument::MethodReference(reference) => {
-                let target = self.before_arguments(position, reference.target().clone());
+                let target = self.capture_before(position, reference.target().clone());
                 Argument::MethodReference(reference.with_target(target))
             }
             other => other,

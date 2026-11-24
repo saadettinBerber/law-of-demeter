@@ -121,7 +121,7 @@ impl MethodMapper<'_> {
         let position = self.steps.position();
         let arguments =
             self.mapped_arguments(&call.arguments, &targets, declared.as_ref(), inherited);
-        let receiver = self.steps.before_arguments(position, receiver);
+        let receiver = self.steps.capture_before(position, receiver);
         let mut mapped = Call::new(receiver, &call.name, call.line);
         if returns_receiver {
             mapped = mapped.returning_receiver();
@@ -136,22 +136,6 @@ impl MethodMapper<'_> {
         match declared {
             Some(declared) => self.linked(mapped, call, &declared),
             None => mapped,
-        }
-    }
-
-    fn own_helper(&self, call: &model::Call) -> Option<usize> {
-        if !matches!(
-            call.receiver.as_deref(),
-            None | Some(model::Expression::This)
-        ) {
-            return None;
-        }
-        let mut same = self.class.methods.iter().filter(|method| {
-            method.name == call.name && method.parameters.len() == call.arguments.len()
-        });
-        match (same.next(), same.next()) {
-            (Some(only), None) if only.is_private => Some(only.line),
-            _ => None,
         }
     }
 
@@ -175,7 +159,7 @@ impl MethodMapper<'_> {
             .rev()
             .map(|(argument, position)| {
                 if position < after_arguments {
-                    self.steps.argument_before(position, argument)
+                    self.steps.capture_argument_before(position, argument)
                 } else {
                     argument
                 }
@@ -183,6 +167,22 @@ impl MethodMapper<'_> {
             .collect();
         captured.reverse();
         captured
+    }
+
+    fn own_helper(&self, call: &model::Call) -> Option<usize> {
+        if !matches!(
+            call.receiver.as_deref(),
+            None | Some(model::Expression::This)
+        ) {
+            return None;
+        }
+        let mut same = self.class.methods.iter().filter(|method| {
+            method.name == call.name && method.parameters.len() == call.arguments.len()
+        });
+        match (same.next(), same.next()) {
+            (Some(only), None) if only.is_private => Some(only.line),
+            _ => None,
+        }
     }
 
     fn produces_keys(&mut self, call: &model::Call) -> bool {
