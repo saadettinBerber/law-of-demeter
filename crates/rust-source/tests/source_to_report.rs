@@ -235,7 +235,7 @@ fn an_unsupported_active_body_has_an_issue_instead_of_a_clean_empty_method() {
     assert!(report.findings().is_empty());
     assert_eq!(report.issues().len(), 1, "{:?}", report.issues());
     assert_eq!(report.issues()[0].kind(), AnalysisIssueKind::Unsupported);
-    assert_eq!(report.issues()[0].line(), Some(21));
+    assert_eq!(report.issues()[0].line(), Some(22));
 }
 
 #[test]

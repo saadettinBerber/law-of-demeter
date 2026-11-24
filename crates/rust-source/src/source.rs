@@ -4,10 +4,10 @@ use std::path::PathBuf;
 use law_of_demeter_core::application::{
     AnalysisIssue, AnalysisIssueKind, ReadError, SourceFile, Target,
 };
-use law_of_demeter_core::domain::method::{Call, Expression, Method};
+use law_of_demeter_core::domain::method::{Call, Creation, Expression, Method};
 use ra_ap_hir::{
-    Adt, AsAssocItem, AssocItem, Function, Impl, ModuleDef, PathResolution, Semantics, Type,
-    Variant,
+    Adt, AsAssocItem, AssocItem, CallableKind, Function, Impl, Local, ModuleDef, PathResolution,
+    Semantics, Type, Variant,
 };
 use ra_ap_ide_db::RootDatabase;
 use ra_ap_syntax::{AstNode, SyntaxNode, ast, ast::HasArgList};
@@ -17,6 +17,10 @@ use crate::snapshot::Snapshot;
 pub(super) fn read(
     snapshot: &Snapshot,
 ) -> (Vec<Result<SourceFile, ReadError>>, Vec<AnalysisIssue>) {
+    ra_ap_hir::attach_db(&snapshot.db, || read_attached(snapshot))
+}
+
+fn read_attached(snapshot: &Snapshot) -> (Vec<Result<SourceFile, ReadError>>, Vec<AnalysisIssue>) {
     let semantics = Semantics::new(&snapshot.db);
     let mut files: BTreeMap<PathBuf, (Vec<String>, Vec<Method>)> = BTreeMap::new();
     let mut issues = Vec::new();
@@ -133,6 +137,7 @@ pub(super) fn read(
                 function,
                 owner: Target::method(&class, function.name(&snapshot.db).as_str()),
                 path: &path,
+                locals: HashMap::new(),
             };
             match reader.read(&source.value, line) {
                 Ok(method) => files.entry(path).or_default().1.push(method),
@@ -162,10 +167,16 @@ struct BodyReader<'a, 'db> {
     function: Function,
     owner: Target,
     path: &'a std::path::Path,
+    locals: HashMap<Local<'db>, LocalBinding>,
 }
 
-impl BodyReader<'_, '_> {
-    fn read(&self, function: &ast::Fn, line: usize) -> Result<Method, AnalysisIssue> {
+struct LocalBinding {
+    name: String,
+    is_current_instance: bool,
+}
+
+impl<'db> BodyReader<'_, 'db> {
+    fn read(mut self, function: &ast::Fn, line: usize) -> Result<Method, AnalysisIssue> {
         let mut method = Method::new(
             self.owner.class_name(),
             self.function.name(&self.snapshot.db).as_str(),
@@ -192,21 +203,26 @@ impl BodyReader<'_, '_> {
                 )
             })?;
         for statement in body.statements() {
-            let ast::Stmt::ExprStmt(statement) = statement else {
-                return Err(self.issue(
-                    AnalysisIssueKind::Unsupported,
-                    statement.syntax(),
-                    "statement is outside the first source slice",
-                ));
-            };
-            let expression = statement.expr().ok_or_else(|| {
-                self.issue(
-                    AnalysisIssueKind::Parse,
-                    statement.syntax(),
-                    "statement expression is missing",
-                )
-            })?;
-            method = method.evaluate(self.expression(&expression)?);
+            match statement {
+                ast::Stmt::LetStmt(statement) => method = self.bind(method, &statement)?,
+                ast::Stmt::ExprStmt(statement) => {
+                    let expression = statement.expr().ok_or_else(|| {
+                        self.issue(
+                            AnalysisIssueKind::Parse,
+                            statement.syntax(),
+                            "statement expression is missing",
+                        )
+                    })?;
+                    method = method.evaluate(self.expression(&expression)?);
+                }
+                _ => {
+                    return Err(self.issue(
+                        AnalysisIssueKind::Unsupported,
+                        statement.syntax(),
+                        "statement is outside the supported scope",
+                    ));
+                }
+            }
         }
         if let Some(expression) = body.tail_expr() {
             method = method.give_back(self.expression(&expression)?);
@@ -214,49 +230,298 @@ impl BodyReader<'_, '_> {
         Ok(method)
     }
 
+    fn bind(&mut self, method: Method, statement: &ast::LetStmt) -> Result<Method, AnalysisIssue> {
+        if statement.let_else().is_some() {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                statement.syntax(),
+                "let else is outside the supported scope",
+            ));
+        }
+        let Some(ast::Pat::IdentPat(pattern)) = statement.pat() else {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                statement.syntax(),
+                "binding pattern is outside the supported scope",
+            ));
+        };
+        if pattern.ref_token().is_some() || pattern.pat().is_some() {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                statement.syntax(),
+                "binding pattern is outside the supported scope",
+            ));
+        }
+        let local = self.semantics.to_def(&pattern).ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Origin,
+                statement.syntax(),
+                "local binding is unresolved",
+            )
+        })?;
+        let name = local.name(&self.snapshot.db).as_str().to_owned();
+        let shadows_parameter = self
+            .function
+            .params_without_self(&self.snapshot.db)
+            .iter()
+            .any(|parameter| {
+                parameter
+                    .name(&self.snapshot.db)
+                    .is_some_and(|parameter| parameter.as_str() == name)
+            });
+        if shadows_parameter || self.locals.values().any(|binding| binding.name == name) {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                statement.syntax(),
+                "shadowed bindings are outside the supported scope",
+            ));
+        }
+        let initializer = statement.initializer().ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Unsupported,
+                statement.syntax(),
+                "uninitialized bindings are outside the supported scope",
+            )
+        })?;
+        self.same_value(&initializer)?;
+        let value = self.expression(&initializer)?;
+        let binding_type = self
+            .semantics
+            .type_of_binding_in_pat(&pattern)
+            .ok_or_else(|| {
+                self.issue(
+                    AnalysisIssueKind::TypeResolution,
+                    statement.syntax(),
+                    "binding type is unresolved",
+                )
+            })?;
+        let declared = self.snapshot.type_ref(&binding_type).map_err(|message| {
+            self.issue(
+                AnalysisIssueKind::TypeResolution,
+                statement.syntax(),
+                &message,
+            )
+        })?;
+        let is_current_instance = self.is_current_instance(&value);
+        self.locals.insert(
+            local,
+            LocalBinding {
+                name: name.clone(),
+                is_current_instance,
+            },
+        );
+        Ok(method.assign(&name, declared, value))
+    }
+
     fn expression(&self, expression: &ast::Expr) -> Result<Expression, AnalysisIssue> {
         match expression {
             ast::Expr::MethodCallExpr(call) => self.call(call).map(Expression::return_of),
             ast::Expr::FieldExpr(field) => self.field(field),
+            ast::Expr::RecordExpr(record) => self.record(record),
+            ast::Expr::CallExpr(call) => self.tuple(call),
             ast::Expr::Literal(_) => Ok(Expression::literal()),
             ast::Expr::PathExpr(path) => {
-                let resolution = path
+                self.same_value(expression)?;
+                if let Some(PathResolution::Local(local)) = path
                     .path()
-                    .and_then(|path| self.semantics.resolve_path(&path));
-                if let Some(PathResolution::Local(local)) = resolution {
-                    if local.is_self(&self.snapshot.db) {
-                        return Ok(Expression::This);
-                    }
-                    let parameters = self.function.params_without_self(&self.snapshot.db);
-                    if let Some(parameter) = parameters
-                        .iter()
-                        .find(|parameter| parameter.as_local(&self.snapshot.db) == Some(local))
-                    {
-                        let ty = self.snapshot.type_ref(parameter.ty()).map_err(|message| {
-                            self.issue(
-                                AnalysisIssueKind::TypeResolution,
-                                expression.syntax(),
-                                &message,
-                            )
-                        })?;
-                        return Ok(Expression::parameter(
-                            local.name(&self.snapshot.db).as_str(),
-                            ty,
-                        ));
-                    }
+                    .and_then(|path| self.semantics.resolve_path(&path))
+                {
+                    return self.local(local, expression.syntax());
                 }
                 Err(self.issue(
                     AnalysisIssueKind::Origin,
                     expression.syntax(),
-                    "expression does not resolve to a direct parameter",
+                    "expression does not resolve to a supported binding",
                 ))
             }
             _ => Err(self.issue(
                 AnalysisIssueKind::Unsupported,
                 expression.syntax(),
-                "expression is outside the first source slice",
+                "expression is outside the supported scope",
             )),
         }
+    }
+
+    fn local(&self, local: Local<'db>, node: &SyntaxNode) -> Result<Expression, AnalysisIssue> {
+        if local.is_self(&self.snapshot.db) {
+            return Ok(Expression::This);
+        }
+        let parameters = self.function.params_without_self(&self.snapshot.db);
+        if let Some(parameter) = parameters
+            .iter()
+            .find(|parameter| parameter.as_local(&self.snapshot.db) == Some(local))
+        {
+            let ty = self
+                .snapshot
+                .type_ref(parameter.ty())
+                .map_err(|message| self.issue(AnalysisIssueKind::TypeResolution, node, &message))?;
+            return Ok(Expression::parameter(
+                local.name(&self.snapshot.db).as_str(),
+                ty,
+            ));
+        }
+        if let Some(binding) = self.locals.get(&local) {
+            return Ok(Expression::local(&binding.name));
+        }
+        Err(self.issue(
+            AnalysisIssueKind::Origin,
+            node,
+            "local origin is unavailable",
+        ))
+    }
+
+    fn is_current_instance(&self, value: &Expression) -> bool {
+        match value {
+            Expression::This => true,
+            Expression::Local(name) => self
+                .locals
+                .values()
+                .any(|binding| binding.name == *name && binding.is_current_instance),
+            _ => false,
+        }
+    }
+
+    fn same_value(&self, value: &ast::Expr) -> Result<(), AnalysisIssue> {
+        let info = self.semantics.type_of_expr(value).ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::TypeResolution,
+                value.syntax(),
+                "value type is unresolved",
+            )
+        })?;
+        if let Some(adjusted) = info.adjusted {
+            let same = ra_ap_hir::attach_db(&self.snapshot.db, || {
+                without_references(info.original) == without_references(adjusted)
+            });
+            if !same {
+                return Err(self.issue(
+                    AnalysisIssueKind::Unsupported,
+                    value.syntax(),
+                    "value projection is outside the supported scope",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn record(&self, record: &ast::RecordExpr) -> Result<Expression, AnalysisIssue> {
+        let expression = ast::Expr::RecordExpr(record.clone());
+        let info = self.semantics.type_of_expr(&expression).ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::TypeResolution,
+                record.syntax(),
+                "creation type is unresolved",
+            )
+        })?;
+        let Some(Adt::Struct(structure)) = info.original.as_adt() else {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                record.syntax(),
+                "only struct record creation is supported",
+            ));
+        };
+        let type_ref = self.snapshot.type_ref(&info.original).map_err(|message| {
+            self.issue(AnalysisIssueKind::TypeResolution, record.syntax(), &message)
+        })?;
+        let fields = record.record_expr_field_list().ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Parse,
+                record.syntax(),
+                "creation fields are missing",
+            )
+        })?;
+        if fields.spread().is_some() {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                record.syntax(),
+                "struct update is outside the supported scope",
+            ));
+        }
+        let mut creation = Creation::new(type_ref);
+        for field in fields.fields() {
+            let (resolved, shorthand, _) =
+                self.semantics.resolve_record_field(&field).ok_or_else(|| {
+                    self.issue(
+                        AnalysisIssueKind::TargetResolution,
+                        field.syntax(),
+                        "initializer field is unresolved",
+                    )
+                })?;
+            if resolved.parent_def(&self.snapshot.db) != Variant::Struct(structure) {
+                return Err(self.issue(
+                    AnalysisIssueKind::Unsupported,
+                    field.syntax(),
+                    "initializer field has a different owner",
+                ));
+            }
+            let value = if let Some(value) = field.expr() {
+                self.same_value(&value)?;
+                self.expression(&value)?
+            } else if let Some(local) = shorthand {
+                self.local(local, field.syntax())?
+            } else {
+                return Err(self.issue(
+                    AnalysisIssueKind::Origin,
+                    field.syntax(),
+                    "initializer origin is unavailable",
+                ));
+            };
+            creation = creation.with(value);
+        }
+        Ok(Expression::created(creation))
+    }
+
+    fn tuple(&self, call: &ast::CallExpr) -> Result<Expression, AnalysisIssue> {
+        let target = call
+            .expr()
+            .and_then(|callee| self.semantics.resolve_expr_as_callable(&callee))
+            .ok_or_else(|| {
+                self.issue(
+                    AnalysisIssueKind::TargetResolution,
+                    call.syntax(),
+                    "call target is unresolved",
+                )
+            })?;
+        let CallableKind::TupleStruct(structure) = target.kind() else {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                call.syntax(),
+                "only tuple struct constructor calls are supported",
+            ));
+        };
+        let info = self
+            .semantics
+            .type_of_expr(&ast::Expr::CallExpr(call.clone()))
+            .ok_or_else(|| {
+                self.issue(
+                    AnalysisIssueKind::TypeResolution,
+                    call.syntax(),
+                    "creation result type is unresolved",
+                )
+            })?;
+        if info.original.as_adt() != Some(Adt::Struct(structure)) {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                call.syntax(),
+                "constructor result has a different type",
+            ));
+        }
+        let type_ref = self.snapshot.type_ref(&info.original).map_err(|message| {
+            self.issue(AnalysisIssueKind::TypeResolution, call.syntax(), &message)
+        })?;
+        let mut creation = Creation::new(type_ref);
+        let arguments = call.arg_list().ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Parse,
+                call.syntax(),
+                "constructor arguments are missing",
+            )
+        })?;
+        for argument in arguments.args() {
+            self.same_value(&argument)?;
+            creation = creation.with(self.expression(&argument)?);
+        }
+        Ok(Expression::created(creation))
     }
 
     fn field(&self, field: &ast::FieldExpr) -> Result<Expression, AnalysisIssue> {
@@ -301,7 +566,7 @@ impl BodyReader<'_, '_> {
         }
         let receiver = self.expression(&receiver)?;
         let name = resolved.name(&self.snapshot.db);
-        if matches!(receiver, Expression::This) {
+        if self.is_current_instance(&receiver) {
             let actual = self
                 .semantics
                 .type_of_expr(&ast::Expr::FieldExpr(field.clone()))

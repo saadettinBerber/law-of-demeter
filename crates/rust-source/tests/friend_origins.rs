@@ -1,8 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use law_of_demeter_core::application::{CheckProject, Report, Selection, Target, TypeSource};
+use law_of_demeter_core::application::{
+    AnalysisIssueKind, CheckProject, Report, Selection, Target, TypeSource,
+};
 use law_of_demeter_core::domain::method::{Reason, Verdict};
+use law_of_demeter_core::domain::type_shape::TypeRef;
 use law_of_demeter_rust_source::{LoadOptions, RustProject};
 
 #[test]
@@ -73,6 +76,85 @@ fn self_held_fields_and_parameters_are_friends_but_another_instances_field_is_no
         ]
     );
     assert_complete(&report);
+}
+
+#[test]
+fn named_and_tuple_struct_locals_are_created_friends_and_keep_initializer_calls() {
+    let project = load_fixture();
+    let wallet = TypeRef::class(&project_type(&project, "Wallet"));
+    let pocket = TypeRef::class(&project_type(&project, "Pocket"));
+
+    let report = check(&project, &["create_named", "create_tuple"]);
+
+    assert_eq!(
+        verdicts(&report),
+        [
+            (
+                "create_named".into(),
+                Verdict::allowed("amount", 105, Reason::parameter("seed"))
+            ),
+            (
+                "create_named".into(),
+                Verdict::allowed(
+                    "withdraw",
+                    107,
+                    Reason::local("wallet", Reason::created(wallet))
+                )
+            ),
+            (
+                "create_tuple".into(),
+                Verdict::allowed("amount", 111, Reason::parameter("seed"))
+            ),
+            (
+                "create_tuple".into(),
+                Verdict::allowed(
+                    "withdraw",
+                    112,
+                    Reason::local("pocket", Reason::created(pocket))
+                )
+            ),
+        ]
+    );
+    assert_complete(&report);
+}
+
+#[test]
+fn a_created_outer_holder_does_not_make_its_existing_wallet_a_created_friend() {
+    let project = load_fixture();
+
+    let report = check(&project, &["new_holder"]);
+
+    assert_eq!(
+        verdicts(&report),
+        [(
+            "new_holder".into(),
+            Verdict::violation("withdraw", 117, Reason::field_of("wallet"))
+        )]
+    );
+    assert_complete(&report);
+}
+
+#[test]
+fn an_ordinary_associated_function_is_not_treated_as_a_constructor() {
+    let project = load_fixture();
+
+    let report = check(&project, &["from_function"]);
+
+    assert!(
+        report
+            .issues()
+            .iter()
+            .any(|issue| issue.kind() == AnalysisIssueKind::Unsupported
+                && issue.path() == fixture().join("lib.rs")
+                && issue.line() == Some(121)
+                && issue.owner()
+                    == Some(&Target::method(
+                        &project_type(&project, "PaymentService"),
+                        "from_function"
+                    ))),
+        "{report:?}"
+    );
+    assert!(report.findings().is_empty(), "{report:?}");
 }
 
 fn load_fixture() -> RustProject {

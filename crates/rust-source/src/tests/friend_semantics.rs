@@ -79,3 +79,117 @@ fn field_in(source: &ast::SourceFile, method: &str) -> ast::FieldExpr {
         .find_map(ast::FieldExpr::cast)
         .expect("caller has a field")
 }
+
+#[test]
+fn ra_distinguishes_a_tuple_constructor_alias_from_a_function_and_resolves_local_bindings() {
+    use ra_ap_hir::{CallableKind, PathResolution};
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let project = RustProject::load(
+        &root.join("tests/fixtures/friends/Cargo.toml"),
+        LoadOptions::new(
+            "friend-origins",
+            &root.join("../../target/rust-friends-journey/analyzed/creation-learning"),
+        ),
+    )
+    .expect("friend source loads");
+    let snapshot = &project._snapshot;
+    let semantics = Semantics::new(&snapshot.db);
+    let source = semantics.parse(ra_ap_hir::EditionedFileId::new(
+        &snapshot.db,
+        snapshot.selected.root_file(&snapshot.db),
+        snapshot.selected.edition(&snapshot.db),
+    ));
+    let pocket = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Struct::cast)
+        .find(|structure| structure.name().is_some_and(|name| name.text() == "Pocket"))
+        .and_then(|structure| semantics.to_def(&structure))
+        .expect("Pocket declaration resolves");
+    let tuple_caller = function_in(&source, "create_tuple");
+    let tuple = tuple_caller
+        .syntax()
+        .descendants()
+        .find_map(ast::CallExpr::cast)
+        .expect("tuple creation exists");
+    let function_caller = function_in(&source, "from_function");
+    let function_call = function_caller
+        .syntax()
+        .descendants()
+        .find_map(ast::CallExpr::cast)
+        .expect("function call exists");
+    let constructor_function = semantics
+        .to_def(&function_in(&source, "new"))
+        .expect("associated function resolves");
+    let named_caller = function_in(&source, "create_named");
+    let binding = named_caller
+        .body()
+        .expect("named body exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::IdentPat::cast)
+        .expect("local binding exists");
+    let usage = named_caller
+        .body()
+        .expect("body exists")
+        .syntax()
+        .descendants()
+        .filter_map(ast::MethodCallExpr::cast)
+        .find(|call| {
+            call.name_ref()
+                .is_some_and(|name| name.text() == "withdraw")
+        })
+        .and_then(|call| call.receiver())
+        .expect("local receiver exists");
+    let holder_caller = function_in(&source, "new_holder");
+    let shorthand = holder_caller
+        .body()
+        .expect("holder body exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::RecordExprField::cast)
+        .expect("shorthand initializer exists");
+
+    let tuple_target = semantics
+        .resolve_expr_as_callable(&tuple.expr().expect("tuple callee exists"))
+        .expect("tuple callee resolves");
+    let function_target = semantics
+        .resolve_expr_as_callable(&function_call.expr().expect("function callee exists"))
+        .expect("function callee resolves");
+    let local = semantics
+        .to_def(&binding)
+        .expect("local has a HIR identity");
+    let ast::Expr::PathExpr(usage) = usage else {
+        panic!("local receiver is a path")
+    };
+    let resolved_usage = semantics.resolve_path(&usage.path().expect("local path exists"));
+    let (_, captured, _) = semantics
+        .resolve_record_field(&shorthand)
+        .expect("shorthand resolves");
+    let holder_definition = semantics
+        .to_def(&holder_caller)
+        .expect("holder caller resolves");
+    let holder_params = holder_definition.params_without_self(&snapshot.db);
+
+    assert!(
+        matches!(tuple_target.kind(), CallableKind::TupleStruct(structure) if structure == pocket)
+    );
+    assert!(matches!(function_target.kind(), CallableKind::Function(_)));
+    assert_eq!(function_target.as_function(), Some(constructor_function));
+    assert_eq!(resolved_usage, Some(PathResolution::Local(local)));
+    assert_eq!(captured, holder_params[0].as_local(&snapshot.db));
+}
+
+fn function_in(source: &ast::SourceFile, name: &str) -> ast::Fn {
+    source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Fn::cast)
+        .find(|function| {
+            function
+                .name()
+                .is_some_and(|declared| declared.text() == name)
+        })
+        .expect("caller exists")
+}
