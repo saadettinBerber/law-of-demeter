@@ -1,0 +1,9 @@
+--- a/tests/expansion.rs
++++ b/tests/expansion.rs
+@@ -542,3 +542,6 @@
+ fn flag(name: &str) -> CfgAtom {
+     CfgAtom::Flag(Symbol::intern(name))
+ }
++
++#[path = "../experiments/source-mapping/source_mapping_cases.rs"]
++mod source_mapping_cases;
