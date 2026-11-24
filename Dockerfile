@@ -5,12 +5,23 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
 COPY third_party/rust-analyzer/ third_party/rust-analyzer/
 COPY skill/law-of-demeter/SKILL.md skill/law-of-demeter/SKILL.md
-RUN cargo build --locked --release -p law-of-demeter-cli \
+RUN rustup component add rust-src \
+    && cp -a "$(rustc --print sysroot)" /opt/rust \
+    && rm -rf /opt/rust/share/doc \
+    && rm -f /opt/rust/bin/cargo-clippy /opt/rust/bin/clippy-driver /opt/rust/bin/cargo-fmt /opt/rust/bin/rustfmt
+RUN CARGO_INCREMENTAL=0 cargo build --locked --release --jobs 1 -p law-of-demeter-cli \
     && strip target/release/law-of-demeter
 
 FROM maven:3.9.11-eclipse-temurin-21-noble@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential pkg-config ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && install -d -m 1777 /tmp/law-of-demeter-cargo
+COPY --from=build /opt/rust /opt/rust
 COPY --from=build /build/target/release/law-of-demeter /usr/local/bin/law-of-demeter
+ENV PATH="/opt/rust/bin:${PATH}" \
+    CARGO_HOME=/tmp/law-of-demeter-cargo
 WORKDIR /workspace
 USER 65532:65532
 ENTRYPOINT ["/usr/local/bin/law-of-demeter"]
