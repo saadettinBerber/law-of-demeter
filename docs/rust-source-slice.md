@@ -23,7 +23,11 @@ PATH'te uyumlu Cargo/rustc, eşleşen rust-src ve `libexec/rust-analyzer-proc-ma
 
 Metadata, sysroot, build veya proc yükleme hatası `Result::Err(ReadError)` olur. Okunamayan modül ve parse hatası kaynak hatasına ve ilgili `AnalysisIssue` kaydına dönüşür. Çözülemeyen bildirim tipi type reading error olarak kalır; proje kimliği katalogdan silinmez. Çözülemeyen metot hedefi `TargetResolution` üretir; bilinen alıcı tipi izinli çağrı üretmek için yeterli değildir. Tip uyuşmazlığı `Compilation` issue'sudur.
 
-İlk gövde köprüsü normal alıcılı metotlarda doğrudan parametre/self, gerçek literal ve normal metot zincirlerini taşır. Bütün gövde aktarılamazsa metot domain'e verilmez; sahibi ve konumu olan issue döner. Bu nedenle okunamayan gövdenin metot seçimi mevcut application sözleşmesinde ayrıca unmatched olabilir. Bilinen çağrıların kısmi gövdeden kurtarılması bu dilimin kapsamı değildir. Bağımsız fonksiyonlar ve desteklenmeyen aggregate bildirimleri açık issue taşır; modül sahte self yapılmaz.
+İlk gövde köprüsü normal alıcılı metotlarda doğrudan parametre/self, gerçek literal ve normal metot zincirlerini taşır.
+
+Seçilen hedef bir trait bildirimi veya trait uygulamasına aitse `Unsupported` döner. Inherent hedefte, özgün alıcı, semantik uyarlamadan sonraki alıcı ve seçilen bildirimin implementasyon tipi yalnız referanslar çıkarılarak karşılaştırılır. Nesne tipi değişiyorsa çağrı `Unsupported` olur; referans çözme ve autoref tek başına reddetme nedeni değildir. Böylece trait hedefi aynı adlı inherent fluent imzaya indirgenmez, `Deref` ile ulaşılan alt nesne de doğrudan Wrapper parametresi sayılmaz.
+
+Bütün gövde aktarılamazsa metot domain'e verilmez; sahibi ve konumu olan issue döner. Bu nedenle okunamayan gövdenin metot seçimi mevcut application sözleşmesinde ayrıca unmatched olabilir. Bilinen çağrıların kısmi gövdeden kurtarılması bu dilimin kapsamı değildir. Bağımsız fonksiyonlar ve desteklenmeyen aggregate bildirimleri açık issue taşır; modül sahte self yapılmaz.
 
 Yereller, alan kökenleri, oluşturma, reborrow, genel kontrol akışı, trait/generic dispatch, closure/async, makro traversal/tekrar önleme, standart koleksiyon/sarmalayıcı politikaları ve Rust CLI/çıkış politikası sonraki işlerdir. Mevcut senaryo dosyasındaki bu tür etkin gövdeler boş Method/Literal/Operation ile temiz gösterilmez.
 
@@ -39,7 +43,7 @@ Koşuların log'ları worktree'nin `target/rust-source-journey/logs` dizinindedi
 
 Geçici bozulma kontrolleri gerçek assertion'larda kırıldı: referansı unit tipe indirgeme (snapshot imzası ve iki kaynak→rapor karşılaştırması), olmayan metodu yalnız alıcı bilindiği için kabul etme, type error'ı gizleme, desteklenmeyen gövdeyi boş metot yapma, Rust adaptörüne Java adaptörü bağımlılığı ekleme ve Rust dil adını mimari filtreden çıkarma. Bütün değişiklikler geri alındı. İlk eksik-hedef bozulma denemesinin derleme hatası davranış kanıtı sayılmadı; düzeltilen deneme `missing_debit` için yanlış `Allowed` bulgusunu üreterek gerçek assertion'da kırıldı (`missing-target-fault-corrected.log`).
 
-Son doğrulama (24 Kasım 2026, macOS ARM64; bu worktree ve yeni Cargo.lock):
+İlk dilimin doğrulaması (`3eca691`, 24 Kasım 2026, macOS ARM64; bu worktree ve yeni Cargo.lock):
 
 | Komut | Gerçek sonuç |
 |---|---|
@@ -49,4 +53,23 @@ Son doğrulama (24 Kasım 2026, macOS ARM64; bu worktree ve yeni Cargo.lock):
 | `docker build --progress=plain -t law-of-demeter:rust-source-slice .` | exit 0; vendor COPY ve kısıtlı build context doğrulandı. |
 | `CONTAINER_IMAGE=law-of-demeter:rust-source-slice cargo test --offline --locked -p law-of-demeter-cli --test container -- --ignored` | 3/3 geçti; Java çıkış kodları 0/1/2 korundu. |
 
-Koşular `CARGO_TARGET_DIR=target/rust-source-journey` mutlak yoluyla, dev/test debug 0, incremental 0, jobs 1 ve test threads 1 ile çalıştı. Java denetimleri mevcut JDK 21 ve Maven yollarını yalnız süreç ortamından aldı. Workspace'teki beş ignored testin üçü yukarıdaki açık Docker koşusunda çalıştırıldı; iki ignored Maven örnek testi tekrar çalıştırılmadı. `verification.json` exact komut/çıkış/süre kayıtlarını tutar. Test okunabilirliği ayrı salt okunur geçişte incelendi; bulgu yok. Bağımsız nihai incelemeyi koordinatör atayacak.
+Koşular `CARGO_TARGET_DIR=target/rust-source-journey` mutlak yoluyla, dev/test debug 0, incremental 0, jobs 1 ve test threads 1 ile çalıştı. Java denetimleri mevcut JDK 21 ve Maven yollarını yalnız süreç ortamından aldı. Workspace'teki beş ignored testin üçü yukarıdaki açık Docker koşusunda çalıştırıldı; iki ignored Maven örnek testi tekrar çalıştırılmadı. `verification.json` exact komut/çıkış/süre kayıtlarını tutar. Test okunabilirliği ayrı salt okunur geçişte incelendi; bulgu yok. Bu tabanın bağımsız incelemesinde aşağıdaki iki P2 bulundu; düzeltme yeniden bağımsız incelemeye verilecek.
+
+
+## Bağımsız incelemedeki iki P2
+
+`tests/fixtures/dispatch` Cargo ile derlenir ve gerçek `RustProject` → `CheckProject` akışından geçer. Taban `3eca691` üzerinde trait default hedefi, aynı adlı inherent `account(&mut self) -> &mut Parcel` imzası yüzünden iki çağrıyı da yanlış izinli sayıyordu. `Deref<Target = Account>` çağrısı da Account üzerindeki işlemi Wrapper parametresindeymiş gibi izinli sayıyordu. İki regresyon, derleme kontrolü geçtikten sonra sıfır issue içeren bu yanlış raporlarda kırmızı oldu (`logs/p2/false-clean-red.log`).
+
+Düzeltme yalnız adaptörün çağrı kabul sınırını daraltır. Trait sahipliği gerçek seçilen bildirimin RA kimliğinden okunur; metot adına veya adayların dönüş tipi benzerliğine göre hedef seçilmez. Inherent çağrıda özgün/uyarlanmış alıcı ve bildirim tipi RA'nın semantik tip eşitliğiyle karşılaştırılır. Genel trait, Box/Rc/Arc ve Deref köken desteği hâlâ sonraki dilimlerdedir. Sahte Method oluşturulmaz; iki eksik gövde doğru owner/path/line `Unsupported` kaydı taşır ve mevcut sözleşmeye göre ayrıca unmatched olabilir.
+
+Yeni RA öğrenme testi, trait sahipliğini ve Wrapper → Account uyarlamasını seçilen Account bildirimiyle karşılaştırarak doğrular. Pozitif kontrol, `&&Account`, autoref ve `&mut Parcel` inherent çağrılarının aynı nesnede kaldığını sınar. Referans çıkarma geçici kaldırıldığında bu pozitif test gerçek verdict assertion'ında kırıldı; helper byte eş geri alındı (`logs/p2/reference-normalization-fault.log`, `p2-reference-fault.json`).
+
+P2 düzeltmesinin son doğrulaması (aynı target/cache, debug 0, incremental 0, jobs 1, test threads 1):
+
+| Komut | Gerçek sonuç |
+|---|---|
+| `cargo test --offline --locked -p law-of-demeter-rust-source` | 17 geçti, 0 hata, 0 ignored: önceki 13 test, iki regresyon, bir pozitif referans kontrolü ve bir RA öğrenme testi. |
+| `cargo fmt --all --check` | exit 0. |
+| `cargo clippy --workspace --all-targets --offline --locked -- -D warnings` | exit 0. |
+
+`logs/p2` ve `p2-verification.json` gerçek çıktıları ve komut/süre/çıkışları tutar. Kök Cargo.toml/Cargo.lock ve bağımlılık sözleşmesi değişmedi. Domain, Java/CLI ve vendor/probe kaynakları değişmedi; değişmeyen tam workspace ve Docker testleri bu düzeltmede tekrar çalıştırılmadı. Yeni testlerin okunabilirliği salt okunur incelendi; iki compiler-valid karşı örnek, beklenen owner/path/line ve normal referans kontrolü açık. İkinci bağımsız inceleme koordinatöre bırakıldı.

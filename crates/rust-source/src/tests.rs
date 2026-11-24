@@ -230,3 +230,131 @@ fn ra_resolves_parameter_binding_and_both_chain_targets_in_the_port_snapshot() {
             .ends_with("/libexec/rust-analyzer-proc-macro-srv")
     );
 }
+
+#[test]
+fn ra_exposes_trait_ownership_and_the_actual_deref_receiver_separately_from_references() {
+    use ra_ap_hir::AsAssocItem;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let project = RustProject::load(
+        &root.join("tests/fixtures/dispatch/Cargo.toml"),
+        LoadOptions::new(
+            "dispatch-boundary",
+            &root.join("../../target/rust-source-journey/analyzed/dispatch-learning"),
+        ),
+    )
+    .expect("Cargo source loads");
+    let snapshot = &project._snapshot;
+    let semantics = Semantics::new(&snapshot.db);
+    let source = semantics.parse(ra_ap_hir::EditionedFileId::new(
+        &snapshot.db,
+        snapshot.selected.root_file(&snapshot.db),
+        snapshot.selected.edition(&snapshot.db),
+    ));
+    let account = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Struct::cast)
+        .find(|structure| {
+            structure
+                .name()
+                .is_some_and(|name| name.text() == "Account")
+        })
+        .and_then(|structure| semantics.to_def(&structure))
+        .expect("Account declaration resolves");
+    let wrapper = source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Struct::cast)
+        .find(|structure| {
+            structure
+                .name()
+                .is_some_and(|name| name.text() == "Wrapper")
+        })
+        .and_then(|structure| semantics.to_def(&structure))
+        .expect("Wrapper declaration resolves");
+    let trait_outer = dispatch_call(&source, "through_trait");
+    let ast::Expr::MethodCallExpr(trait_call) = trait_outer
+        .receiver()
+        .expect("trait result is the receiver")
+    else {
+        panic!("trait receiver must be a method result")
+    };
+    let projected_call = dispatch_call(&source, "through_deref");
+    let reference_call = dispatch_call(&source, "through_references");
+
+    let trait_target = semantics
+        .resolve_method_call(&trait_call)
+        .expect("trait target resolves");
+    let trait_owner = trait_target
+        .as_assoc_item(&snapshot.db)
+        .expect("trait target is associated")
+        .container_or_implemented_trait(&snapshot.db)
+        .expect("trait owns the selected target");
+    let projected_target = semantics
+        .resolve_method_call(&projected_call)
+        .expect("projected target resolves");
+    let declaring_type = projected_target
+        .as_assoc_item(&snapshot.db)
+        .expect("target is associated")
+        .implementing_ty(&snapshot.db)
+        .expect("Account declares the inherent target");
+    let projected = semantics
+        .type_of_expr(&projected_call.receiver().expect("wrapper receiver exists"))
+        .expect("receiver type resolves");
+    let original = projected
+        .original
+        .as_reference_inner()
+        .expect("Wrapper is borrowed");
+    let adjusted = projected
+        .adjusted
+        .expect("Deref adjusts the receiver")
+        .as_reference_inner()
+        .expect("Account is borrowed");
+    let reference = semantics
+        .type_of_expr(
+            &reference_call
+                .receiver()
+                .expect("reference receiver exists"),
+        )
+        .expect("reference type resolves");
+    let referent = reference
+        .original
+        .as_reference_inner()
+        .expect("first reference exists")
+        .as_reference_inner()
+        .expect("second reference exists");
+    let borrowed = reference
+        .adjusted
+        .expect("references are adjusted")
+        .as_reference_inner()
+        .expect("adjusted Account is borrowed");
+
+    assert_eq!(trait_owner.name(&snapshot.db).as_str(), "HasAccount");
+    assert_eq!(original.as_adt(), Some(Adt::Struct(wrapper)));
+    assert_eq!(adjusted.as_adt(), Some(Adt::Struct(account)));
+    assert_eq!(declaring_type.as_adt(), Some(Adt::Struct(account)));
+    ra_ap_hir::attach_db(&snapshot.db, || {
+        assert_ne!(original, adjusted);
+        assert_eq!(adjusted, declaring_type);
+        assert_eq!(referent, borrowed);
+        assert_eq!(referent, declaring_type);
+    });
+}
+
+fn dispatch_call(source: &ast::SourceFile, name: &str) -> ast::MethodCallExpr {
+    source
+        .syntax()
+        .descendants()
+        .filter_map(ast::Fn::cast)
+        .find(|function| {
+            function
+                .name()
+                .is_some_and(|declared| declared.text() == name)
+        })
+        .expect("dispatch caller exists")
+        .syntax()
+        .descendants()
+        .find_map(ast::MethodCallExpr::cast)
+        .expect("dispatch caller has a call")
+}

@@ -5,7 +5,9 @@ use law_of_demeter_core::application::{
     AnalysisIssue, AnalysisIssueKind, ReadError, SourceFile, Target,
 };
 use law_of_demeter_core::domain::method::{Call, Expression, Method};
-use ra_ap_hir::{Adt, AssocItem, Function, Impl, ModuleDef, PathResolution, Semantics};
+use ra_ap_hir::{
+    Adt, AsAssocItem, AssocItem, Function, Impl, ModuleDef, PathResolution, Semantics, Type,
+};
 use ra_ap_ide_db::RootDatabase;
 use ra_ap_syntax::{AstNode, SyntaxNode, ast, ast::HasArgList};
 
@@ -241,6 +243,23 @@ impl BodyReader<'_, '_> {
                 "method target is unresolved",
             )
         })?;
+        let associated = target.as_assoc_item(&self.snapshot.db).ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Unsupported,
+                call.syntax(),
+                "method target has no associated declaration",
+            )
+        })?;
+        if associated
+            .container_or_implemented_trait(&self.snapshot.db)
+            .is_some()
+        {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                call.syntax(),
+                "trait method targets are outside the first source slice",
+            ));
+        }
         let receiver = call.receiver().ok_or_else(|| {
             self.issue(
                 AnalysisIssueKind::Parse,
@@ -264,6 +283,26 @@ impl BodyReader<'_, '_> {
                     &message,
                 )
             })?;
+        let declared = associated.implementing_ty(&self.snapshot.db);
+        let same_receiver = ra_ap_hir::attach_db(&self.snapshot.db, || {
+            let original = without_references(receiver_type.original.clone());
+            let adjusted = without_references(
+                receiver_type
+                    .adjusted
+                    .as_ref()
+                    .unwrap_or(&receiver_type.original)
+                    .clone(),
+            );
+            original == adjusted
+                && declared.is_some_and(|declared| original == without_references(declared))
+        });
+        if !same_receiver {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                call.syntax(),
+                "receiver projection is outside the first source slice",
+            ));
+        }
         let result_type = self
             .semantics
             .type_of_expr(&ast::Expr::MethodCallExpr(call.clone()))
@@ -310,4 +349,11 @@ impl BodyReader<'_, '_> {
         };
         AnalysisIssue::new(kind, location).in_body(self.owner.clone())
     }
+}
+
+fn without_references(mut ty: Type<'_>) -> Type<'_> {
+    while let Some(inner) = ty.as_reference_inner() {
+        ty = inner;
+    }
+    ty
 }
