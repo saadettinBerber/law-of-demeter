@@ -1,0 +1,15 @@
+[package]
+name = "rust-trait-fixture"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[[test]]
+name = "selection"
+path = "../../../rust-method-resolution/selection.rs"
+
+[[test]]
+name = "helpers"
+path = "../../../rust-visibility/helpers.rs"
