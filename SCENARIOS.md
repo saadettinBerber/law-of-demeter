@@ -423,6 +423,8 @@ private Order(Builder builder) {
 
 - **Constructor için:** Okunan alanlar aynı dosyadaki builder'a ait.
 
+- **Erişilebilir hedef:** `builder.same(1).finish()` için erişilemeyen bir `same(int)` gövdesi kanıt sayılmaz. Paket dışından ya da uygun olmayan alıcıyla erişilen `protected` overload yerine derleyicinin seçtiği erişilebilir `same(Object)` değerlendirilir. Paket içinden erişilebilen ve uygun alt sınıf alıcısında çağrılan metotlar korunur; paket sınırında kalıtılmayan metot, sınıf tekrar aynı pakete girse de geri kazanılmaz.
+
 - **Üst tip referansı:** `Builder` son sınıfsa `map(Base::same)`, eşdeğer lambda ve `map(Builder::same)` aynı alıcı kimliğini korur. Aşırı yükleme `Base` üzerinden çözülür; çalışma zamanındaki gövde ise gerçek `Builder` üzerindeki ezmeye göre belirlenir. Alt tipin yeni aşırı yüklemesi seçimi değiştirmez. Bilinmeyen alt sınıf için kimlik kanıtı oluşmaz.
 
 - **Yabancı alıcı:** Akıcı çağrı yabancıyla konuşmayı serbest bırakmaz. `order.getBuilder().add(line)` ve `order.getBuilder().isEmpty()` aynı nedenle raporlanır: builder, `getBuilder()` ile gelen yabancıdır. Aynı durum metot referansı için de geçerlidir.

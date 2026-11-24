@@ -1267,6 +1267,575 @@ fn an_interface_reference_uses_the_more_specific_default_implementation() {
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_inaccessible_package_overload_cannot_supply_receiver_identity() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { public Base next; Base same(int number) { return this; } public Base same(Object value) { return next; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta; public final class Builder extends alpha.Base {}",
+            ),
+            (
+                "beta/OrderService.java",
+                "package beta;\npublic final class OrderService {\n    public void inspect(Builder builder) {\n        builder.same(1).finish();\n    }\n}",
+            ),
+        ],
+        "beta/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.OrderService")
+            .contains("same:(Ljava/lang/Object;)Lalpha/Base;")
+    );
+
+    let output = project.check_target("beta.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  beta.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  beta.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_inaccessible_protected_overload_cannot_supply_receiver_identity() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { public Base next; protected Base same(int number) { return this; } public Base same(Object value) { return next; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta; public final class Builder extends alpha.Base {}",
+            ),
+            (
+                "beta/OrderService.java",
+                "package beta;\npublic final class OrderService {\n    public void inspect(Builder builder) {\n        builder.same(1).finish();\n    }\n}",
+            ),
+        ],
+        "beta/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.OrderService")
+            .contains("same:(Ljava/lang/Object;)Lalpha/Base;")
+    );
+
+    let output = project.check_target("beta.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  beta.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  beta.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_same_package_caller_can_use_an_inherited_package_overload() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { Base same(int number) { return this; } public Base same(Object value) { return null; } public void finish() {} }",
+            ),
+            (
+                "alpha/Builder.java",
+                "package alpha; public final class Builder extends Base {}",
+            ),
+            (
+                "alpha/OrderService.java",
+                "package alpha;\npublic class OrderService {\n    void inspect(Builder builder) {\n        builder.same(1).finish();\n    }\n}",
+            ),
+        ],
+        "alpha/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("alpha.OrderService")
+            .contains("same:(I)Lalpha/Base;")
+    );
+
+    let output = project.check_target("alpha.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  alpha.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ":4  alpha.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_package_member_is_not_inherited_back_after_crossing_another_package() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { Base same(int number) { return this; } public Base same(Object value) { return null; } public void finish() {} }",
+            ),
+            (
+                "beta/Middle.java",
+                "package beta; public class Middle extends alpha.Base {}",
+            ),
+            (
+                "alpha/Builder.java",
+                "package alpha; public final class Builder extends beta.Middle {}",
+            ),
+            (
+                "alpha/OrderService.java",
+                "package alpha;\npublic class OrderService {\n    void inspect(Builder builder) {\n        builder.same(1).finish();\n    }\n}",
+            ),
+        ],
+        "alpha/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("alpha.OrderService")
+            .contains("same:(Ljava/lang/Object;)Lalpha/Base;")
+    );
+
+    let output = project.check_target("alpha.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  alpha.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  alpha.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_subclass_can_use_a_protected_overload_on_its_own_subtype() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { protected Base same(int number) { return this; } public Base same(Object value) { return null; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta;\npublic final class Builder extends alpha.Base {\n    void inspect(Builder builder) {\n        builder.same(1).finish();\n    }\n}",
+            ),
+        ],
+        "beta/Builder.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.Builder")
+            .contains("same:(I)Lalpha/Base;")
+    );
+
+    let output = project.check_target("beta.Builder", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  beta.Builder.inspect  same()  Allowed: builder is an argument of f",
+            ":4  beta.Builder.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn protected_access_does_not_extend_to_a_base_or_sibling_receiver() {
+    for receiver in ["alpha.Base", "Builder"] {
+        let caller = format!(
+            "package beta;\npublic final class OrderService extends alpha.Base {{\n    void inspect({receiver} builder) {{\n        builder.same(1).finish();\n    }}\n}}"
+        );
+        let project = CompiledProject::sources(
+            &[
+                (
+                    "alpha/Base.java",
+                    "package alpha; public class Base { protected Base same(int number) { return this; } public Base same(Object value) { return null; } public void finish() {} }",
+                ),
+                (
+                    "beta/Builder.java",
+                    "package beta; public final class Builder extends alpha.Base {}",
+                ),
+                ("beta/OrderService.java", &caller),
+            ],
+            "beta/OrderService.java",
+        );
+        assert!(
+            project
+                .bytecode_target("beta.OrderService")
+                .contains("same:(Ljava/lang/Object;)Lalpha/Base;")
+        );
+
+        let output = project.check_target("beta.OrderService", "inspect");
+
+        assert_eq!(output.status.code(), Some(1), "{receiver}");
+        assert_eq!(
+            project.verdicts(&output),
+            [
+                ":4  beta.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+                ":4  beta.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ],
+            "{receiver}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_nested_class_can_use_its_enclosing_subclass_protected_access() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { protected Base same(int number) { return this; } public Base same(Object value) { return null; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta;\npublic final class Builder extends alpha.Base {\n    class Worker { void inspect(Builder builder) {\n        builder.same(1).finish();\n    }}\n}",
+            ),
+        ],
+        "beta/Builder.java",
+    );
+    let bytecode = project.bytecode_target("beta.Builder");
+    assert!(bytecode.contains("same:(I)Lalpha/Base;"), "{bytecode}");
+
+    let output = project.check_target("beta.Builder$Worker", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  beta.Builder$Worker.inspect  same()  Allowed: builder is an argument of f",
+            ":4  beta.Builder$Worker.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn inaccessible_nonpublic_overloads_cannot_supply_a_library_return_type() {
+    for visibility in ["", "protected"] {
+        let base = format!(
+            "package alpha; public class Base {{ {visibility} String same(int number) {{ return \"value\"; }} public Base same(Object value) {{ return null; }} public void finish() {{}} }}"
+        );
+        let project = CompiledProject::sources(
+            &[
+                ("alpha/Base.java", &base),
+                (
+                    "beta/Builder.java",
+                    "package beta; public final class Builder extends alpha.Base {}",
+                ),
+                (
+                    "beta/OrderService.java",
+                    "package beta;\npublic class OrderService {\n    void inspect(Builder builder) {\n        builder.same(1).finish();\n    }\n}",
+                ),
+            ],
+            "beta/OrderService.java",
+        );
+        assert!(
+            project
+                .bytecode_target("beta.OrderService")
+                .contains("same:(Ljava/lang/Object;)Lalpha/Base;")
+        );
+
+        let output = project.check_target("beta.OrderService", "inspect");
+
+        assert_eq!(output.status.code(), Some(1), "{visibility}");
+        assert_eq!(
+            project.verdicts(&output),
+            [
+                ":4  beta.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+                ":4  beta.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ],
+            "{visibility}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn inaccessible_nonpublic_overloads_cannot_supply_reference_identity() {
+    for visibility in ["", "protected"] {
+        let base = format!(
+            "package alpha; public class Base {{ {visibility} Base same(int number) {{ return this; }} public Base same(Object value) {{ return null; }} public void finish() {{}} }}"
+        );
+        let project = CompiledProject::sources(
+            &[
+                ("alpha/Base.java", &base),
+                (
+                    "beta/Builder.java",
+                    "package beta; public final class Builder extends alpha.Base {}",
+                ),
+                (
+                    "beta/OrderService.java",
+                    "package beta;\npublic class OrderService {\n    void inspect(Builder builder) {\n        java.util.stream.IntStream.of(1).mapToObj(builder::same).forEach(alpha.Base::finish);\n    }\n}",
+                ),
+            ],
+            "beta/OrderService.java",
+        );
+        assert!(
+            project
+                .bytecode_target("beta.OrderService")
+                .contains("same:(Ljava/lang/Object;)Lalpha/Base;")
+        );
+
+        let output = project.check_target("beta.OrderService", "inspect");
+
+        assert_eq!(output.status.code(), Some(1), "{visibility}");
+        assert_eq!(
+            project
+                .verdicts(&output)
+                .iter()
+                .filter(|line| line.contains("  Violation: "))
+                .collect::<Vec<_>>(),
+            [
+                ":4  beta.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+            ],
+            "{visibility}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn protected_reference_access_uses_the_lookup_qualifier() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { protected Base same() { return this; } public Base same(Object... values) { return null; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta;\npublic final class Builder extends alpha.Base {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(alpha.Base::same).forEach(alpha.Base::finish);\n    }\n}",
+            ),
+        ],
+        "beta/Builder.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.Builder")
+            .contains("same:([Ljava/lang/Object;)Lalpha/Base;")
+    );
+
+    let output = project.check_target("beta.Builder", "inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  beta.Builder.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn protected_reference_access_preserves_an_accessible_subclass_qualifier() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { protected Base same() { return this; } public Base same(Object... values) { return null; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta;\npublic final class Builder extends alpha.Base {\n    void inspect(Builder builder) {\n        java.util.List.of(builder).stream().map(Builder::same).forEach(alpha.Base::finish);\n    }\n}",
+            ),
+        ],
+        "beta/Builder.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.Builder")
+            .contains("same:()Lalpha/Base;")
+    );
+
+    let output = project.check_target("beta.Builder", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  beta.Builder.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_same_signature_method_in_another_package_does_not_override_a_package_method() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { Base same() { return this; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta; public final class Builder extends alpha.Base { public alpha.Base same() { return null; } }",
+            ),
+            (
+                "alpha/OrderService.java",
+                "package alpha;\npublic class OrderService {\n    void inspect(beta.Builder builder) {\n        java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);\n    }\n}",
+            ),
+        ],
+        "alpha/OrderService.java",
+    );
+
+    let output = project.check_target("alpha.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  finish()  "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  alpha.OrderService.inspect  finish()  Allowed: method reference Base::finish: the object returned by static call of() is a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_protected_reference_uses_the_subtypes_override_across_packages() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Base.java",
+                "package alpha; public class Base { protected Base same() { return this; } public void finish() {} }",
+            ),
+            (
+                "beta/Builder.java",
+                "package beta; public final class Builder extends alpha.Base { public alpha.Base same() { return null; } }",
+            ),
+            (
+                "alpha/OrderService.java",
+                "package alpha;\npublic class OrderService {\n    void inspect(beta.Builder builder) {\n        java.util.List.of(builder).stream().map(Base::same).forEach(Base::finish);\n    }\n}",
+            ),
+        ],
+        "alpha/OrderService.java",
+    );
+
+    let output = project.check_target("alpha.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project
+            .verdicts(&output)
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  alpha.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_anonymous_creation_can_use_a_protected_constructor() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Worker.java",
+                "package alpha; public class Worker { protected Worker(int number, java.util.function.Consumer<Base> action) {} public Worker(Object value, java.util.function.Consumer<String> action) {} }",
+            ),
+            (
+                "alpha/Base.java",
+                "package alpha; public final class Base { public Base same() { return this; } public void finish() {} }",
+            ),
+            (
+                "beta/OrderService.java",
+                "package beta;\npublic class OrderService {\n    void inspect() {\n        new alpha.Worker(1, value -> value.same().finish()) {};\n    }\n}",
+            ),
+        ],
+        "beta/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.OrderService$1")
+            .contains("\"<init>\":(ILjava/util/function/Consumer;)V")
+    );
+
+    let output = project.check_target("beta.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  beta.OrderService.inspect  same()  Allowed: lambda parameter value: object created in f (alpha.Worker)",
+            ":4  beta.OrderService.inspect  finish()  Allowed: lambda parameter value: object created in f (alpha.Worker)",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_ordinary_creation_uses_the_accessible_constructor_overload() {
+    let project = CompiledProject::sources(
+        &[
+            (
+                "alpha/Worker.java",
+                "package alpha; public class Worker { protected Worker(int number, java.util.function.Consumer<String> action) {} public Worker(Object value, java.util.function.Consumer<Base> action) {} }",
+            ),
+            (
+                "alpha/Base.java",
+                "package alpha; public final class Base { public Base same() { return this; } public void finish() {} }",
+            ),
+            (
+                "beta/OrderService.java",
+                "package beta;\npublic class OrderService {\n    void inspect() {\n        new alpha.Worker(1, value -> value.same().finish());\n    }\n}",
+            ),
+        ],
+        "beta/OrderService.java",
+    );
+    assert!(
+        project
+            .bytecode_target("beta.OrderService")
+            .contains("\"<init>\":(Ljava/lang/Object;Ljava/util/function/Consumer;)V")
+    );
+
+    let output = project.check_target("beta.OrderService", "inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  beta.OrderService.inspect  same()  Allowed: lambda parameter value: object created in f (alpha.Worker)",
+            ":4  beta.OrderService.inspect  finish()  Allowed: lambda parameter value: object created in f (alpha.Worker)",
+        ]
+    );
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,
@@ -1285,10 +1854,27 @@ impl CompiledProject {
     }
 
     fn compile(text: &str, lombok: Option<PathBuf>) -> Self {
+        Self::compile_sources(&[("OrderService.java", text)], "OrderService.java", lombok)
+    }
+
+    fn sources(sources: &[(&str, &str)], main: &str) -> Self {
+        Self::compile_sources(sources, main, None)
+    }
+
+    fn compile_sources(sources: &[(&str, &str)], main: &str, lombok: Option<PathBuf>) -> Self {
         let temporary = tempfile::tempdir().expect("temporary project");
-        let source = temporary.path().join("OrderService.java");
+        let source = temporary.path().join(main);
         let classes = temporary.path().join("classes");
-        fs::write(&source, text).expect("fixture source");
+        let sources: Vec<_> = sources
+            .iter()
+            .map(|(path, text)| {
+                let path = temporary.path().join(path);
+                fs::create_dir_all(path.parent().expect("source directory"))
+                    .expect("source directory");
+                fs::write(&path, text).expect("fixture source");
+                path
+            })
+            .collect();
         let mut compiler = Command::new("javac");
         if let Some(lombok) = lombok {
             compiler
@@ -1300,7 +1886,7 @@ impl CompiledProject {
         let compiled = compiler
             .args(["--release", "17", "-d"])
             .arg(&classes)
-            .arg(&source)
+            .args(&sources)
             .output()
             .expect("javac runs");
         assert!(
@@ -1316,22 +1902,30 @@ impl CompiledProject {
     }
 
     fn check(&self, method: &str) -> Output {
+        self.check_target("shop.OrderService", method)
+    }
+
+    fn check_target(&self, class: &str, method: &str) -> Output {
         Command::new(env!("CARGO_BIN_EXE_law-of-demeter"))
             .arg("--source")
             .arg(self.temporary.path())
             .arg("--classpath")
             .arg(&self.classes)
             .args(["--release", "17", "--show-allowed", "--only"])
-            .arg(format!("shop.OrderService#{method}"))
+            .arg(format!("{class}#{method}"))
             .output()
             .expect("the binary runs")
     }
 
     fn bytecode(&self) -> String {
+        self.bytecode_target("shop.OrderService")
+    }
+
+    fn bytecode_target(&self, class: &str) -> String {
         let output = Command::new("javap")
             .args(["-c", "-p", "-v", "-classpath"])
             .arg(&self.classes)
-            .arg("shop.OrderService")
+            .arg(class)
             .output()
             .expect("javap runs");
         assert!(

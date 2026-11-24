@@ -95,6 +95,7 @@ pub struct MethodShape {
     is_static: bool,
     is_public: bool,
     is_private: bool,
+    is_protected: bool,
     is_generated: bool,
     is_abstract: bool,
     is_varargs: bool,
@@ -116,6 +117,7 @@ impl MethodShape {
             is_static: false,
             is_public: true,
             is_private: false,
+            is_protected: false,
             is_generated: false,
             is_abstract: false,
             is_varargs: false,
@@ -197,6 +199,14 @@ impl MethodShape {
     pub fn as_private(mut self) -> Self {
         self.is_public = false;
         self.is_private = true;
+        self.is_protected = false;
+        self
+    }
+
+    pub fn as_protected(mut self) -> Self {
+        self.is_public = false;
+        self.is_private = false;
+        self.is_protected = true;
         self
     }
 
@@ -227,6 +237,10 @@ impl MethodShape {
 
     pub fn is_private(&self) -> bool {
         self.is_private
+    }
+
+    pub fn is_protected(&self) -> bool {
+        self.is_protected
     }
 
     pub fn is_generated(&self) -> bool {

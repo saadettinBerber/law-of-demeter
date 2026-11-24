@@ -185,6 +185,6 @@ impl MethodMapper<'_> {
                 is_known(self.types, parameter).then(|| ArgumentType::Typed(parameter.clone()))
             })
             .collect();
-        self.invoked(lineage(self.types, receiver), method, &arguments)
+        self.invoked(lineage(self.types, receiver), method, &arguments, false)
     }
 }

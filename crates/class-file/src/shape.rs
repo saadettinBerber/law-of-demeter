@@ -164,6 +164,8 @@ fn method_of(class: &ClassFile, method: &MethodInfo) -> Result<Option<MethodShap
     }
     if method.access_flags.contains(MethodAccessFlags::PRIVATE) {
         shape = shape.as_private();
+    } else if method.access_flags.contains(MethodAccessFlags::PROTECTED) {
+        shape = shape.as_protected();
     } else if !method.access_flags.contains(MethodAccessFlags::PUBLIC) {
         shape = shape.not_public();
     }

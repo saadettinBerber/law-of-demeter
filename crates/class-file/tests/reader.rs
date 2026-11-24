@@ -668,6 +668,17 @@ fn package_private_and_protected_methods_are_neither_public_nor_private() {
 }
 
 #[test]
+fn protected_methods_keep_distinct_visibility_from_package_members() {
+    let invoice = shape("shop.Invoice");
+
+    let rounding = method(&invoice, "rounding");
+    let tax = method(&invoice, "tax");
+
+    assert!(!rounding.is_protected());
+    assert!(tax.is_protected());
+}
+
+#[test]
 fn a_public_method_is_public_and_not_private() {
     let invoice = shape("shop.Invoice");
 

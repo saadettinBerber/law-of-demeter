@@ -63,6 +63,7 @@ impl MethodMapper<'_> {
             lineage(self.types, &receiver),
             (&call.name, Dispatch::Any),
             &arguments,
+            false,
         )
     }
 
@@ -78,7 +79,12 @@ impl MethodMapper<'_> {
             return None;
         }
         let shape = own.first()?.shape;
-        let invocation = self.invoked(own, (CONSTRUCTOR_NAME, Dispatch::Any), &arguments)?;
+        let invocation = self.invoked(
+            own,
+            (CONSTRUCTOR_NAME, Dispatch::Any),
+            &arguments,
+            created.anonymous_class.is_some(),
+        )?;
         Some(if arguments_of(&receiver).is_empty() {
             invocation.creating(shape)
         } else {
@@ -158,7 +164,12 @@ impl MethodMapper<'_> {
 
     fn declares(&self, owner: &TypeRef, call: &model::Call, dispatch: Dispatch) -> bool {
         let ancestors = lineage(self.types, owner);
-        let declared = self.candidates(&ancestors, (&call.name, dispatch), call.arguments.len());
+        let declared = self.candidates(
+            &ancestors,
+            (&call.name, dispatch),
+            call.arguments.len(),
+            false,
+        );
         !declared.is_empty()
     }
 
@@ -345,9 +356,15 @@ impl MethodMapper<'_> {
         ancestors: Vec<Ancestor>,
         (method, dispatch): (&str, Dispatch),
         arguments: &[Option<ArgumentType>],
+        anonymous_creation: bool,
     ) -> Option<Invocation> {
         let types = self.types;
-        let candidates = self.candidates(&ancestors, (method, dispatch), arguments.len());
+        let candidates = self.candidates(
+            &ancestors,
+            (method, dispatch),
+            arguments.len(),
+            anonymous_creation,
+        );
         if candidates.is_empty() {
             return None;
         }
@@ -512,10 +529,11 @@ impl MethodMapper<'_> {
             let mut selected = classes[index];
             for candidate in classes[..index].iter().rev() {
                 if !selected.method.is_public()
+                    && !selected.method.is_protected()
                     && package_of(selected.ancestor.shape.name())
                         != package_of(candidate.ancestor.shape.name())
                 {
-                    return false;
+                    continue;
                 }
                 selected = candidate;
             }
@@ -548,15 +566,20 @@ impl MethodMapper<'_> {
         ancestors: &'a [Ancestor<'a>],
         (method, dispatch): (&str, Dispatch),
         argument_count: usize,
+        anonymous_creation: bool,
     ) -> Vec<Candidate<'a>> {
         let mut candidates: Vec<Candidate> = Vec::new();
-        let receiver = ancestors.first().map(|ancestor| ancestor.shape.name());
         for ancestor in ancestors {
             for declared in named(ancestor.shape, method)
                 .into_iter()
                 .filter(|declared| dispatch.admits(declared))
                 .filter(|declared| {
-                    self.private_access_allows(declared, ancestor.shape.name(), receiver)
+                    self.access_allows(
+                        declared,
+                        ancestor.shape.name(),
+                        ancestors,
+                        anonymous_creation,
+                    )
                 })
             {
                 let candidate = Candidate {
@@ -574,15 +597,57 @@ impl MethodMapper<'_> {
         candidates
     }
 
-    fn private_access_allows(
+    fn access_allows(
         &self,
         method: &MethodShape,
         owner: &str,
-        receiver: Option<&str>,
+        ancestors: &[Ancestor],
+        anonymous_creation: bool,
     ) -> bool {
-        !method.is_private()
-            || (receiver == Some(owner)
-                && self.nest_host(owner) == self.nest_host(&self.class.name))
+        let receiver = ancestors.first().map(|ancestor| ancestor.shape.name());
+        if method.is_private() {
+            return receiver == Some(owner)
+                && self.nest_host(owner) == self.nest_host(&self.class.name);
+        }
+        if method.is_public() {
+            return true;
+        }
+        let same_package = package_of(owner) == package_of(&self.class.name);
+        if !method.is_protected() {
+            return same_package
+                && ancestors
+                    .iter()
+                    .take_while(|ancestor| ancestor.shape.name() != owner)
+                    .filter(|ancestor| ancestor.shape.kind() != TypeKind::Interface)
+                    .all(|ancestor| package_of(ancestor.shape.name()) == package_of(owner));
+        }
+        if same_package {
+            return true;
+        }
+        if method.name() == CONSTRUCTOR_NAME {
+            return anonymous_creation;
+        }
+        self.enclosing_classes().any(|scope| {
+            self.is_subtype(scope, owner)
+                && (method.is_static()
+                    || receiver.is_some_and(|receiver| self.is_subtype(receiver, scope)))
+        })
+    }
+
+    fn is_subtype(&self, subtype: &str, supertype: &str) -> bool {
+        super::lineage::closure(self.types, &TypeRef::class(subtype))
+            .iter()
+            .any(|ancestor| class_name(ancestor) == Some(supertype))
+    }
+
+    fn enclosing_classes(&self) -> impl Iterator<Item = &str> {
+        std::iter::successors(Some(self.class.name.as_str()), |name| {
+            self.file
+                .classes
+                .iter()
+                .find(|class| class.name == *name)
+                .and_then(|class| class.outer.as_deref())
+        })
     }
 
     fn nest_host<'a>(&'a self, mut name: &'a str) -> &'a str {
