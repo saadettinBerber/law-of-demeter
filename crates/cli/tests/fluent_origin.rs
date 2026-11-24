@@ -864,6 +864,187 @@ fn a_switch_write_prevents_reusing_allocation_evidence_after_the_branch() {
     );
 }
 
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_inaccessible_private_overload_cannot_supply_receiver_identity_evidence() {
+    let project = CompiledProject::scenario(
+        "builder.same(1).finish();",
+        "class Base { Base next; private Base same(int count) { return this; } Base same(Object value) { return next; } void finish() {} } class Builder extends Base {}",
+    );
+    assert!(
+        project
+            .bytecode()
+            .contains("same:(Ljava/lang/Object;)Lshop/Base;")
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_inaccessible_private_overload_cannot_supply_the_return_type() {
+    let project = CompiledProject::scenario(
+        "((Base) builder).same(1).finish();",
+        "class Base { Base next; private String same(int count) { return \"value\"; } Base same(Object value) { return next; } void finish() {} } class Builder extends Base {}",
+    );
+    assert!(
+        project
+            .bytecode()
+            .contains("same:(Ljava/lang/Object;)Lshop/Base;")
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_inaccessible_private_overload_cannot_supply_reference_identity_evidence() {
+    let project = CompiledProject::scenario(
+        "java.util.stream.IntStream.of(1).mapToObj(builder::same).forEach(Base::finish);",
+        "class Base { Base next; private Base same(int count) { return this; } Base same(Object value) { return next; } void finish() {} } class Builder extends Base {}",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn an_accessible_private_overload_keeps_its_receiver_on_another_instance() {
+    let project = CompiledProject::new(
+        "package shop;
+public class OrderService {
+    void inspect(OrderService other) {
+        other.same(1).finish();
+    }
+    private OrderService same(int count) { return this; }
+    void finish() {}
+}",
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: other is an argument of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: other is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac; run with --ignored"]
+fn a_nestmate_can_call_a_private_overload_through_its_declaring_type() {
+    let project = CompiledProject::new("package shop;
+public class OrderService {
+    void inspect(Builder builder) {
+        ((Base) builder).same(1).finish();
+    }
+    static class Base { Base next; private Base same(int count) { return this; } Base same(Object value) { return next; } void finish() {} }
+    static class Builder extends Base {}
+}");
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+            ":4  shop.OrderService.inspect  finish()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn a_private_overload_is_not_inherited_even_when_the_caller_is_a_nestmate() {
+    let project = CompiledProject::new("package shop;
+public class OrderService {
+    void inspect(Builder builder) {
+        builder.same(1).finish();
+    }
+    static class Base { Base next; private Base same(int count) { return this; } Base same(Object value) { return next; } void finish() {} }
+    static class Builder extends Base {}
+}");
+    let bytecode = project.bytecode();
+    assert!(
+        bytecode.contains("same:(Ljava/lang/Object;)Lshop/OrderService$Base;"),
+        "{bytecode}"
+    );
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(
+        project.verdicts(&output),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: the object returned by same() is not a friend of f",
+            ":4  shop.OrderService.inspect  same()  Allowed: builder is an argument of f",
+        ]
+    );
+}
+
+#[test]
+#[ignore = "requires a JDK with javac and javap; run with --ignored"]
+fn an_inaccessible_static_overload_does_not_turn_an_instance_reference_into_a_factory() {
+    let project = CompiledProject::scenario(
+        "java.util.List.of(builder).stream().map(Builder::same).forEach(Base::finish);",
+        "class Base { Base next; private static Base same(Builder receiver) { return receiver; } Base same() { return next; } void finish() {} } class Builder extends Base {}",
+    );
+    assert!(project.bytecode().contains("same:()Lshop/Base;"));
+
+    let output = project.check("inspect");
+
+    assert_eq!(output.status.code(), Some(1));
+    let verdicts = project.verdicts(&output);
+    assert_eq!(
+        verdicts
+            .iter()
+            .filter(|line| line.contains("  Violation: "))
+            .collect::<Vec<_>>(),
+        [
+            ":4  shop.OrderService.inspect  finish()  Violation: method reference Base::finish: the object returned by same() is not a friend of f",
+        ]
+    );
+}
+
 struct CompiledProject {
     temporary: tempfile::TempDir,
     source: PathBuf,
@@ -922,6 +1103,21 @@ impl CompiledProject {
             .arg(format!("shop.OrderService#{method}"))
             .output()
             .expect("the binary runs")
+    }
+
+    fn bytecode(&self) -> String {
+        let output = Command::new("javap")
+            .args(["-c", "-p", "-v", "-classpath"])
+            .arg(&self.classes)
+            .arg("shop.OrderService")
+            .output()
+            .expect("javap runs");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8(output.stdout).expect("UTF-8 bytecode listing")
     }
 
     fn verdicts(&self, output: &Output) -> Vec<String> {

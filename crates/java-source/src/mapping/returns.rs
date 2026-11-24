@@ -59,8 +59,7 @@ impl MethodMapper<'_> {
     fn find_invocation(&mut self, call: &model::Call) -> Option<Invocation> {
         let receiver = self.receiver_type(call)?;
         let arguments = self.argument_types(&call.arguments);
-        invoked(
-            self.types,
+        self.invoked(
             lineage(self.types, &receiver),
             (&call.name, Dispatch::Any),
             &arguments,
@@ -79,12 +78,7 @@ impl MethodMapper<'_> {
             return None;
         }
         let shape = own.first()?.shape;
-        let invocation = invoked(
-            self.types,
-            own,
-            (CONSTRUCTOR_NAME, Dispatch::Any),
-            &arguments,
-        )?;
+        let invocation = self.invoked(own, (CONSTRUCTOR_NAME, Dispatch::Any), &arguments)?;
         Some(if arguments_of(&receiver).is_empty() {
             invocation.creating(shape)
         } else {
@@ -164,7 +158,7 @@ impl MethodMapper<'_> {
 
     fn declares(&self, owner: &TypeRef, call: &model::Call, dispatch: Dispatch) -> bool {
         let ancestors = lineage(self.types, owner);
-        let declared = candidates(&ancestors, (&call.name, dispatch), call.arguments.len());
+        let declared = self.candidates(&ancestors, (&call.name, dispatch), call.arguments.len());
         !declared.is_empty()
     }
 
@@ -337,34 +331,37 @@ impl Dispatch {
     }
 }
 
-pub(super) fn invoked(
-    types: &Types,
-    ancestors: Vec<Ancestor>,
-    (method, dispatch): (&str, Dispatch),
-    arguments: &[Option<ArgumentType>],
-) -> Option<Invocation> {
-    let candidates = candidates(&ancestors, (method, dispatch), arguments.len());
-    if candidates.is_empty() {
-        return None;
-    }
-    let signatures: Vec<_> = candidates.iter().map(Candidate::signature).collect();
-    match select(types, &signatures, arguments) {
-        Selection::Chosen {
-            index,
-            bindings,
-            parameters,
-        } => Some(candidates[index].invocation(types, (bindings, parameters), arguments.len())),
-        Selection::Ambiguous(indices) => {
-            let contenders: Vec<_> = indices.iter().map(|index| &candidates[*index]).collect();
-            Some(Invocation {
-                parameters: Vec::new(),
-                bindings: Bindings::new(),
-                returned: agreed_return(&contenders),
-                free: Vec::new(),
-                bounds: Bindings::new(),
-                results: Vec::new(),
-                declared: None,
-            })
+impl MethodMapper<'_> {
+    pub(super) fn invoked(
+        &self,
+        ancestors: Vec<Ancestor>,
+        (method, dispatch): (&str, Dispatch),
+        arguments: &[Option<ArgumentType>],
+    ) -> Option<Invocation> {
+        let types = self.types;
+        let candidates = self.candidates(&ancestors, (method, dispatch), arguments.len());
+        if candidates.is_empty() {
+            return None;
+        }
+        let signatures: Vec<_> = candidates.iter().map(Candidate::signature).collect();
+        match select(types, &signatures, arguments) {
+            Selection::Chosen {
+                index,
+                bindings,
+                parameters,
+            } => Some(candidates[index].invocation(types, (bindings, parameters), arguments.len())),
+            Selection::Ambiguous(indices) => {
+                let contenders: Vec<_> = indices.iter().map(|index| &candidates[*index]).collect();
+                Some(Invocation {
+                    parameters: Vec::new(),
+                    bindings: Bindings::new(),
+                    returned: agreed_return(&contenders),
+                    free: Vec::new(),
+                    bounds: Bindings::new(),
+                    results: Vec::new(),
+                    declared: None,
+                })
+            }
         }
     }
 }
@@ -460,30 +457,61 @@ impl Candidate<'_> {
     }
 }
 
-fn candidates<'a>(
-    ancestors: &'a [Ancestor<'a>],
-    (method, dispatch): (&str, Dispatch),
-    argument_count: usize,
-) -> Vec<Candidate<'a>> {
-    let mut candidates: Vec<Candidate> = Vec::new();
-    for ancestor in ancestors {
-        for declared in named(ancestor.shape, method)
-            .into_iter()
-            .filter(|declared| dispatch.admits(declared))
-        {
-            let candidate = Candidate {
-                method: declared,
-                ancestor,
-            };
-            let overridden = candidates
-                .iter()
-                .any(|known| known.parameters() == candidate.parameters());
-            if candidate.signature().takes(argument_count) && !overridden {
-                candidates.push(candidate);
+impl MethodMapper<'_> {
+    fn candidates<'a>(
+        &self,
+        ancestors: &'a [Ancestor<'a>],
+        (method, dispatch): (&str, Dispatch),
+        argument_count: usize,
+    ) -> Vec<Candidate<'a>> {
+        let mut candidates: Vec<Candidate> = Vec::new();
+        let receiver = ancestors.first().map(|ancestor| ancestor.shape.name());
+        for ancestor in ancestors {
+            for declared in named(ancestor.shape, method)
+                .into_iter()
+                .filter(|declared| dispatch.admits(declared))
+                .filter(|declared| {
+                    self.private_access_allows(declared, ancestor.shape.name(), receiver)
+                })
+            {
+                let candidate = Candidate {
+                    method: declared,
+                    ancestor,
+                };
+                let overridden = candidates
+                    .iter()
+                    .any(|known| known.parameters() == candidate.parameters());
+                if candidate.signature().takes(argument_count) && !overridden {
+                    candidates.push(candidate);
+                }
             }
         }
+        candidates
     }
-    candidates
+
+    fn private_access_allows(
+        &self,
+        method: &MethodShape,
+        owner: &str,
+        receiver: Option<&str>,
+    ) -> bool {
+        !method.is_private()
+            || (receiver == Some(owner)
+                && self.nest_host(owner) == self.nest_host(&self.class.name))
+    }
+
+    fn nest_host<'a>(&'a self, mut name: &'a str) -> &'a str {
+        while let Some(outer) = self
+            .file
+            .classes
+            .iter()
+            .find(|class| class.name == name)
+            .and_then(|class| class.outer.as_deref())
+        {
+            name = outer;
+        }
+        name
+    }
 }
 
 fn named<'t>(shape: &'t TypeShape, method: &str) -> Vec<&'t MethodShape> {

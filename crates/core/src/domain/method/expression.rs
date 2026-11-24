@@ -363,6 +363,7 @@ pub struct MethodReference {
     feed: Option<Feed>,
     arity: Option<usize>,
     returns_receiver: bool,
+    calls_instance: bool,
 }
 
 impl MethodReference {
@@ -377,6 +378,7 @@ impl MethodReference {
             feed: None,
             arity: None,
             returns_receiver: false,
+            calls_instance: false,
         }
     }
 
@@ -411,6 +413,11 @@ impl MethodReference {
 
     pub fn returning_receiver(mut self) -> Self {
         self.returns_receiver = true;
+        self
+    }
+
+    pub fn calling_instance(mut self) -> Self {
+        self.calls_instance = true;
         self
     }
 
@@ -454,7 +461,9 @@ impl MethodReference {
         let taken = self.arity;
         let standing = match &self.target {
             _ if self.name == "new" => taken.map(|_| self.constructed(types, &target.subject)),
-            Expression::StaticType(owner) if types.declares_static(owner, &self.name) => {
+            Expression::StaticType(owner)
+                if !self.calls_instance && types.declares_static(owner, &self.name) =>
+            {
                 verdicts.push(verdict_on(context, &target.subject, &self.called()));
                 taken.map(|_| self.static_result())
             }

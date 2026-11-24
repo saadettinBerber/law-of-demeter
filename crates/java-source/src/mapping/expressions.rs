@@ -319,6 +319,11 @@ impl MethodMapper<'_> {
     ) -> MethodReference {
         let result = self.reference_result(referenced, name, target);
         let reference = MethodReference::new(self.expression(referenced), name, line);
+        let reference = if self.reference_needs_instance_dispatch(referenced, name, target) {
+            reference.calling_instance()
+        } else {
+            reference
+        };
         let reference = if self.reference_returns_receiver(referenced, name, target) {
             reference.returning_receiver()
         } else {

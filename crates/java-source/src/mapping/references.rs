@@ -6,10 +6,49 @@ use super::MethodMapper;
 use super::lambdas::functional_method;
 use super::lineage::{class_name, closure, has_variable, lineage};
 use super::overloads::{ArgumentType, is_known};
-use super::returns::{Dispatch, Invocation, invoked};
+use super::returns::{Dispatch, Invocation};
 use super::types::named_type;
 
 impl MethodMapper<'_> {
+    pub(super) fn reference_needs_instance_dispatch(
+        &self,
+        target: &model::Expression,
+        name: &str,
+        functional: Option<&TypeRef>,
+    ) -> bool {
+        let model::Expression::Type(owner) = target else {
+            return false;
+        };
+        let owner = named_type(owner);
+        let has_static_name = lineage(self.types, &owner).iter().any(|ancestor| {
+            ancestor
+                .shape
+                .methods()
+                .iter()
+                .any(|method| method.name() == name && method.is_static())
+        });
+        let Some(functional) =
+            functional.and_then(|functional| functional_method(self.types, functional))
+        else {
+            return false;
+        };
+        if !has_static_name
+            || self
+                .invoke(&owner, (name, Dispatch::Static), &functional.parameters)
+                .is_some()
+        {
+            return false;
+        }
+        functional
+            .parameters
+            .split_first()
+            .and_then(|(receiver, arguments)| {
+                let receiver = self.supertype_named(receiver, &owner)?;
+                self.invoke(&receiver, (name, Dispatch::Instance), arguments)
+            })
+            .is_some_and(|invocation| invocation.declared().is_some())
+    }
+
     pub(super) fn reference_returns_receiver(
         &mut self,
         target: &model::Expression,
@@ -143,11 +182,6 @@ impl MethodMapper<'_> {
                 is_known(self.types, parameter).then(|| ArgumentType::Typed(parameter.clone()))
             })
             .collect();
-        invoked(
-            self.types,
-            lineage(self.types, receiver),
-            method,
-            &arguments,
-        )
+        self.invoked(lineage(self.types, receiver), method, &arguments)
     }
 }
