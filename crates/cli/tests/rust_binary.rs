@@ -17,6 +17,36 @@ impl PaymentService {
 const CLEAN: &str = "pub struct Wallet;\nimpl Wallet { pub fn debit(&self) {} }\n";
 
 #[test]
+fn a_trait_dispatch_is_incomplete_instead_of_using_a_same_named_inherent_signature() {
+    let project = RustFixture::new(include_str!("fixtures/rust-trait-dispatch.rs"));
+    project.compile();
+
+    let output = project.analyze(&["--only=Processor#through_trait"]);
+
+    assert_code(&output, 3);
+    let report = text(&output.stdout);
+    assert!(report.contains("lib.rs:29  shop/shop::Processor#through_trait  Unsupported: trait method targets are outside the first source slice"), "{report}");
+    assert!(report.contains("Methods: 0\n  Calls: 0"), "{report}");
+    assert!(!report.contains("No violations found."), "{report}");
+    assert!(!text(&output.stderr).contains("nothing matches --only"));
+}
+
+#[test]
+fn a_deref_dispatch_is_incomplete_instead_of_using_the_wrapper_as_receiver() {
+    let project = RustFixture::new(include_str!("fixtures/rust-deref-dispatch.rs"));
+    project.compile();
+
+    let output = project.analyze(&["--only=Processor#through_deref"]);
+
+    assert_code(&output, 3);
+    let report = text(&output.stdout);
+    assert!(report.contains("lib.rs:23  shop/shop::Processor#through_deref  Unsupported: receiver projection is outside the first source slice"), "{report}");
+    assert!(report.contains("Methods: 0\n  Calls: 0"), "{report}");
+    assert!(!report.contains("No violations found."), "{report}");
+    assert!(!text(&output.stderr).contains("nothing matches --only"));
+}
+
+#[test]
 fn a_valid_empty_library_is_complete_with_zero_methods_and_calls() {
     let project = RustFixture::new("");
 
@@ -414,6 +444,34 @@ fn rust_container_keeps_an_unsupported_body_incomplete() {
     assert!(text(&output.stdout).contains("Unsupported:"));
 }
 
+#[test]
+#[ignore = "requires Docker engine and a built image; run with --ignored"]
+fn rust_container_keeps_a_trait_dispatch_incomplete() {
+    let project = RustFixture::new(include_str!("fixtures/rust-trait-dispatch.rs"));
+    project.compile_in_container();
+
+    let output = project.in_container(&["--only=Processor#through_trait"]);
+
+    assert_code(&output, 3);
+    let report = text(&output.stdout);
+    assert!(report.contains("lib.rs:29  shop/shop::Processor#through_trait  Unsupported: trait method targets are outside the first source slice"), "{report}");
+    assert!(report.contains("Methods: 0\n  Calls: 0"), "{report}");
+}
+
+#[test]
+#[ignore = "requires Docker engine and a built image; run with --ignored"]
+fn rust_container_keeps_a_deref_dispatch_incomplete() {
+    let project = RustFixture::new(include_str!("fixtures/rust-deref-dispatch.rs"));
+    project.compile_in_container();
+
+    let output = project.in_container(&["--only=Processor#through_deref"]);
+
+    assert_code(&output, 3);
+    let report = text(&output.stdout);
+    assert!(report.contains("lib.rs:23  shop/shop::Processor#through_deref  Unsupported: receiver projection is outside the first source slice"), "{report}");
+    assert!(report.contains("Methods: 0\n  Calls: 0"), "{report}");
+}
+
 struct RustFixture {
     _temporary: tempfile::TempDir,
     path: PathBuf,
@@ -421,7 +479,48 @@ struct RustFixture {
 }
 
 impl RustFixture {
+    fn compile(&self) {
+        let output = Command::new("cargo")
+            .current_dir(&self.path)
+            .args(["check", "--offline", "--locked", "--lib"])
+            .env("CARGO_TARGET_DIR", self.output.join("compiler"))
+            .output()
+            .expect("Cargo checks the dispatch fixture");
+
+        assert!(output.status.success(), "{}", text(&output.stderr));
+    }
+
+    fn compile_in_container(&self) {
+        let output = self
+            .container_command()
+            .args([
+                "--env",
+                "CARGO_TARGET_DIR=/analysis/compiler",
+                "--entrypoint",
+                "cargo",
+            ])
+            .arg(container_image())
+            .args(["check", "--offline", "--locked", "--lib"])
+            .output()
+            .expect("container Cargo checks the dispatch fixture");
+
+        assert!(output.status.success(), "{}", text(&output.stderr));
+    }
+
     fn in_container(&self, arguments: &[&str]) -> Output {
+        self.container_command()
+            .arg(container_image())
+            .args([
+                "--rust=Cargo.toml",
+                "--package=shop",
+                "--target-dir=/analysis",
+            ])
+            .args(arguments)
+            .output()
+            .expect("Docker engine and built image")
+    }
+
+    fn container_command(&self) -> Command {
         let cache = self._temporary.path().join("cargo cache");
         fs::create_dir_all(&cache).expect("container cache");
         fs::create_dir_all(&self.output).expect("container build output");
@@ -430,10 +529,8 @@ impl RustFixture {
             assert!(result.status.success());
             text(&result.stdout).trim().to_owned()
         };
-        let image =
-            std::env::var_os("CONTAINER_IMAGE").unwrap_or_else(|| "law-of-demeter:local".into());
-
-        Command::new("docker")
+        let mut command = Command::new("docker");
+        command
             .args(["run", "--rm", "--pull=never", "--user"])
             .arg(format!("{}:{}", host_id("-u"), host_id("-g")))
             .arg("--mount")
@@ -456,16 +553,8 @@ impl RustFixture {
                 "CARGO_HOME=/cargo-cache",
                 "--env",
                 "JAVA_HOME=/missing-jdk",
-            ])
-            .arg(image)
-            .args([
-                "--rust=Cargo.toml",
-                "--package=shop",
-                "--target-dir=/analysis",
-            ])
-            .args(arguments)
-            .output()
-            .expect("Docker engine and built image")
+            ]);
+        command
     }
     fn extend_manifest(&self, extra: &str) {
         let manifest = self.path.join("Cargo.toml");
@@ -525,6 +614,10 @@ impl RustFixture {
             .output()
             .expect("CLI process runs")
     }
+}
+
+fn container_image() -> std::ffi::OsString {
+    std::env::var_os("CONTAINER_IMAGE").unwrap_or_else(|| "law-of-demeter:local".into())
 }
 
 fn assert_code(output: &Output, expected: i32) {
