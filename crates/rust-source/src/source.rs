@@ -7,6 +7,7 @@ use law_of_demeter_core::application::{
 use law_of_demeter_core::domain::method::{Call, Expression, Method};
 use ra_ap_hir::{
     Adt, AsAssocItem, AssocItem, Function, Impl, ModuleDef, PathResolution, Semantics, Type,
+    Variant,
 };
 use ra_ap_ide_db::RootDatabase;
 use ra_ap_syntax::{AstNode, SyntaxNode, ast, ast::HasArgList};
@@ -216,6 +217,7 @@ impl BodyReader<'_, '_> {
     fn expression(&self, expression: &ast::Expr) -> Result<Expression, AnalysisIssue> {
         match expression {
             ast::Expr::MethodCallExpr(call) => self.call(call).map(Expression::return_of),
+            ast::Expr::FieldExpr(field) => self.field(field),
             ast::Expr::Literal(_) => Ok(Expression::literal()),
             ast::Expr::PathExpr(path) => {
                 let resolution = path
@@ -254,6 +256,71 @@ impl BodyReader<'_, '_> {
                 expression.syntax(),
                 "expression is outside the first source slice",
             )),
+        }
+    }
+
+    fn field(&self, field: &ast::FieldExpr) -> Result<Expression, AnalysisIssue> {
+        let resolved = self
+            .semantics
+            .resolve_field(field)
+            .and_then(|field| field.left())
+            .ok_or_else(|| {
+                self.issue(
+                    AnalysisIssueKind::TargetResolution,
+                    field.syntax(),
+                    "field target is unresolved",
+                )
+            })?;
+        let receiver = field.expr().ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::Parse,
+                field.syntax(),
+                "field receiver is missing",
+            )
+        })?;
+        let receiver_type = self.semantics.type_of_expr(&receiver).ok_or_else(|| {
+            self.issue(
+                AnalysisIssueKind::TypeResolution,
+                receiver.syntax(),
+                "field receiver type is unresolved",
+            )
+        })?;
+        let Variant::Struct(owner) = resolved.parent_def(&self.snapshot.db) else {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                field.syntax(),
+                "field owner is outside the supported scope",
+            ));
+        };
+        if without_references(receiver_type.original).as_adt() != Some(Adt::Struct(owner)) {
+            return Err(self.issue(
+                AnalysisIssueKind::Unsupported,
+                field.syntax(),
+                "field receiver projection is outside the supported scope",
+            ));
+        }
+        let receiver = self.expression(&receiver)?;
+        let name = resolved.name(&self.snapshot.db);
+        if matches!(receiver, Expression::This) {
+            let actual = self
+                .semantics
+                .type_of_expr(&ast::Expr::FieldExpr(field.clone()))
+                .ok_or_else(|| {
+                    self.issue(
+                        AnalysisIssueKind::TypeResolution,
+                        field.syntax(),
+                        "field type is unresolved",
+                    )
+                })?;
+            let type_ref = self
+                .snapshot
+                .type_ref(&actual.original)
+                .map_err(|message| {
+                    self.issue(AnalysisIssueKind::TypeResolution, field.syntax(), &message)
+                })?;
+            Ok(Expression::field(name.as_str(), type_ref))
+        } else {
+            Ok(Expression::field_of(receiver, name.as_str()))
         }
     }
 

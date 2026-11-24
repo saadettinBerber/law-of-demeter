@@ -42,6 +42,39 @@ fn forwarding_to_the_order_is_allowed_while_reaching_its_customer_and_wallet_is_
     );
 }
 
+#[test]
+fn self_held_fields_and_parameters_are_friends_but_another_instances_field_is_not() {
+    let project = load_fixture();
+
+    let report = check(
+        &project,
+        &["on_self", "on_held_field", "on_parameter", "on_peer_field"],
+    );
+
+    assert_eq!(
+        verdicts(&report),
+        [
+            (
+                "on_self".into(),
+                Verdict::allowed("debit", 56, Reason::This)
+            ),
+            (
+                "on_held_field".into(),
+                Verdict::allowed("withdraw", 64, Reason::field("wallet"))
+            ),
+            (
+                "on_parameter".into(),
+                Verdict::allowed("withdraw", 68, Reason::parameter("wallet"))
+            ),
+            (
+                "on_peer_field".into(),
+                Verdict::violation("withdraw", 72, Reason::field_of("wallet"))
+            ),
+        ]
+    );
+    assert_complete(&report);
+}
+
 fn load_fixture() -> RustProject {
     let compiled = Command::new("cargo")
         .args(["check", "--offline", "--locked", "--manifest-path"])
